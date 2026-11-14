@@ -30,6 +30,8 @@ int main(void){
   assert(s.member[i].max_hp==9999&&s.member[i].mp==30u+i&&s.member[i].max_mp==99);
   assert(s.member[i].atb==100u-25u*i&&s.member[i].atb_max==100);
  }
+ assert(s.selected==0);w8(0x22114eb,2);assert(ct_hud_read_state(&s,ram,sizeof ram)&&s.selected==2);
+ w8(0x22114eb,9);assert(ct_hud_read_state(&s,ram,sizeof ram)&&s.selected==-1);
  for(unsigned c=0;c<7;c++){w8(0x2200100,c);w8(0x2200101,0x80);w8(0x2200102,0x80);assert(ct_hud_read_state(&s,ram,sizeof ram));assert(s.member[0].character==(int)c);assert(!s.member[1].present&&!s.member[2].present);}
  setup();w16(0x2210003,0);assert(ct_hud_read_state(&s,ram,sizeof ram));assert(s.member[0].atb==0);
  w8(0x22115d2,200);assert(ct_hud_read_state(&s,ram,sizeof ram));assert(s.member[0].atb==0);
@@ -49,9 +51,9 @@ int main(void){
  ct_hud_draw(guarded+16,&s,faces);
  for(int i=0;i<16;i++)assert(guarded[i]==0xdeadbeef&&guarded[16+CT_HUD_W*CT_HUD_H+i]==0xdeadbeef);
  uint32_t*p=guarded+16;
- assert(p[8*CT_HUD_W+6]==faces[0][0]);assert(p[8*CT_HUD_W+166]==faces[1][0]);assert(p[8*CT_HUD_W+326]==faces[2][0]);
- s.member[0].hp=0;ct_hud_draw(p,&s,faces);unsigned color=p[8*CT_HUD_W+6];assert((color&255)==((color>>8)&255)&&((color>>8)&255)==((color>>16)&255));
- s.member[0].present=0;ct_hud_draw(p,&s,faces);assert(p[8*CT_HUD_W+6]!=faces[0][0]);
+ assert(p[24*CT_HUD_W+5]==faces[0][0]);assert(p[24*CT_HUD_W+165]==faces[1][0]);assert(p[24*CT_HUD_W+325]==faces[2][0]);
+ s.member[0].hp=0;ct_hud_draw(p,&s,faces);unsigned color=p[24*CT_HUD_W+5];assert((color&255)==((color>>8)&255)&&((color>>8)&255)==((color>>16)&255));
+ s.member[0].present=0;ct_hud_draw(p,&s,faces);assert(p[24*CT_HUD_W+5]!=faces[0][0]);
  puts("PASS: live unaligned HP/MP, all seven party identities, ATB countdown/ready/KO, empty slots, invalid pointers/state, immutable RAM and renderer guards");
 }
 '''

@@ -48,6 +48,10 @@
  * only), and the picture is shown shifted from it by what the wider view would pass the room by. A room smaller than
  * the view stays centred in it. The room's BGs (their scroll), the sprite view and the room's clip all move by that
  * shift; the text box, the UI and the battle effects' windows are in screen coordinates and stay. */
+#ifdef EGG_PS5
+#include "../ps5/battle_hud.h"
+static uint32_t portrait_entry;
+#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -659,10 +663,17 @@ static int entry_in_world_slot(uint32_t entry) {
 }
 
 void rt_ws_draw_ui_entry(CPU *cpu) { /* main 0x020345dc (r0 = the entry) */
+#ifdef EGG_PS5
+    uint32_t previous_entry=portrait_entry;portrait_entry=R[0];
+    ctps5_battle_hud_entry(portrait_entry);
+#endif
     int was = drawing_world;
     drawing_world = (next_x || next_y) && entry_in_world_slot(R[0]);
     rt_call_wrapped(cpu, "main", GAME_ADDR(0x020345dcu, 0x020345e8u));
     drawing_world = was;
+#ifdef EGG_PS5
+    portrait_entry=previous_entry;
+#endif
 }
 
 /* In the current call chain, within the scene's draw: the return address into it. */
@@ -750,6 +761,17 @@ static void drift_by(uint32_t cell, int32_t x, int32_t y, int32_t *dx, int32_t *
 
 static void game_draw_cell(CPU *cpu) { rt_call_wrapped(cpu, "main", 0x02019fd4u); } /* the original */
 void rt_ws_draw_cell(CPU *cpu) {
+#ifdef EGG_PS5
+    if(!cpu->resume_pc&&portrait_entry){
+        uint32_t core=rt_r32(rt_r32(CELL_MATRIX_PTR));
+        uint32_t matrix=ram_ptr(core)?rt_r32(core+0x2c):0;
+        if(!matrix)matrix=rt_r32(CELL_DEFAULT_MATRIX);
+        if(ram_ptr(matrix)&&ram_ptr(R[0])){
+            int row=(int32_t)(rt_r32(matrix+0x14)-rt_r32(R[0]+4))/4096-field_rows+next_y;
+            ctps5_battle_hud_cell(portrait_entry,row);
+        }
+    }
+#endif
     if ((!field_rows && !next_x && !next_y) || cpu->resume_pc) {
         game_draw_cell(cpu);
         return;

@@ -957,13 +957,18 @@ static void draw_screens(View *v) {
     draw_fixed_screen_panels(v, internal, cw * n, ch * n, &dest);
 #endif
 #ifdef EGG_PS5
-    SDL_FRect hud_rect;
+    SDL_FRect hud_rect,hud_cover;
     int portrait_hud = v == &primary && main_shown(v) && !sysmenu_is_open() &&
-        ctps5_battle_hud_prepare(ren, &v->battle_hud, &dest, &hud_rect);
+        ctps5_battle_hud_prepare(ren, &v->battle_hud, &dest, cw, ch,
+            SETTING(SET_ZOOM)?(SETTING(SET_ZOOM_UI)?1:2):0, &hud_cover, &hud_rect);
 #endif
     SDL_RenderTexture(ren, internal, NULL, &dest);
 #ifdef EGG_PS5
-    if (portrait_hud) SDL_RenderTexture(ren, v->battle_hud, NULL, &hud_rect);
+    if (portrait_hud) {
+        SDL_SetRenderDrawColor(ren,15,18,48,255);
+        SDL_RenderFillRect(ren,&hud_cover);
+        SDL_RenderTexture(ren, v->battle_hud, NULL, &hud_rect);
+    }
 #endif
 }
 
