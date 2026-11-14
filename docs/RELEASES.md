@@ -1,5 +1,12 @@
 # Release notes and validation
 
+## 0.1.0-rc2 — 14 November 2026
+
+Presentation regression correction; metadata version 01.005.000. RC1 switched Fill screen sides on, which bypasses room-boundary clipping. A user reported overlapping room edges in houses and blurred intro side bars. RC2 restores room clipping by default, migrates RC1's forced fill/framed settings once and removes stretched scene-edge copies from panels. Native wider rendering remains enabled where supported. Saves, input mappings and unrelated settings are retained; later explicit presentation choices are respected.
+
+Host checks exercise actual settings load/save, RC1 migration and panel draw calls without a ROM. The published RC1 source was also rebuilt from a clean directory through both native application folders and passed package/layout regression checks. RC2 rebuilt and relinked successfully, with the clean-room runtime reproduced and 186 imports verified; see the [RC2 build report](RC2-BUILD-REPORT.json). Console confirmation remains pending. Full-playthrough, save/load and sustained 4K60 validation remain outstanding. This is a release candidate, not a confirmed console fix.
+
+
 ## 0.1.0-rc1 — 14 November 2026
 
 Release candidate for the native PS5 home-screen application. Metadata version 01.004.000; title ID PPSA90435.

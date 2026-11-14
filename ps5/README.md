@@ -2,7 +2,7 @@
 
 Native PS5 homebrew integration for **Egg of Time v1.3.5 by Power Pudu**. See the [original PC project](https://github.com/power-pudu/egg-of-time), [credits](../docs/CREDITS.md) and preserved notices.
 
-The current source is **0.1.0-rc1**. The public project contains authored source only. Build locally from your own unmodified Nintendo DS USA YQUE input; the generated game C and statically linked executable remain local.
+The current source is **0.1.0-rc2**. The public project contains authored source only. Build locally from your own unmodified Nintendo DS USA YQUE input; the generated game C and statically linked executable remain local.
 
 - [Build guide and pinned dependencies](../docs/BUILDING.md)
 - [Installation and complete folder layout](../docs/INSTALLING.md)

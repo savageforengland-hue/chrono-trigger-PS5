@@ -8,7 +8,7 @@ Native PS5 homebrew port of **Chrono Trigger for Nintendo DS (USA)**, based on *
 
 ## Release status
 
-**0.1.0-rc1 — release candidate, 14 November 2026.** Earlier PS5 builds reached gameplay and audio on the target console. The candidate includes native scanout fixes, a direct-memory heap, DualSense prompts and adaptive widescreen presentation. Console save/load, extended gameplay, the latest presentation changes and sustained 4K60 still need hardware validation. This is not a stable release.
+**0.1.0-rc2 — release candidate, 14 November 2026.** Earlier PS5 builds reached gameplay and audio on the target console. The candidate includes native scanout fixes, a direct-memory heap, DualSense prompts and adaptive widescreen presentation. RC2 restores room-boundary clipping and removes blurred scene-edge side copies after an RC1 regression report. Console save/load, extended gameplay, the latest presentation changes and sustained 4K60 still need hardware validation. This is not a stable release.
 
 This is the **Nintendo DS version**, not the PS1 version. Functions are translated to C and compiled ahead of time. The renderer uses a software framebuffer with native VideoOut. Output supports high resolutions; sustained 4K at 60 fps is a target, not a measured guarantee. See [release notes](docs/RELEASES.md).
 

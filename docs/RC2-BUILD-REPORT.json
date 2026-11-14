@@ -1,0 +1,21 @@
+{
+  "project": "CTPS5",
+  "version": "0.1.0-rc2",
+  "date": "2026-11-14",
+  "status": "release candidate; console confirmation pending",
+  "metadata_version": "01.005.000",
+  "base_source_clean_build": "RC1 public source built from scratch through main and optional probe folders",
+  "rc2_build": "changed runtime objects rebuilt and native package relinked successfully",
+  "native_package": "clean-room runtime reproduced; 186 imports verified; signed layout audited",
+  "settings_tests": "legacy and RC1 load/save migration passed; room clipping restored by default; user choices preserved after migration",
+  "panel_tests": "clean panel bounds, zero scene-edge texture copies; texture state unchanged",
+  "diagnostics_tests": "11 host cases passed",
+  "hardware_report": "User reported repeated interior room edges and blurred intro bars on RC1. RC2 changes have not been tested on PS5.",
+  "regression_basis": "RC1 forced fillsides=yes, disabling normal room clip; RC2 defaults/migration restore fillsides=no and screenfit=original; optional framed mode uses solid panels",
+  "public_distribution": "authored source only; no ROM, generated game C, extracted assets, saves or game executable",
+  "local_build_digests": {
+    "eboot.bin": "bf95944250fb81926adf5d6fa4b221151b90aa566d49b96237df1a0b96b0167f",
+    "sce_module/libc.prx": "e6ff45d16adf687855cc3b33b0c8a4132b6504360b221e0a34c7e99fb3ba0036"
+  },
+  "performance_claim": "sustained 4K60 unmeasured"
+}

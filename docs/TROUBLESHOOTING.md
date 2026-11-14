@@ -11,7 +11,7 @@ The app's logger can only run after the loader reaches the executable. A loader 
 Primary: `/data/eggoftime/eggoftime.log`.
 Fallback: `/data/eggoftime-startup.log`. Restricted environments may use sandbox, `/download0` or `/temp0` fallback paths recorded by the logger. The filename retains the historical Egg of Time name.
 
-The candidate begins with `CTPS5 0.1.0-rc1 entry reached` and uses `[CTPS5 RC1]` for kernel diagnostics. Startup failures report their actual initialization stage. If no file is created, check launcher/debug logs and whether the application reached its entry point.
+The candidate begins with `CTPS5 0.1.0-rc2 entry reached` and uses `[CTPS5 RC2]` for kernel diagnostics. Startup failures report their actual initialization stage. If no file is created, check launcher/debug logs and whether the application reached its entry point.
 
 ## Scrambled graphics
 
@@ -19,8 +19,12 @@ The port includes a scanout layout fix for native tiled output. Rebuild the comp
 
 ## Narrow scenes
 
-Some original layouts are fixed. Select Matching panels, Original, Crop or Stretch in System Settings; see [controls](CONTROLS.md). Cropping may hide UI and stretching changes proportions.
+Some original layouts are fixed. Select Clean panels, Original, Crop or Stretch in System Settings; see [controls](CONTROLS.md). Cropping may hide UI and stretching changes proportions.
 
 ## Report a problem
 
 Include CTPS5 version, firmware, kstuff / Shadow Mount versions, display mode, reproduction steps, scene, configuration changes and a sanitized log. Remove personal paths and identifiers. Do not attach ROMs, saves, extracted assets or generated game code. The project does not yet have full-playthrough or sustained 4K60 validation.
+
+## Repeated interior walls or blurred intro borders (RC1 regression)
+
+RC1 enabled Fill screen sides, bypassing normal room-boundary clipping, and drew stretched edge columns in fixed-scene side panels. RC2 turns that forced setting off and removes blurred edge copies. Existing RC1 settings migrate once; saves and unrelated settings remain. For an immediate RC1 workaround, fully close the game and change `fillsides = no` and `screenfit = original` in `/data/eggoftime/eggoftime.ini`, or use the equivalent System Settings options. Keep the aspect ratio at 16:9. Actual PS5 confirmation of RC2 remains pending.

@@ -17,15 +17,15 @@ At the title screen press Create for System Settings. In gameplay press Options,
 
 ## Widescreen
 
-The candidate enables 16:9 and matching side panels once; later user choices are retained. Some maps have enough off-screen content for wider rendering, while menus, dialogue, movies and some gameplay scenes have fixed original layouts.
+RC2 enables 16:9 with room-boundary clipping and plain borders. An RC1 update turns its forced room-edge filling off and changes its matching-panel default to Original once; aspect, minimap and crop/stretch choices are retained. Later user choices are retained. Some maps have enough off-screen content for wider rendering, while menus, dialogue, movies and some gameplay scenes have fixed original layouts.
 
 Choose a fixed-screen presentation in System Settings:
 
 | Mode | Result |
 | --- | --- |
-| Matching panels (default) | Proportional central image, with dim matching side panels |
-| Original | Original proportions with plain borders |
+| Clean panels | Proportional central image, with solid navy side panels |
+| Original (default) | Original proportions with plain borders |
 | Crop | Fills the screen by cropping; may hide content |
 | Stretch | Fills the screen by changing proportions |
 
-Matching panels do not create extra map geometry. System Settings stays proportional for readable text. Use Original if you prefer the unmodified aspect ratio. Supported wide gameplay areas can still render wider independently of fixed-screen presentation.
+Side panels do not create extra map geometry. Blurred copies of scene edges have been removed. Leave Fill screen sides off for room-boundary clipping; enabling it can expose adjacent or wrapped tiles in small interiors. System Settings stays proportional for readable text. Use Original if you prefer the unmodified aspect ratio. Supported wide gameplay areas can still render wider independently of fixed-screen presentation.

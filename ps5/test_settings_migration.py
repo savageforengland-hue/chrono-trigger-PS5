@@ -16,15 +16,26 @@ int main(int argc,char **argv){
  fputs("aspect = original\nfillsides = no\nscreenfit = crop\nminimap = off\n",f);fclose(f);
  load_settings();assert(!ct_wide_profile && SETTING(SET_ASPECT)==ASPECT_ORIGINAL && SETTING(SET_FILL)==0 && SETTING(SET_MINIMAP)==0);
  assert(apply_ctps5_wide_profile()==1 && log_count==1);
- assert(SETTING(SET_ASPECT)==ASPECT_16_9 && SETTING(SET_FILL)==1 && SETTING(SET_SCREEN_FIT)==1 && SETTING(SET_MINIMAP)==0);
+ assert(SETTING(SET_ASPECT)==ASPECT_16_9 && SETTING(SET_FILL)==0 && SETTING(SET_SCREEN_FIT)==0 && SETTING(SET_MINIMAP)==0);
  assert(apply_ctps5_wide_profile()==0 && log_count==1);
  save_settings();ct_wide_profile=0;SETTING(SET_ASPECT)=ASPECT_ORIGINAL;load_settings();
- assert(ct_wide_profile==1 && SETTING(SET_ASPECT)==ASPECT_16_9);
+ assert(ct_wide_profile==2 && SETTING(SET_ASPECT)==ASPECT_16_9);
  SETTING(SET_ASPECT)=ASPECT_ORIGINAL;SETTING(SET_FILL)=0;SETTING(SET_SCREEN_FIT)=2;save_settings();
  ct_wide_profile=0;SETTING(SET_FILL)=1;SETTING(SET_SCREEN_FIT)=1;load_settings();
  assert(!apply_ctps5_wide_profile());
  assert(SETTING(SET_ASPECT)==ASPECT_ORIGINAL && SETTING(SET_FILL)==0 && SETTING(SET_SCREEN_FIT)==2 && SETTING(SET_MINIMAP)==0);
- puts("PASS: actual legacy settings migrate once; unrelated settings and subsequent user choices survive save/reload");
+ // A real RC1 settings file carries the bad forced defaults. Correct those
+ // once while retaining the selected aspect, minimap and custom bindings file.
+ f=fopen(ini_path,"w");assert(f);
+ fputs("ctwide = 1\naspect = original\nfillsides = yes\nscreenfit = framed\nminimap = off\n",f);fclose(f);
+ ct_wide_profile=0;load_settings();assert(ct_wide_profile==1);
+ assert(apply_ctps5_wide_profile()==1 && SETTING(SET_FILL)==0 && SETTING(SET_SCREEN_FIT)==0);
+ assert(SETTING(SET_ASPECT)==ASPECT_ORIGINAL && SETTING(SET_MINIMAP)==0);
+ save_settings();ct_wide_profile=0;load_settings();assert(ct_wide_profile==2 && !apply_ctps5_wide_profile());
+ // Later explicit user choices remain intact after the migration.
+ SETTING(SET_FILL)=1;SETTING(SET_SCREEN_FIT)=3;save_settings();ct_wide_profile=0;load_settings();
+ assert(!apply_ctps5_wide_profile() && SETTING(SET_FILL)==1 && SETTING(SET_SCREEN_FIT)==3);
+ puts("PASS: legacy and RC1 profiles restore room clipping and clean borders once; aspect, minimap and subsequent choices survive save/reload");
 }
 '''
 def main():

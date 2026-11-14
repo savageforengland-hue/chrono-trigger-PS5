@@ -80,7 +80,7 @@ static const char *const aspect_names[] = {"original", "5x3", "16x9", "ultrawide
 static const char *const aspect_labels[] = {"Original (4:3)", "5:3", "16:9", "Ultrawide (21:9)", "Fit screen"};
 static const float aspect_ratios[] = {4.0f / 3, 5.0f / 3, 16.0f / 9, 21.0f / 9, 0}; /* 0: the window's */
 static const char *const screen_fit_names[] = {"original", "framed", "crop", "stretch"};
-static const char *const screen_fit_labels[] = {"Original", "Matching panels", "Fill (crop)", "Fill (stretch)"};
+static const char *const screen_fit_labels[] = {"Original", "Clean panels", "Fill (crop)", "Fill (stretch)"};
 static const char *const zoom_names[] = {"off", "90", "85", "77"};
 static const char *const zoom_labels[] = {"Off", "90%", "85%", "77%"};
 static const char *const zoom_ui_names[] = {"smaller", "original"};
@@ -126,7 +126,7 @@ static Setting settings[SET_COUNT] = {
     [SET_SECOND] = {"secondscreen", "Second screen window", 2, 0, onoff_names, onoff_labels},
     [SET_RESOLUTION] = {"resolution", "Internal resolution", RES_MAX + 1, 0, res_names, NULL},
     [SET_ASPECT] = {"aspect", "Aspect ratio", 5, ASPECT_16_9, aspect_names, aspect_labels},
-    [SET_SCREEN_FIT] = {"screenfit", "Fixed-screen fit", 4, 1, screen_fit_names, screen_fit_labels},
+    [SET_SCREEN_FIT] = {"screenfit", "Fixed-screen fit", 4, 0, screen_fit_names, screen_fit_labels},
     /* Zoom out: more rows in the same place, in the field and the world map (video.c). */
     [SET_ZOOM] = {"zoomout", "Zoom out", 4, 0, zoom_names, zoom_labels},
     /* Zoomed out, the text boxes and the battle HUD: zoomed out too, or at their original size (draw_ui). */
@@ -338,7 +338,7 @@ static void load_settings(void) {
         val[len] = 0;
         int v;
 #ifdef EGG_PS5_CORE
-        if (!strcmp(key, "ctwide")) ct_wide_profile = val[0] == '1';
+        if (!strcmp(key, "ctwide")) ct_wide_profile = !strcmp(val, "2") ? 2 : !strcmp(val, "1") ? 1 : 0;
 #endif
         if (!strcmp(key, "shader")) snprintf(saved_shader, sizeof saved_shader, "%s", val);
         if (!strcmp(key, "swap")) swapped = val[0] == '1';
@@ -361,7 +361,7 @@ static void save_settings(void) {
     fprintf(f, "# Egg of Time display settings (System Settings menu; F2 layout, F3 swap screens, F4 filter)\n");
     fprintf(f, "swap = %d\n", swapped);
 #ifdef EGG_PS5_CORE
-    fprintf(f, "ctwide = 1\n");
+    fprintf(f, "ctwide = %d\n", ct_wide_profile);
 #endif
     if (second_rect.w) fprintf(f, "secondplace = %d, %d, %d, %d\n", second_rect.x, second_rect.y, second_rect.w, second_rect.h);
     for (int i = 0; i < SET_COUNT; i++) fprintf(f, "%s = %s\n", settings[i].key, settings[i].names[settings[i].value]);
@@ -372,12 +372,15 @@ static void save_settings(void) {
 
 #ifdef EGG_PS5_CORE
 static int apply_ctps5_wide_profile(void) {
-    if (ct_wide_profile) return 0;
-    SETTING(SET_ASPECT) = ASPECT_16_9;
-    SETTING(SET_FILL) = 1;
-    SETTING(SET_SCREEN_FIT) = 1;
-    ct_wide_profile = 1;
-    SDL_Log("CTPS5 widescreen profile applied: 16:9, room-edge filling, proportional fixed-screen panels");
+    if (ct_wide_profile >= 2) return 0;
+    /* RC1 forced out-of-room fill on: small interiors can then expose wrapped
+     * or adjacent room tiles. Restore the renderer's room-boundary clipping.
+     * Keep the chosen aspect and crop/stretch modes when upgrading RC1. */
+    if (!ct_wide_profile) SETTING(SET_ASPECT) = ASPECT_16_9;
+    SETTING(SET_FILL) = 0;
+    if (!ct_wide_profile || SETTING(SET_SCREEN_FIT) == 1) SETTING(SET_SCREEN_FIT) = 0;
+    ct_wide_profile = 2;
+    SDL_Log("CTPS5 widescreen profile v2: room-boundary clipping; clean fixed-screen borders");
     return 1;
 }
 #endif
@@ -479,28 +482,17 @@ static SDL_FRect dest_rect(const View *v) {
 }
 
 #ifdef EGG_PS5_CORE
-/* Decorative side panels for fixed-size scenes; the central picture keeps
- * its own proportions. This does not invent a wider gameplay view. */
+/* Optional clean side panels for fixed-size scenes. Never stretch copies of
+ * room edges into the border: those look like blurred or duplicated scenery. */
 static void draw_fixed_screen_panels(View *v, SDL_Texture *picture, int width, int height, const SDL_FRect *dest) {
+    (void)picture; (void)width; (void)height;
     if (v != &primary || (SETTING(SET_SCREEN_FIT) != 1 && !sysmenu_is_open()) || SETTING(SET_ASPECT) == ASPECT_ORIGINAL || dest->x < 1) return;
     int ow, oh;
     SDL_GetRenderOutputSize(v->ren, &ow, &oh);
     SDL_FRect panels[2] = {{0, 0, dest->x, (float)oh},
                           {dest->x + dest->w, 0, ow - dest->x - dest->w, (float)oh}};
-    SDL_BlendMode blend;
-    Uint8 alpha;
-    SDL_GetTextureBlendMode(picture, &blend);
-    SDL_GetTextureAlphaMod(picture, &alpha);
-    SDL_SetTextureBlendMode(picture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(picture, 72);
-    for (int side = 0; side < 2; ++side) {
-        SDL_SetRenderDrawColor(v->ren, 8, 15, 27, 255);
-        SDL_RenderFillRect(v->ren, &panels[side]);
-        SDL_FRect source = {side ? (float)width - 1 : 0, 0, 1, (float)height};
-        SDL_RenderTexture(v->ren, picture, &source, &panels[side]);
-    }
-    SDL_SetTextureAlphaMod(picture, alpha);
-    SDL_SetTextureBlendMode(picture, blend);
+    SDL_SetRenderDrawColor(v->ren, 8, 15, 27, 255);
+    for (int side = 0; side < 2; ++side) SDL_RenderFillRect(v->ren, &panels[side]);
 }
 #endif
 

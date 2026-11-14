@@ -59,13 +59,13 @@ int main(void){
  assert(ctps5_present_rect(0,0,0,0,0,0,0).w==0);
  SDL_Texture texture={7,93};SDL_FRect target={normal.x,normal.y,normal.w,normal.h};
  draw_fixed_screen_panels(&primary,&texture,768,576,&target);
- assert(fills==2&&copies==2&&texture.blend==7&&texture.alpha==93);
+ assert(fills==2&&copies==0&&texture.blend==7&&texture.alpha==93);
  assert(near(drawn[0].x,0)&&near(drawn[0].w,480)&&near(drawn[1].x,3360)&&near(drawn[1].w,480));
  settings[SET_SCREEN_FIT]=0;fills=copies=0;draw_fixed_screen_panels(&primary,&texture,768,576,&target);assert(!fills&&!copies);
- settings[SET_SCREEN_FIT]=2;menu_open=1;draw_fixed_screen_panels(&primary,&texture,768,576,&target);assert(fills==2&&copies==2);
+ settings[SET_SCREEN_FIT]=2;menu_open=1;draw_fixed_screen_panels(&primary,&texture,768,576,&target);assert(fills==2&&copies==0);
  fills=copies=0;menu_open=0;
  settings[SET_SCREEN_FIT]=1;settings[SET_ASPECT]=ASPECT_ORIGINAL;draw_fixed_screen_panels(&primary,&texture,768,576,&target);assert(!fills&&!copies);
- puts("PASS: proportional framing, crop/stretch choices, native-wide and original-aspect preservation, integer scaling, panel bounds and texture state restoration");
+ puts("PASS: proportional framing, crop/stretch choices, native-wide and original-aspect preservation, integer scaling, clean panel bounds, no scene-edge copies and unchanged texture state");
 }
 '''
 def main():

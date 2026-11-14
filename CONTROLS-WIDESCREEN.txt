@@ -1,49 +1,6 @@
-CTPS5: controls and widescreen
-==============================
-Existing bindings are preserved. With the original defaults:
+CTPS5 controls and widescreen
 
-Game input    DualSense
-A             Circle (○): confirm in the runtime menu
-B             Cross (×): back in the runtime menu
-X             Triangle (△)
-Y             Square (□)
-L / R         L1 / R1
-START         Options
-SELECT        Create
-Directions    D-pad or left stick
-Fast forward  R2
-Exit game     Hold Create for 3 seconds
-
-At the title menu, press Create for System Settings. In the field, pause
-with Options and then press Create. Controls remaps inputs and keeps the
-symbols aligned with the actual binding. During rebinding, press the desired
-button or wait five seconds to cancel. Save-state/load-state controls start
-unassigned and can be assigned there. Original in-game saving is separate.
-
-DualSense glyphs are used in CTPS5's runtime UI/help, including its back and
-settings prompts. Some button letters baked into the original game artwork
-remain original; the table above maps those letters to physical buttons.
-
-Widescreen
-----------
-Where the engine has more map data, the chosen aspect ratio asks it to draw
-a genuinely wider view. Fill screen sides repeats room-edge tiles for some
-bounded rooms; it does not add new level geometry. Disable that option if
-you prefer the original room boundaries. The change persists.
-
-Fixed-size menus and scenes use System Settings > Fixed-screen fit:
-- Matching panels (default): proportional central picture with dim matching
-  side panels. Menu text and artwork keep their proportions.
-- Original: preserve the original framing with black bars.
-- Fill (crop): proportional full-width image; the top/bottom can be cut off,
-  including UI. This is a deliberate user choice.
-- Fill (stretch): fill the output; original proportions change.
-
-The new 16:9/room-fill profile applies once, identified by ctwide=1 in
-/data/eggoftime/eggoftime.ini. Subsequent user choices are respected. Selecting
-Original aspect ratio disables the fixed-screen filling behavior. The CTPS5
-System Settings menu stays proportionally readable even when crop/stretch is
-selected for game screens.
-
-This provides consistent presentation choices, not new widescreen artwork
-for every original scene. No sustained 60fps performance claim is made.
+See docs/CONTROLS.md for current input mappings and presentation options.
+RC2 uses room-boundary clipping with clean borders by default, preserving
+widescreen for supported areas. Original, Clean panels, Crop and Stretch
+are selectable. Fixed scenes and the intro retain their original layout.
