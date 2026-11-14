@@ -112,6 +112,9 @@ static void load(void) {
             } else if (!strcmp(dev, "pad")) {
                 SDL_GamepadButton b = SDL_GetGamepadButtonFromString(val);
                 SDL_GamepadAxis a = SDL_GetGamepadAxisFromString(val);
+#ifdef EGG_PS5
+                if(b==SDL_GAMEPAD_BUTTON_LEFT_STICK||b==SDL_GAMEPAD_BUTTON_RIGHT_STICK)continue;
+#endif
                 if (none) binds[i].pad = PAD_NONE;
                 else if (b != SDL_GAMEPAD_BUTTON_INVALID) binds[i].pad = b;
                 else if (a == SDL_GAMEPAD_AXIS_LEFT_TRIGGER) binds[i].pad = PAD_LT;
@@ -310,6 +313,9 @@ int controls_capture(const SDL_Event *e) {
         if (e->gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER) b = PAD_LT;
         if (e->gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) b = PAD_RT;
     }
+#ifdef EGG_PS5
+    if(b==SDL_GAMEPAD_BUTTON_LEFT_STICK||b==SDL_GAMEPAD_BUTTON_RIGHT_STICK)return 1;
+#endif
     if (b == PAD_NONE) return 0;
     if (capture_pad && bind_pad(capture_action, b)) {
         capture_action = -1;

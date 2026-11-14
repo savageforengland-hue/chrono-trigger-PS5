@@ -11,6 +11,9 @@
 #include "rt.h"
 #include "single_screen.h"
 #include "video.h"
+#ifdef EGG_PS5
+#include "system_menu.h"
+#endif
 
 uint64_t rt_frame_count;
 
@@ -349,6 +352,17 @@ static void park_on_quit(void) {
     for (;;) SDL_Delay(1000);
 }
 
+#ifdef EGG_PS5
+/* Park at a generated-code poll, outside the renderer's publication lock.
+ * Rebase the host clock on resume: no battle/ATB catch-up after the menu. */
+static void park_on_menu(void){
+    if(!sysmenu_pauses_game())return;
+    Uint64 since=SDL_GetTicksNS();
+    while(sysmenu_pauses_game()){park_on_quit();SDL_Delay(5);}
+    base_ns+=SDL_GetTicksNS()-since;
+}
+#endif
+
 int rt_stop_game(uint32_t timeout_ms) {
     SDL_SetAtomicInt(&quit, 1);
     rt_poll_pending = 1;
@@ -389,6 +403,9 @@ void rt_poll(CPU *cpu) {
     rt_poll_pending = 0;
     if (rt_state_request) rt_state_poll(cpu);
     park_on_quit();
+#ifdef EGG_PS5
+    park_on_menu();
+#endif
     sched_update();
     /* Like hardware, re-enter the handler while interrupts remain pending: the SDK handler services one
      * source per entry (the lowest bit), so a frequent source such as HBlank must not starve the rest. */
@@ -412,6 +429,9 @@ void rt_halt(CPU *cpu) {
     game_waiting = 1;
     for (;;) {
         park_on_quit();
+#ifdef EGG_PS5
+        park_on_menu();
+#endif
         sched_update();
         if (irq_wanted()) break;
         uint64_t cycles = next_event_delay();

@@ -42,6 +42,13 @@
 #include "ui_text.h"
 #include "video.h"
 
+#ifdef EGG_PS5
+#include "../ps5/mod_menu.h"
+#define HOST_MENU 100
+static int host_toggle,hub_page,hub_cursor,mods_page,mods_cursor;
+static SDL_AtomicInt host_paused;
+void sysmenu_host_toggle(void){host_toggle=1;}
+#endif
 #define REPEAT_DELAY_MS 400
 #define REPEAT_MS 110
 #define RESUME_MS 100 /* START held for the game after closing from the pause */
@@ -50,7 +57,12 @@
 #define ROW_CHEATS (SET_COUNT + 1)
 #define ROW_CHEEVOS (SET_COUNT + 2)
 #define ROW_DUMP (SET_COUNT + 3)
+#ifdef EGG_PS5
+#define ROW_MODS (SET_COUNT + 4)
+#define ROW_COUNT (SET_COUNT + 5)
+#else
 #define ROW_COUNT (SET_COUNT + 4)
+#endif
 #define ROW_RESET CTL_COUNT /* the Controls page's last row */
 #define ROWS_SHOWN 8        /* between the header and the footer */
 #define CH_SLOT 2           /* rows an achievement takes on the RetroAchievements page */
@@ -92,6 +104,9 @@ static const char *const descriptions[ROW_COUNT] = {
     [ROW_CHEATS] = "EXP and TP multipliers, infinite HP, MP, money.",
     [ROW_CHEEVOS] = "Achievements of retroachievements.org.",
     [ROW_DUMP] = "Saves the graphics for mods, as PNG.",
+#ifdef EGG_PS5
+    [ROW_MODS] = "Battle HUD, textures and installed packs.",
+#endif
 };
 
 enum { CONFIRM_NONE, CONFIRM_LANGUAGE, CONFIRM_DUMP };
@@ -113,7 +128,7 @@ static Uint64 repeat_at, resume_until;
 /* The rows of the page shown: the cheats on the Cheats page, else the settings and the actions after them. */
 static int row_shown(int i) {
 #ifdef EGG_PS5_CORE
-    if (i == ROW_CHEEVOS) return 0;
+    if (i == ROW_CHEEVOS || i == SET_MODS) return 0;
 #endif
     if (cheats_page) return i >= SET_CHEATS && i < SET_COUNT;
     return i >= SET_COUNT || (i < SET_CHEATS && display_setting_shown(i));
@@ -225,6 +240,22 @@ static uint32_t input(uint32_t keys) {
     uint32_t pressed = keys & ~prev_keys;
     Uint64 now = SDL_GetTicks();
     prev_keys = keys;
+#ifdef EGG_PS5
+    if(host_toggle){
+        host_toggle=0;
+        if(place!=SS_MENU_NONE){
+            if(typing)typing_end();
+            controls_capture_cancel();
+            place=SS_MENU_NONE;blocked=keys;hub_page=mods_page=0;
+        }else{
+            place=HOST_MENU;hub_page=1;hub_cursor=0;mods_page=0;
+            cursor=top=confirm=controls_page=cheevos_page=cheats_page=0;
+            while(!row_shown(cursor))cursor++;
+            blocked=keys;released_wait=1;
+        }
+        return 0;
+    }
+#endif
     if (place == SS_MENU_NONE) {
         if ((pressed & KEY_SELECT) && (place = ss_menu_place()) != SS_MENU_NONE) {
             cursor = top = confirm = controls_page = cheevos_page = cheats_page = 0;
@@ -241,7 +272,11 @@ static uint32_t input(uint32_t keys) {
         act |= dirs;
         repeat_at = now + REPEAT_MS;
     }
-    int left = ss_menu_place() != place; /* the game moved on */
+    int left =
+#ifdef EGG_PS5
+        place!=HOST_MENU&&
+#endif
+        ss_menu_place() != place; /* the game moved on */
     if (typing) {
         if (!left) return 0;
         typing_end();
@@ -258,6 +293,28 @@ static uint32_t input(uint32_t keys) {
         released_wait = 0;
         act = 0;
     }
+#ifdef EGG_PS5
+    if(hub_page){
+        if(act&KEY_UP)hub_cursor=(hub_cursor+3)%4;
+        if(act&KEY_DOWN)hub_cursor=(hub_cursor+1)%4;
+        if((act&(KEY_B|KEY_SELECT))||((act&KEY_A)&&hub_cursor==3)){
+            place=SS_MENU_NONE;hub_page=0;blocked=keys;
+        }else if(act&KEY_A){
+            hub_page=0;
+            if(hub_cursor==1){mods_page=1;mods_cursor=0;egg_ps5_mod_menu_refresh();}
+            if(hub_cursor==2){controls_page=1;ctl_cursor=ctl_top=0;ctl_pad=1;}
+        }
+        return 0;
+    }
+    if(mods_page){
+        if(act&(KEY_B|KEY_SELECT)){mods_page=0;if(place==HOST_MENU)hub_page=1;return 0;}
+        int n=egg_ps5_mod_menu_count();
+        if(act&KEY_UP)mods_cursor=(mods_cursor+n-1)%n;
+        if(act&KEY_DOWN)mods_cursor=(mods_cursor+1)%n;
+        if(act&(KEY_LEFT|KEY_RIGHT|KEY_A))egg_ps5_mod_menu_change(mods_cursor,act&KEY_LEFT?-1:1);
+        return 0;
+    }
+#endif
     if (confirm && !left) {
         if (act & (KEY_LEFT | KEY_RIGHT | KEY_UP | KEY_DOWN)) yes = !yes;
         if (act & (KEY_A | KEY_B)) {
@@ -277,6 +334,9 @@ static uint32_t input(uint32_t keys) {
     }
     if (controls_page && !left) {
         controls_input(act);
+#ifdef EGG_PS5
+        if(place==HOST_MENU&&!controls_page)hub_page=1;
+#endif
         return 0;
     }
     if (cheevos_page && !left) {
@@ -287,6 +347,9 @@ static uint32_t input(uint32_t keys) {
         cheats_page = 0, cursor = settings_cursor, top = settings_top;
         return 0;
     }
+#ifdef EGG_PS5
+    if(place==HOST_MENU&&(act&(KEY_B|KEY_SELECT))){hub_page=1;return 0;}
+#endif
     if ((act & (KEY_B | KEY_SELECT)) || left) {
         if (place == SS_MENU_PAUSE && !left) resume_until = now + RESUME_MS;
         place = SS_MENU_NONE;
@@ -296,6 +359,11 @@ static uint32_t input(uint32_t keys) {
     if (gfxdump_running()) return 0; /* the progress covers the rows */
     if (act & KEY_UP) do cursor = (cursor + ROW_COUNT - 1) % ROW_COUNT; while (!row_shown(cursor));
     if (act & KEY_DOWN) do cursor = (cursor + 1) % ROW_COUNT; while (!row_shown(cursor));
+#ifdef EGG_PS5
+    if(cursor==ROW_MODS){
+        if(act&KEY_A){mods_page=1;mods_cursor=0;egg_ps5_mod_menu_refresh();}
+    }else
+#endif
     if (cursor == ROW_CONTROLS) {
         if (act & KEY_A) {
             controls_page = 1; ctl_cursor = ctl_top = 0;
@@ -331,10 +399,17 @@ uint32_t sysmenu_input(uint32_t keys) {
     }
     uint32_t game_keys = input(keys);
     SDL_SetAtomicInt(&open_now, place != SS_MENU_NONE);
+#ifdef EGG_PS5
+    SDL_SetAtomicInt(&host_paused,place==HOST_MENU);
+#endif
     return game_keys;
 }
 
 int sysmenu_is_open(void) { return SDL_GetAtomicInt(&open_now); }
+#ifdef EGG_PS5
+/* Atomic publication happens at the end of sysmenu_input; only the host owns place. */
+int sysmenu_pauses_game(void){return SDL_GetAtomicInt(&host_paused);}
+#endif
 
 /* ---- drawing ---- */
 
@@ -450,6 +525,9 @@ static void centered(uint32_t *s, const char *text, Rect r, uint32_t color) {
 
 /* A row's label and value: a display setting's, or an action's (Controls, Cheats, RetroAchievements, Dump graphics). */
 static const char *row_title(int i) {
+#ifdef EGG_PS5
+    if(i==ROW_MODS)return "Mods";
+#endif
     if (i == ROW_CONTROLS) return ui_text("Controls");
     if (i == ROW_CHEATS) return ui_text("Cheats");
     if (i == ROW_CHEEVOS) return "RetroAchievements";
@@ -460,6 +538,9 @@ static const char *row_value(int i, int w) {
     static char buf[16];
     int done, total;
     float share;
+#ifdef EGG_PS5
+    if(i==ROW_MODS)return ui_text("A: open");
+#endif
     if (i == ROW_CONTROLS) return ui_text("A: change");
     if (i == ROW_CHEATS) { /* On while any cheat is */
         int on = 0;
@@ -704,6 +785,26 @@ void sysmenu_draw(uint32_t *s) {
         for (int x = 0; x < SCREEN_W; x++) s[y * SCREEN_W + x] = (y & 1) ? rgb(24, 24, 24) : rgb(16, 16, 16);
     }
     panel(s, (Rect){0, 0, 256, 24}, &BAR);
+#ifdef EGG_PS5
+    if(hub_page){
+        static const char*names[]={"Settings","Mods","Controls","Resume game"};
+        ui_draw_text(s,"CTPS5",(SCREEN_W-ui_text_width("CTPS5"))/2,8,WHITE);
+        for(int i=0;i<4;i++){
+            Rect r={28,30+i*29,200,24};int sel=i==hub_cursor;
+            panel(s,r,sel?&BUTTON_LIT:&BUTTON);if(sel)frame(s,r,TEAL);
+            centered(s,ui_text(names[i]),(Rect){r.x,r.y+4,r.w,r.h},sel?YELLOW:WHITE);
+        }
+    }else if(mods_page){
+        ui_draw_text(s,"Mods",(SCREEN_W-ui_text_width("Mods"))/2,8,WHITE);
+        for(int i=0;i<egg_ps5_mod_menu_count();i++){
+            int y=30+i*25;Rect lr={6,y,112,22},vr={122,y,128,22};
+            panel(s,lr,i==mods_cursor?&BUTTON_LIT:&BUTTON);panel(s,vr,&BUTTON);
+            if(i==mods_cursor)frame(s,vr,TEAL);
+            centered(s,egg_ps5_mod_menu_title(i),(Rect){lr.x,lr.y+3,lr.w,lr.h},i==mods_cursor?YELLOW:WHITE);
+            centered(s,fit(egg_ps5_mod_menu_value(i),112),(Rect){vr.x,vr.y+3,vr.w,vr.h},WHITE);
+        }
+    }else
+#endif
     if (controls_page) {
         draw_controls(s);
     } else if (cheevos_page) {
@@ -759,6 +860,10 @@ void sysmenu_draw(uint32_t *s) {
                                              "A: change.  Left/Right: key or pad.");
 #endif
     else if (cheevos_page) footer = cheevos_footer();
+#ifdef EGG_PS5
+    if(hub_page)footer="Game paused. L3 + R3: close.";
+    else if(mods_page)footer=egg_ps5_mod_menu_description(mods_cursor);
+#endif
     panel(s, (Rect){0, 166, 222, 26}, &BAR);
     draw_lines(s, footer, 8, ui_text_width(footer) <= 208 ? 175 : 170, 208, WHITE);
     panel(s, (Rect){224, 166, 32, 26}, &BAR);

@@ -20,3 +20,9 @@ void sysmenu_draw(uint32_t *screen);
 #define SELECT_BUTTON_W 36
 #define SELECT_BUTTON_H 13
 void sysmenu_draw_select_button(uint32_t *screen, int x1, int y1);
+
+#ifdef EGG_PS5
+/* Host menu can open anywhere; L3+R3 toggles the settings/mods hub. */
+void sysmenu_host_toggle(void);
+int sysmenu_pauses_game(void);
+#endif

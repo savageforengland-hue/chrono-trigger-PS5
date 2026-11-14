@@ -24,7 +24,7 @@ file(GLOB RC_SOURCES "${EGG_ROOT}/ps5/vendor/rcheevos/src/*.c"
     "${EGG_ROOT}/ps5/vendor/rcheevos/src/rhash/*.c")
 list(FILTER RC_SOURCES EXCLUDE REGEX "/(rc_libretro|cdreader|hash_disc|hash_zip|hash_encrypted|aes)\\.c$")
 add_library(egg_objects OBJECT ${RUNTIME_SOURCES} ${GAME_SOURCES}
-    game_prepare.c diagnostics.c memory.c battle_hud.c prompts.c game_prompts.c game_prompt_icons.c presentation.c compat/directory.c compat/fp.c
+    game_prepare.c diagnostics.c memory.c battle_hud.c config_file.c mod_menu.c prompts.c game_prompts.c game_prompt_icons.c presentation.c compat/directory.c compat/fp.c
     compat/heap.c compat/heap_wrap.c compat/placement.c compat/dlmalloc/mspace.c
     "${EGG_PLATFORM_MODULE}" config.c mods.c "${EGG_FEATURE_MODULE}")
 if(NOT EGG_PS5_SYSTEM_KEYBOARD)

@@ -1,99 +1,142 @@
-# Optional portrait battle HUD — replacement preview 2
+# Centred portrait HUD mod — v0.3.0 test candidate
 
-This branch extends the user-confirmed CTPS5 0.1.0-rc3 baseline with an optional
-**replacement for the normal party-status panel**, inspired by the supplied
-three-character HUD reference. Original PC runtime/recompiler:
-**Egg of Time v1.3.5 by Power Pudu**;
-[original source and credits](CREDITS.md).
-Chrono Trigger artwork and characters belong to their respective rights holders.
+Optional battle presentation for CTPS5, built on **Egg of Time v1.3.5 by
+Power Pudu**. [Original PC source and credits](CREDITS.md) are preserved.
+Each player supplies their own USA/YQUE `CT.nds`; no ROM, portraits or game
+symbols are supplied in the mod pack.
 
-The three cards use the original 48×48 **menu portraits**, decoded in memory
-from each player's own supported USA/YQUE `CT.nds`. No portraits or ROM are
-included. Cards follow active party order and show current/maximum HP and MP,
-the game's own displayed ATB countdown, and a gold outline for the selected
-member. ATB replaces the reference game's SP statistic. Empty slots remain
-empty; a knocked-out member has a grey portrait and an empty ATB gauge.
-Names currently use canonical English names, including when a save uses renames.
+## Separate mod and host
 
-## Presentation
+The **mod-only ZIP** contains `mods/battle-hud/hud.ini`, `mod.json` and
+instructions. It contains no `eboot.bin`. Its settings and version metadata
+are separate from the game. The descriptor identifies this supported module;
+the compatible host implements its renderer and hooks.
 
-Preview 2 supersedes the earlier additive/docked experiment. It covers the
-**complete old normal HP/MP/ATB status box** with an opaque portrait panel.
-The original commands remain beside it. The replacement also uses the right
-widescreen margin in the same band, rather than adding a strip below the game.
-**The gameplay rectangle and scale are unchanged.** Portrait proportions are
-preserved; cards are smaller at narrower aspect ratios.
+The new layout, action controls and L3+R3 menu need **mod host 01.006.003**.
+An older RC3 or portrait-preview executable cannot acquire those hooks merely
+by copying configuration files. A locally built compatible host can be staged
+as a separate **CTPS5 Mods** app, **PPSA90436**, alongside the working CTPS5 app
+**PPSA90435**. The base app's installed files are left intact.
 
-The module observes the original normal HP header and first HP digit being
-drawn, in addition to validating the battle state. It yields to the original
-Tech/Combo and Item selection screens, including MP costs and item quantities.
-Those are selection interfaces, not a duplicate normal status HUD. Target
-cursors, actors and battle messages retain the original game logic and graphics.
-When the status panel hides, observations expire within two game frames.
-The layout supports the normal panel's top/bottom positions and the existing
-zoom/UI-size mappings. The portrait surface is 480×128 with nearest scaling.
-PS5's existing unsupported/off shader path retains the original presentation.
+Both apps use `/data/eggoftime/`, including your own ROM, saves, controls,
+settings and installed texture packs. Progress and settings are shared; this
+is not a separate save profile. Install one app folder per title ID, with
+`eboot.bin`, `sce_module/` and `sce_sys/` immediately inside it.
 
-## Enable or disable
+## Presentation and controls
 
-The native executable must contain this extension; copying the INI alone into
-an unmodified RC3 installation cannot enable it. After installing your locally
-built executable, copy [`mods/battle-hud/hud.ini`](../mods/battle-hud/hud.ini) to:
+The normal old command/status band is covered. Three horizontal portrait
+cards are **centred in that band** (at the bottom by default), with transparent
+**Attack, Tech and Item** symbols centred just above. When the game places
+its interface at the top, symbols move below it to stay on screen.
+The gameplay rectangle is not resized. The selected command has a gold
+underline; the selected party member has a gold outline.
+
+Portraits come from the original 48×48 menu faces. Each character uses its
+**own 16-colour palette bank**, correcting the previous Marle/Lucca colour
+error and the same error for other party members. Action symbols come from
+the game's weapon sword, Tech lightning and inventory bag. The original
+inventory button background/bevel is omitted. A thin outline keeps symbols
+visible on the battlefield; there are no blue action-button boxes.
+
+Cards follow party order and show current/maximum HP/MP and the game's own
+ATB countdown. KO portraits are grey; unused slots are empty. Names currently
+use canonical English names, including when saves rename characters.
+
+While the normal icon row is active:
+
+| Input | Action |
+| --- | --- |
+| Left / Right | Select Attack, Tech or Item |
+| Up / Down | Also select the command, as before |
+| L1 / R1 | Select another party command column |
+| Mapped Confirm / Back | Confirm or cancel; defaults Circle / Cross |
+| L3 + R3 together | Open or close Settings and Mods |
+
+Tech/Combo lists retain their MP costs; Item lists retain quantities. These
+selection screens temporarily use the original panels and controls. Target
+selection and battle messages keep the original behavior. Target hands are
+excluded from icon-row input remapping, even when they cross the HUD band.
+
+## Settings and mods menu
+
+Press **L3 and R3 together**, then release both. The menu has **Settings**,
+**Mods**, **Controls** and **Resume game**. Gameplay parks at a runtime poll
+while this menu is open; its clock is rebased on resume so battle/ATB time
+does not catch up. The chord also closes a submenu. Cross returns one page;
+from the hub it resumes play. Confirm/Back labels follow saved bindings.
+Stick clicks are reserved for this shortcut in the mod host.
+
+The Mods page contains:
+
+| Setting | Behavior |
+| --- | --- |
+| Portrait battle HUD | On/off, applied and saved immediately |
+| HUD size | 75–125%, applied and saved immediately |
+| Symbol size | 50–100% of the HUD's pixel scale, applied/saved immediately |
+| Texture mods | Saved; restart CTPS5 Mods to fully apply changes |
+| Texture pack | Choose a named installed pack; restart to load it |
+
+Installed packs are read from `mods/packs/<id>/graphics/`, with `default`
+using `mods/graphics/`. The selector supports up to 63 named packs plus the
+default. Unrelated PS5 settings and comments are preserved when saving a pack.
+
+## Module configuration
+
+Install the contents of the mod ZIP's `eggoftime/` into `/data/eggoftime/`:
 
 ```
 /data/eggoftime/mods/battle-hud/hud.ini
+/data/eggoftime/mods/battle-hud/mod.json
 ```
 
-```
+```ini
 enabled=1
+scale_percent=100
+command_scale_percent=70
 ```
 
-Set `enabled=0`, or remove that file, and fully close/restart CTPS5 to restore
-the original presentation. No main INI, ROM or save is rewritten by the mod.
-Keep your working executable before testing a candidate. Title ID remains
-PPSA90435; this candidate's application version is **01.006.002**.
-The startup log includes `portrait HUD: enabled` and `replacement panel`.
-Missing/malformed config, unsupported ROM, invalid battle state, unavailable
-portraits or texture failures retain the original interface. The RC3 startup
-logging, requested icon and DualSense button graphics remain present.
+Manual INI changes are read on the next launch; menu changes apply live.
+Set `enabled=0`, or disable it under Mods, for the original battle interface.
+Missing/malformed configuration, unsupported ROM, invalid battle state,
+unavailable artwork or texture-upload failures retain the original interface.
+No game assets or saves are rewritten by the HUD module.
 
-## Validation and limits
+The implementation is split into a read-only battle snapshot, pure pixel
+renderer, ROM-art decoder, platform bridge and independent settings module.
+Layout uses the viewport and bounded scale settings, preserving proportions
+at different output resolutions and both zoom/UI-size choices.
 
-The same decoder, read-only snapshot, renderer and host bridge were exercised
-in a private desktop battle with Crono, Marle and Lucca. The normal old status
-panel was visibly replaced; commands, Tech/Combo MP costs, Item lists, targeting
-and battle messages were inspected. Private input/capture/observation hooks
-and a high-HP test fixture were used; those are not part of the PS5 build.
-The provided battle preview is a **desktop integration capture, not a PS5
-screenshot**. No test ROM, save, state, portraits or preview capture belongs in
-the public source repository.
+## Build and validation
 
-Authored-data tests cover immutable RAM, all seven identities, invalid pointers,
-KO and ATB values, selected-member state, renderer boundaries, switch/failure
-fallbacks, original-header visibility, Tech/Item yield, stale observations,
-unchanged gameplay geometry, full status-box coverage, command/message
-separation, portrait proportions, top/bottom placement and zoom at 4K.
-The native package is checked for section mapping, signed containers and all
-186 imports. **PS5 battle validation remains pending; sustained 4K60 is not a
-measured claim.** RC3 remains the known working baseline.
-
-## Build, test and preview
-
-Follow [the native build guide](BUILDING.md) using your own USA ROM.
+Follow [BUILDING](BUILDING.md) to build from your own ROM, then stage a
+side-by-side app without changing the built base folder:
 
 ```sh
+python3 ps5/package_mod_host.py /path/to/built/PPSA90435 /path/to/output/PPSA90436
 python3 ps5/test_battle_hud.py --sdl-source /path/to/SDL3
+python3 ps5/test_system_menu.py --sdl-source /path/to/SDL3
 ```
 
-A standalone layout preview uses the same decoder and renderer with example
-statistics (it is not a gameplay capture):
+Tests exercise per-character palette banks, transparent action artwork,
+immutable RAM, HP/MP/ATB/KO, selected actor/command, invalid state, fallback,
+input routing, full old-panel cover, centred geometry at 4K, top/bottom/zoom,
+size limits, menu navigation, chord/release guards, paused clock rebasing,
+pack selection and atomic configuration preservation.
+
+A standalone preview uses the same decoder and renderer with sample stats:
 
 ```sh
 cc -std=c11 -I /path/to/SDL3/include -I runtime \
   tools/preview_battle_hud.c runtime/battle_hud_faces.c runtime/gfx_rom.c \
   runtime/battle_hud_draw.c runtime/ui_font.c -o /tmp/ctps5-hud-preview
-/tmp/ctps5-hud-preview /path/to/your/CT.nds /tmp/ctps5-hud.ppm
+/tmp/ctps5-hud-preview /path/to/your/CT.nds /tmp/hud.ppm /tmp/actions.ppm
 ```
 
-The PPM is 480×128. Enlarge with nearest-neighbour scaling for pixel art.
-The original source archive and notices remain in `upstream/`.
+A private desktop battle exercises the same decoder, snapshot, renderer and
+bridge using test observation/input/capture hooks and a high-HP fixture.
+Menu previews exercise the actual renderer with authored host dependencies.
+These previews are **not PS5 captures**. Keep game-derived captures, test
+fixtures, generated game C and game executables out of the public repository.
+**PS5 boot/battle validation of the new side-by-side host remains pending.**
+Native package checks do not establish sustained 4K60 performance.

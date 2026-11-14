@@ -31,3 +31,15 @@ Choose a fixed-screen presentation in System Settings:
 | Stretch | Fills the screen by changing proportions |
 
 Side panels do not create extra map geometry. Blurred copies of scene edges have been removed. Leave Fill screen sides off for room-boundary clipping; enabling it can expose adjacent or wrapped tiles in small interiors. System Settings stays proportional for readable text. Use Original if you prefer the unmodified aspect ratio. Supported wide gameplay areas can still render wider independently of fixed-screen presentation.
+
+## Optional mod host
+
+In CTPS5 Mods 01.006.003, press **L3+R3 together** and release both to open
+Settings and Mods during gameplay. Gameplay pauses while this menu is open.
+The chord closes it from any page. Stick clicks are reserved for this shortcut.
+The base app's existing controls are unchanged.
+
+With the centred portrait HUD enabled, Left/Right selects Attack/Tech/Item,
+L1/R1 changes party command columns, and Up/Down remains available. Other
+selection screens retain their original controls. Confirm/Back follows saved
+bindings. See [portrait HUD documentation](PORTRAIT-HUD.md).

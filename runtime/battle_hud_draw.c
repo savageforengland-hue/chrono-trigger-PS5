@@ -37,25 +37,43 @@ void ct_hud_draw(uint32_t p[CT_HUD_W*CT_HUD_H],const CtHudState*s,const uint32_t
         if(!m->present||m->character<0||m->character>6)continue;
         uint32_t edge=m->hp?RGB(238,223,187):RGB(131,127,144);
         if(s->selected==i&&m->hp)frame(p,x+2,2,156,CT_HUD_H-4,RGB(238,195,91));
-        text(p,x+6,5,m->name,edge,4);
-        frame(p,x+4,23,74,74,edge);
-        rect(p,x+5,24,72,72,RGB(7,12,28));
-        for(int y=0;y<72;y++)for(int k=0;k<72;k++){
-            uint32_t c=faces[m->character][(y*2/3)*48+k*2/3];
+        text(p,x+60,6,m->name,edge,3);
+        frame(p,x+5,12,50,50,edge);
+        rect(p,x+6,13,48,48,RGB(7,12,28));
+        for(int y=0;y<48;y++)for(int k=0;k<48;k++){
+            uint32_t c=faces[m->character][y*48+k];
             if(!(c>>24))continue;
             if(!m->hp){unsigned g=((c&255)+((c>>8)&255)+((c>>16)&255))/3;c=RGB(g,g,g);}
-            p[(y+24)*CT_HUD_W+x+5+k]=c;
+            p[(y+13)*CT_HUD_W+x+6+k]=c;
         }
         char value[32];snprintf(value,sizeof value,"%u/%u",m->hp,m->max_hp);
         uint32_t hp=m->max_hp&&(uint64_t)m->hp*4<=m->max_hp?RGB(255,187,102):RGB(242,232,208);
-        text(p,x+83,26,"HP",RGB(210,205,228),3);
-        text(p,x+83,42,value,hp,3);
-        bar(p,x+83,58,69,m->hp,m->max_hp,RGB(104,205,130));
+        text(p,x+60,25,"HP",RGB(210,205,228),2);
+        text(p,x+80,25,value,hp,2);
+        bar(p,x+60,35,92,m->hp,m->max_hp,RGB(104,205,130));
         snprintf(value,sizeof value,"%u/%u",m->mp,m->max_mp);
-        text(p,x+83,67,"MP",RGB(210,205,228),3);
-        text(p,x+83,83,value,RGB(242,232,208),3);
-        bar(p,x+83,99,69,m->mp,m->max_mp,RGB(111,157,231));
-        text(p,x+6,111,"ATB",RGB(210,205,228),3);
-        bar(p,x+40,114,112,m->atb,m->atb_max,m->atb_max&&m->atb>=m->atb_max?RGB(238,195,91):RGB(206,67,83));
+        text(p,x+60,45,"MP",RGB(210,205,228),2);
+        text(p,x+80,45,value,RGB(242,232,208),2);
+        bar(p,x+60,55,92,m->mp,m->max_mp,RGB(111,157,231));
+        text(p,x+6,68,"ATB",RGB(210,205,228),2);
+        bar(p,x+34,69,118,m->atb,m->atb_max,m->atb_max&&m->atb>=m->atb_max?RGB(238,195,91):RGB(206,67,83));
     }
+}
+void ct_hud_draw_commands(uint32_t p[CT_CMD_W*CT_CMD_H],int command,const uint32_t icons[3][32*32]){
+    uint32_t canvas[CT_HUD_W*CT_HUD_H]={0};
+    static const char *names[]={"Attack","Tech","Item"};
+    for(int i=0;i<3;i++){
+        int x=i*80;uint32_t edge=i==command?RGB(238,195,91):RGB(238,223,187);
+        if(i==command)rect(canvas,x+24,35,32,2,edge);
+        for(int y=0;y<32;y++)for(int k=0;k<32;k++){
+            uint32_t c=icons[i][y*32+k];
+            if(c>>24)canvas[(y+3)*CT_HUD_W+x+24+k]=c;
+            else if((k&&icons[i][y*32+k-1]>>24)||(k<31&&icons[i][y*32+k+1]>>24)||
+                    (y&&icons[i][(y-1)*32+k]>>24)||(y<31&&icons[i][(y+1)*32+k]>>24))
+                canvas[(y+3)*CT_HUD_W+x+24+k]=RGB(238,223,187);
+        }
+        int w=ui_text_width(names[i])*3/2;
+        text(canvas,x+(80-w)/2,38,names[i],edge,3);
+    }
+    for(int y=0;y<CT_CMD_H;y++)memcpy(p+y*CT_CMD_W,canvas+y*CT_HUD_W,CT_CMD_W*4);
 }

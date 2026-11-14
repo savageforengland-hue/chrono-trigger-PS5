@@ -168,7 +168,7 @@ typedef struct View {
     SDL_Texture *hd_tex[6]; /* the screens drawn from HD art (graphics mods) */
     int hd_k[6];            /* their scale; 0: not drawn this way */
 #ifdef EGG_PS5
-    SDL_Texture *battle_hud;
+    SDL_Texture *battle_hud,*battle_commands;
 #endif
     SDL_Texture *lcd_mask;  /* LCD filter: one pixel's grid at lcd_mask_n */
     int lcd_mask_n;
@@ -957,17 +957,18 @@ static void draw_screens(View *v) {
     draw_fixed_screen_panels(v, internal, cw * n, ch * n, &dest);
 #endif
 #ifdef EGG_PS5
-    SDL_FRect hud_rect,hud_cover;
+    CtHudLayout battle_layout;
     int portrait_hud = v == &primary && main_shown(v) && !sysmenu_is_open() &&
-        ctps5_battle_hud_prepare(ren, &v->battle_hud, &dest, cw, ch,
-            SETTING(SET_ZOOM)?(SETTING(SET_ZOOM_UI)?1:2):0, &hud_cover, &hud_rect);
+        ctps5_battle_hud_prepare(ren, &v->battle_hud, &v->battle_commands, &dest, cw, ch,
+            SETTING(SET_ZOOM)?(SETTING(SET_ZOOM_UI)?1:2):0, &battle_layout);
 #endif
     SDL_RenderTexture(ren, internal, NULL, &dest);
 #ifdef EGG_PS5
     if (portrait_hud) {
         SDL_SetRenderDrawColor(ren,15,18,48,255);
-        SDL_RenderFillRect(ren,&hud_cover);
-        SDL_RenderTexture(ren, v->battle_hud, NULL, &hud_rect);
+        SDL_RenderFillRect(ren,&battle_layout.cover);
+        SDL_RenderTexture(ren, v->battle_hud, NULL, &battle_layout.hud);
+        if(battle_layout.commands.w>0)SDL_RenderTexture(ren,v->battle_commands,NULL,&battle_layout.commands);
     }
 #endif
 }

@@ -10,7 +10,7 @@ static unsigned get32(const unsigned char*r,unsigned a){return get16(r,a)|(get16
 static int span(unsigned a,unsigned n){return a>=RAM_BASE&&a-RAM_BASE<=RAM_SIZE-n;}
 int ct_hud_read_state(CtHudState*out,const unsigned char*r,size_t size){
     static const char *names[]={"Crono","Marle","Lucca","Robo","Frog","Ayla","Magus"};
-    CtHudState s={.selected=-1};if(!out)return 0;memset(out,0,sizeof *out);
+    CtHudState s={.selected=-1,.command=-1};if(!out)return 0;memset(out,0,sizeof *out);
     if(!r||size<RAM_SIZE)return 0;
     unsigned scene=get32(r,0x0207088c),party=get32(r,0x020728fc),members=get32(r,0x02118c0c);
     if(!span(scene,4)||get32(r,scene)!=0x02115558u||!span(party,3)||!span(members,0x1942))return 0;

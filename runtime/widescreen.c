@@ -768,7 +768,11 @@ void rt_ws_draw_cell(CPU *cpu) {
         if(!matrix)matrix=rt_r32(CELL_DEFAULT_MATRIX);
         if(ram_ptr(matrix)&&ram_ptr(R[0])){
             int row=(int32_t)(rt_r32(matrix+0x14)-rt_r32(R[0]+4))/4096-field_rows+next_y;
-            ctps5_battle_hud_cell(portrait_entry,row);
+            int col=(int32_t)(rt_r32(matrix+0x10)-rt_r32(R[0]))/4096-field_margin+next_x;
+            /* The hand after the four-sprite target bracket is in the world,
+             * not the normal command cursor, even when it crosses this band. */
+            if(rt_r16(R[1])==1&&rt_r16(R[1]-8)==4)col=-1;
+            ctps5_battle_hud_cell(portrait_entry,col,row);
         }
     }
 #endif

@@ -51,9 +51,15 @@ int main(void){
  ct_hud_draw(guarded+16,&s,faces);
  for(int i=0;i<16;i++)assert(guarded[i]==0xdeadbeef&&guarded[16+CT_HUD_W*CT_HUD_H+i]==0xdeadbeef);
  uint32_t*p=guarded+16;
- assert(p[24*CT_HUD_W+5]==faces[0][0]);assert(p[24*CT_HUD_W+165]==faces[1][0]);assert(p[24*CT_HUD_W+325]==faces[2][0]);
- s.member[0].hp=0;ct_hud_draw(p,&s,faces);unsigned color=p[24*CT_HUD_W+5];assert((color&255)==((color>>8)&255)&&((color>>8)&255)==((color>>16)&255));
- s.member[0].present=0;ct_hud_draw(p,&s,faces);assert(p[24*CT_HUD_W+5]!=faces[0][0]);
+ assert(p[13*CT_HUD_W+6]==faces[0][0]);assert(p[13*CT_HUD_W+166]==faces[1][0]);assert(p[13*CT_HUD_W+326]==faces[2][0]);
+ s.member[0].hp=0;ct_hud_draw(p,&s,faces);unsigned color=p[13*CT_HUD_W+6];assert((color&255)==((color>>8)&255)&&((color>>8)&255)==((color>>16)&255));
+ s.member[0].present=0;ct_hud_draw(p,&s,faces);assert(p[13*CT_HUD_W+6]!=faces[0][0]);
+ uint32_t commands[CT_CMD_W*CT_CMD_H+2],icons[3][32*32];
+ commands[0]=commands[CT_CMD_W*CT_CMD_H+1]=0xdeadbeef;
+ for(int c=0;c<3;c++)for(int i=0;i<32*32;i++)icons[c][i]=0xff112233u+c;
+ ct_hud_draw_commands(commands+1,1,icons);assert(commands[1]==0&&commands[1+CT_CMD_W*20+1]==0);
+ assert(commands[0]==0xdeadbeef&&commands[CT_CMD_W*CT_CMD_H+1]==0xdeadbeef);
+ for(int c=0;c<3;c++)assert(commands[1+3*CT_CMD_W+c*80+24]==icons[c][0]);
  puts("PASS: live unaligned HP/MP, all seven party identities, ATB countdown/ready/KO, empty slots, invalid pointers/state, immutable RAM and renderer guards");
 }
 '''
@@ -66,5 +72,7 @@ with tempfile.TemporaryDirectory() as tmp:
  subprocess.run([str(p/'check')],check=True,timeout=10)
 
  if args.sdl_source:
+  subprocess.run(['cc','-std=c11','-O1','-I',str(ROOT),'-I',str(args.sdl_source/'include'),str(ROOT/'ps5/tests/battle_hud_assets.c'),str(ROOT/'runtime/battle_hud_faces.c'),'-o',str(p/'assets')],check=True)
+  subprocess.run([str(p/'assets')],check=True,timeout=10)
   subprocess.run(['cc','-std=c11','-O1','-I',str(ROOT),'-I',str(args.sdl_source/'include'),str(ROOT/'ps5/tests/battle_hud_bridge.c'),str(ROOT/'ps5/battle_hud.c'),str(ROOT/'runtime/battle_hud_state.c'),str(ROOT/'runtime/battle_hud_draw.c'),str(ROOT/'runtime/ui_font.c'),'-Wl,--wrap=fopen','-lm','-o',str(p/'bridge')],check=True)
   subprocess.run([str(p/'bridge')],check=True,timeout=10)

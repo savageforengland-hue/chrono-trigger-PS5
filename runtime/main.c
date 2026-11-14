@@ -22,6 +22,7 @@
 #include "../ps5/memory.h"
 #include "../ps5/game_prompts.h"
 #include "../ps5/battle_hud.h"
+#include "menu_chord.h"
 #define PS5_STAGE(n, message) egg_ps5_diag_stage(n, message)
 #define PS5_FAILURE(where, detail) do { egg_ps5_diag_failure(where, detail); egg_ps5_memory_report(where); } while (0)
 #else
@@ -279,6 +280,7 @@ int main(int argc, char **argv) {
 #ifdef EGG_PS5
     (void)egg_ps5_game_prompts_init();
     ctps5_battle_hud_init();
+    display_message("L3 + R3: Settings and Mods",5000);
 #endif
     spu_open_output();
 
@@ -337,6 +339,9 @@ int main(int argc, char **argv) {
     enum { CURSOR_HIDE_MS = 2000 };
     Uint64 mouse_used = SDL_GetTicks();
     int save_held = 0, load_held = 0; /* the Save state and Load state inputs (System Settings > Controls) */
+#ifdef EGG_PS5
+    CtMenuChord menu_chord={0};
+#endif
     while (running && !SDL_GetAtomicInt(&game_finished)) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
@@ -377,7 +382,17 @@ int main(int argc, char **argv) {
         if (autok & ~auto_prev & AUTO_SWAP) display_key(SDL_SCANCODE_F3);
         if (autok & ~auto_prev & AUTO_FILTER) display_key(SDL_SCANCODE_F4);
         auto_prev = autok;
-        if (controls_held(pad, CTL_EXIT_GAME) || (autok & AUTO_ESC)) {
+#ifdef EGG_PS5
+        int menu_toggle=ct_menu_chord_update(&menu_chord,
+            pad&&SDL_GetGamepadButton(pad,SDL_GAMEPAD_BUTTON_LEFT_STICK),
+            pad&&SDL_GetGamepadButton(pad,SDL_GAMEPAD_BUTTON_RIGHT_STICK));
+        if(menu_toggle)sysmenu_host_toggle();
+#endif
+        if (
+#ifdef EGG_PS5
+            !menu_chord.latched&&
+#endif
+            (controls_held(pad, CTL_EXIT_GAME) || (autok & AUTO_ESC))) {
             if (!exit_since) exit_since = SDL_GetTicks();
             Uint64 held = SDL_GetTicks() - exit_since;
             if (held >= EXIT_MESSAGE_MS) display_message(ui_text("Exiting..."), 100);
@@ -388,7 +403,11 @@ int main(int argc, char **argv) {
         cheevos_poll();
         /* Pressed, not held, and not in the menu, where a key can be typed or being assigned. F5 and F7 stay above. */
         int save_now = controls_held(pad, CTL_SAVE_STATE), load_now = controls_held(pad, CTL_LOAD_STATE);
-        if (!sysmenu_is_open()) {
+        if (!sysmenu_is_open()
+#ifdef EGG_PS5
+            &&!menu_chord.latched
+#endif
+        ) {
             if (save_now && !save_held) rt_state_request = RT_STATE_SAVE;
             if (load_now && !load_held) {
                 rt_state_load_path[0] = 0;
@@ -397,9 +416,19 @@ int main(int argc, char **argv) {
         }
         save_held = save_now;
         load_held = load_now;
-        rt_keys = sysmenu_input(controls_read(pad) | (autok & ~AUTO_HOST));
+        uint32_t game_keys=controls_read(pad)|(autok&~AUTO_HOST);
+        int menu_was_open=sysmenu_is_open();
+#ifdef EGG_PS5
+        if(menu_chord.latched)game_keys=0;
+        if(!menu_was_open&&!menu_toggle)game_keys=ctps5_battle_hud_input(game_keys);
+#endif
+        rt_keys=sysmenu_input(game_keys);
+        if(menu_was_open&&!sysmenu_is_open())shown_serial=0; /* restore the frozen game image */
         /* Fast forward (2x) while its key or button is held (default: Left Shift, the right trigger). */
         int ff = controls_held(pad, CTL_FAST_FORWARD) || (autok & AUTO_FF);
+#ifdef EGG_PS5
+        if(menu_chord.latched||sysmenu_is_open())ff=0;
+#endif
         rt_set_speed(ff ? 2 : 1);
 
         /* Touch: left mouse button on the bottom screen, when it is shown. */
@@ -435,7 +464,7 @@ int main(int argc, char **argv) {
             rt_touch_x = tx;
             rt_touch_y = ty;
         }
-        rt_touch_down = touching;
+        rt_touch_down = sysmenu_is_open()?0:touching;
 
         int cam_dx, cam_dy, cam_cut;
         uint64_t frame_t, serial = video_frame_serial(&cam_dx, &cam_dy, &cam_cut, &frame_t);

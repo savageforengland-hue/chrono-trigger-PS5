@@ -1,0 +1,16 @@
+{
+  "id": "ctps5.portrait-battle-hud",
+  "name": "Centred Portrait Battle HUD",
+  "version": "0.3.0",
+  "schema": 1,
+  "requires": {"ctps5_mod_host": "01.006.003", "game": "USA/YQUE"},
+  "configuration": "hud.ini",
+  "settings": {
+    "enabled": {"type": "boolean", "default": true},
+    "scale_percent": {"type": "integer", "min": 75, "max": 125, "default": 100},
+    "command_scale_percent": {"type": "integer", "min": 50, "max": 100, "default": 70}
+  },
+  "assets": "Decoded in memory from each player's own CT.nds; no game artwork included",
+  "runtime_module": "ps5/battle_hud.c",
+  "upstream": "Egg of Time v1.3.5 by Power Pudu"
+}
