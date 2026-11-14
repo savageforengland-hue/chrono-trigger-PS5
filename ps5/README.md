@@ -2,7 +2,7 @@
 
 Native PS5 homebrew integration for **Egg of Time v1.3.5 by Power Pudu**. See the [original PC project](https://github.com/power-pudu/egg-of-time), [credits](../docs/CREDITS.md) and preserved notices.
 
-The current source is **0.1.0-rc2**. The public project contains authored source only. Build locally from your own unmodified Nintendo DS USA YQUE input; the generated game C and statically linked executable remain local.
+The current source is **0.1.0-rc3**. The public project contains authored source only. Build locally from your own unmodified Nintendo DS USA YQUE input; the generated game C and statically linked executable remain local.
 
 - [Build guide and pinned dependencies](../docs/BUILDING.md)
 - [Installation and complete folder layout](../docs/INSTALLING.md)
@@ -21,6 +21,7 @@ The current source is **0.1.0-rc2**. The public project contains authored source
 | memory.c / compat/ | Direct-memory heap and native compatibility support |
 | config.c / mods.c | Display configuration and named graphics packs |
 | presentation.c / prompts.c | Fixed-screen framing and binding-aware DualSense symbols |
+| game_prompts.c / game_prompt_icons.c | In-memory game sprite/font/message replacements and authored PS5 button art |
 | controller_only.c | Controller-only native input profile |
 | optional_features.c | Core profile adapters for disabled PC integrations |
 | native/ / link_native.py | Native metadata, clean-room runtime, linking and package auditing |

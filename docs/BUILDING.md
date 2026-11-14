@@ -45,7 +45,7 @@ build-ps5/package/PPSA90435/
 
 It also builds the optional independent boot-check folder PPSA90436. These generated executables contain locally derived code; do not upload them to the public source repository. Set `EGG_JOBS=2` to limit parallel compiler memory use. The build directory can be changed with `EGG_BUILD_DIR`.
 
-Continue with [installation](INSTALLING.md). First builds are substantial and require free disk space and RAM. This is a developer build process, not a one-click PS5 installer.
+The application applies its built-in PS5 game prompts to the verified NDS in memory at startup; no separate controller texture pack is required. Continue with [installation](INSTALLING.md). First builds are substantial and require free disk space and RAM. This is a developer build process, not a one-click PS5 installer.
 
 ## ROM-free checks
 
@@ -56,6 +56,7 @@ python3 ps5/test_diagnostics.py
 python3 ps5/test_memory.py
 python3 ps5/test_presentation.py
 python3 ps5/test_prompts.py --sdl-source "$SDL3_SOURCE"
+python3 ps5/test_game_prompts.py --sdl-source "$SDL3_SOURCE"
 python3 ps5/test_settings_migration.py --sdl-source "$SDL3_SOURCE"
 ```
 

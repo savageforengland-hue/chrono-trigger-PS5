@@ -13,7 +13,9 @@
 | Fast-forward | R2 |
 | Exit | Hold Create for three seconds |
 
-At the title screen press Create for System Settings. In gameplay press Options, then Create. Input mappings can be changed in Controls; runtime prompts follow the active mappings. The defaults preserve the DS A/B arrangement. Runtime menus use DualSense symbols and labels. Button letters baked into original game artwork are not all replaced.
+At the title screen press Create for System Settings. In gameplay press Options, then Create. Input mappings can be changed in Controls; runtime prompts follow the active mappings. The defaults preserve the DS A/B arrangement. Runtime menus and the identified in-game button art use DualSense symbols and labels. RC3 adds built-in replacements for 97 shared menu, battle, field, warp and race sprite variants, plus 103 explicit button references in 57 English/French instruction strings. START becomes Options, SELECT becomes Create, and shoulder prompts use L1/R1 with the default bindings. The native Controls page uses action descriptions instead of DS button-letter row names.
+
+In-game artwork and instructions use the saved controller bindings at startup. **Fully close and relaunch CTPS5 after rebinding** to refresh those game graphics. Runtime prompts update immediately. Game input behavior and existing bindings are retained. Some scenes may use additional artwork that has not yet been identified; console confirmation of the replacement coverage is pending.
 
 ## Widescreen
 

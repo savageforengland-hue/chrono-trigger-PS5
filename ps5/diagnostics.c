@@ -64,7 +64,7 @@ static void emit(Line *line, int durable) {
      * handler limited to its existing fixed-buffer file/descriptor writes. */
     if (c_runtime_ready && !handling_signal && (durable || log_fd < 0)) {
         Line record; record.used = 0;
-        append(&record, "[CTPS5 RC2] "); append(&record, line->text);
+        append(&record, "[CTPS5 RC3] "); append(&record, line->text);
         record.text[record.used] = 0;
         (void)sceKernelDebugOutText(0, record.text);
     }
@@ -87,7 +87,7 @@ void egg_ps5_diag_early(void) {
         open_results[i] = sceKernelOpen(paths[i], O_WRONLY | O_CREAT | O_APPEND, 0666);
         if (open_results[i] >= 0) { log_fd = open_results[i]; log_path = paths[i]; break; }
     }
-    egg_ps5_diag_stage(1, "CTPS5 0.1.0-rc2 entry reached");
+    egg_ps5_diag_stage(1, "CTPS5 0.1.0-rc3 entry reached");
     Line anchor; anchor.used = 0;
     append(&anchor, "image_anchor egg_ps5_diag_early=0x");
     number(&anchor, (uintptr_t)&egg_ps5_diag_early, 16); emit(&anchor, 1);
@@ -188,7 +188,7 @@ void egg_ps5_diag_failure(const char *where, const char *detail) {
     Line visible; visible.used = 0;
     append(&visible, where); append(&visible, ": "); append(&visible, detail);
     visible.text[visible.used] = 0;
-    notify("CTPS5 RC2 ", visible.text);
+    notify("CTPS5 RC3 ", visible.text);
 }
 void egg_ps5_diag_exit(int status) {
     Line line; line.used = 0;

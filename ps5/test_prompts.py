@@ -19,6 +19,7 @@ SDL_GamepadButtonLabel SDL_GetGamepadButtonLabelForType(SDL_GamepadType type,SDL
 int main(void){
  memcpy(binds,defaults,sizeof binds);
  publish_prompt_binds();
+ assert(!strcmp(controls_name(CTL_A),"Confirm") && !strcmp(controls_name(CTL_START),"Pause"));
  assert(!strcmp(controls_pad_label(CTL_A),"\xE2\x97\x8B"));
  assert(!strcmp(controls_pad_label(CTL_B),"\xC3\x97"));
  assert(!strcmp(controls_pad_label(CTL_X),"\xE2\x96\xB3"));

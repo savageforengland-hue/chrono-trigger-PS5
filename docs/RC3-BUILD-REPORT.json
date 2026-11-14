@@ -1,0 +1,34 @@
+{
+  "project": "CTPS5",
+  "version": "0.1.0-rc3",
+  "date": "2026-11-14",
+  "metadata_version": "01.006.000",
+  "status": "native build and host tests passed; PS5 retest pending",
+  "native_eboot_bytes": 34373745,
+  "local_eboot_sha256": "9e1675e391432cef7be3c0285be6ea15f4548e0d6b4e145d38f4e71478dfb6fe",
+  "native_imports_verified": 186,
+  "game_prompt_asset_check": {
+    "sprite_variants": 97,
+    "explicit_button_references": 103,
+    "instruction_strings": 57,
+    "changed_asset_files": 22,
+    "original_code_and_other_game_files_unchanged": true,
+    "existing_used_font_glyphs_and_ASCII_table_unchanged": true,
+    "message_control_opcodes_unchanged": true,
+    "original_on_disk_ROM_unchanged": true,
+    "no_remaining_explicit_DS_labels_in_scanned_messages": true
+  },
+  "host_checks": [
+    "actual NitroFS graphics/font/message integration with authored synthetic files",
+    "saved remapping to face and shoulder buttons",
+    "French button references and Options/Create instruction text",
+    "unrelated dialogue and control opcodes preserved",
+    "malformed message and unsupported game guards",
+    "bounded authored prompt rasterization",
+    "real control labels/runtime prompt/font tests",
+    "ASan/UBSan asset conversion using the supplied USA dump"
+  ],
+  "console_verified": false,
+  "input_behavior": "existing DS-to-gamepad mappings retained; in-game art uses saved bindings at startup; relaunch after remapping",
+  "public_distribution": "authored source only; no ROM, extracted assets, generated game C or game executable"
+}

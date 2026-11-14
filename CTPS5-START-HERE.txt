@@ -1,4 +1,4 @@
-CTPS5 0.1.0-rc2 — public source release
+CTPS5 0.1.0-rc3 — public source release
 
 Based on Egg of Time by Power Pudu. Start with README.md and docs/BUILDING.md.
 Build locally with your own USA YQUE NDS file. Then follow docs/INSTALLING.md.
@@ -7,3 +7,7 @@ No ROM, extracted assets, generated game C, saves or game executable is supplied
 RC2 corrects RC1 room-edge filling defaults and removes blurred side copies.
 Console confirmation of this correction is pending. Keep your data directory
 and existing saves; do not delete all settings to apply the one-time migration.
+
+RC3 adds PS5 prompts in the game, including shared sprites and explicit
+instructions. Fully relaunch after changing controller bindings. The in-game
+art is generated in memory from your own verified NDS; no separate pack.

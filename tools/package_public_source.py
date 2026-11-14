@@ -5,7 +5,7 @@ import hashlib,json,shutil,zipfile
 from check_public_source import ROOT,check,check_bytes
 files=check()
 out=ROOT/'site/downloads';out.mkdir(parents=True,exist_ok=True)
-archive=out/'CTPS5-0.1.0-rc2-source.zip'
+archive=out/'CTPS5-0.1.0-rc3-source.zip'
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
  for p in sorted(files):
   name=p.relative_to(ROOT).as_posix()
@@ -18,5 +18,5 @@ original=ROOT/'upstream/egg-of-time-v1.3.5-source.tar.gz'
 shutil.copyfile(original,out/original.name)
 items=[{'file':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in (archive,out/original.name)]
 (out/'SHA256SUMS.txt').write_text(''.join(f"{x['sha256']}  {x['file']}\n" for x in items))
-(out/'manifest.json').write_text(json.dumps({'release':'0.1.0-rc2','distribution':'authored source only; build game locally from own NDS','files':items},indent=2)+'\n')
+(out/'manifest.json').write_text(json.dumps({'release':'0.1.0-rc3','distribution':'authored source only; build game locally from own NDS','files':items},indent=2)+'\n')
 print(json.dumps(items,indent=2))

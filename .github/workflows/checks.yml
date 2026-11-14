@@ -30,3 +30,4 @@ jobs:
           python3 ps5/test_video_failure_paths.py --sdl-source "$RUNNER_TEMP/SDL3"
           python3 ps5/test_prompts.py --sdl-source "$RUNNER_TEMP/SDL3"
           python3 ps5/test_settings_migration.py --sdl-source "$RUNNER_TEMP/SDL3"
+          python3 ps5/test_game_prompts.py --sdl-source "$RUNNER_TEMP/SDL3"

@@ -22,6 +22,6 @@ The target setup is PS5 firmware 13.20 with kstuff and Shadow Mount Plus 1.7beta
     CT.nds
 ```
 
-Retain every other module emitted by the build, if present. The generated metadata uses title ID PPSA90435 and version 01.005.000. The existing `/data/eggoftime/` data path is retained after renaming the project to CTPS5.
+Retain every other module emitted by the build, if present. The generated metadata uses title ID PPSA90435 and version 01.006.000. The existing `/data/eggoftime/` data path is retained after renaming the project to CTPS5.
 
 Copy the complete rebuilt app folder when updating; preserve your personal data directory. Texture packs, saves and input files are not supplied. Earlier native builds booted on the target console; the release candidate still needs the hardware checks in [release notes](RELEASES.md).

@@ -170,7 +170,14 @@ uint32_t controls_read(SDL_Gamepad *pad) {
 
 /* ---- labels ---- */
 
-const char *controls_name(int action) { return actions[action].name; }
+const char *controls_name(int action) {
+#ifdef EGG_PS5
+    static const char *const names[] = {"Confirm", "Back / run", "Main menu", "Special",
+                                       "L shoulder", "R shoulder", "Pause", "Settings"};
+    if (action >= CTL_A && action <= CTL_SELECT) return names[action];
+#endif
+    return actions[action].name;
+}
 
 const char *controls_key_label(int action) {
     const char *s = binds[action].key != SDL_SCANCODE_UNKNOWN ? SDL_GetScancodeName(binds[action].key) : "";
@@ -253,7 +260,7 @@ int controls_capturing(void) {
     return capture_action >= 0;
 }
 
-const char *controls_capture_conflict(void) { return capture_conflict >= 0 ? actions[capture_conflict].name : NULL; }
+const char *controls_capture_conflict(void) { return capture_conflict >= 0 ? controls_name(capture_conflict) : NULL; }
 
 static int is_state_slot(int a) { return a == CTL_SAVE_STATE || a == CTL_LOAD_STATE; }
 

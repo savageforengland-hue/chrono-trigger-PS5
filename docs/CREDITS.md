@@ -27,6 +27,6 @@ CTPS5 adds PS5 platform integration, native packaging, direct-memory allocation,
 | Allocator | Doug Lea's dlmalloc | MIT-0 notice in source |
 | Fonts | PixelMplus and the font authors credited upstream | Original source notices retained |
 
-Component-specific authorship, exact revisions and notices in the source take precedence over this abbreviated table. The icon uses the project owner's supplied clock/portal artwork; its preparation provenance is in `ps5/art/ICON-PROVENANCE.json`.
+Component-specific authorship, exact revisions and notices in the source take precedence over this abbreviated table. The in-game PS5 button art is authored procedurally in `ps5/game_prompt_icons.c`; the port does not bundle original DS button textures. The icon uses the project owner's supplied clock/portal artwork; its preparation provenance is in `ps5/art/ICON-PROVENANCE.json`.
 
 Chrono Trigger is owned by its respective rights holders, including Square Enix. Nintendo, PlayStation, PS5 and DualSense marks belong to their owners. This is an unofficial project with no endorsement implied.

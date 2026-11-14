@@ -754,7 +754,7 @@ void sysmenu_draw(uint32_t *s) {
     else if (controls_page) footer = ui_text(ctl_cursor == ROW_RESET ? "A: restore the default controls." :
                                              ctl_cursor == CTL_EXIT_GAME ? "Hold for 3 seconds to exit the game." :
 #ifdef EGG_PS5
-                                             "A: change.  B: back.");
+                                             "A: change. B: back. Restart for game icons.");
 #else
                                              "A: change.  Left/Right: key or pad.");
 #endif

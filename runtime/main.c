@@ -20,6 +20,7 @@
 #ifdef EGG_PS5
 #include "../ps5/diagnostics.h"
 #include "../ps5/memory.h"
+#include "../ps5/game_prompts.h"
 #define PS5_STAGE(n, message) egg_ps5_diag_stage(n, message)
 #define PS5_FAILURE(where, detail) do { egg_ps5_diag_failure(where, detail); egg_ps5_memory_report(where); } while (0)
 #else
@@ -274,6 +275,9 @@ int main(int argc, char **argv) {
     PS5_STAGE(80, "graphics mods and audio initialization begin");
     cheevos_init(); /* RetroAchievements: logs in with the saved login */
     if (display_setting_get(SET_MODS)) gfxmod_load(); /* graphics mods: into the ROM in memory, and HD art */
+#ifdef EGG_PS5
+    (void)egg_ps5_game_prompts_init();
+#endif
     spu_open_output();
 
     /* Deep C call chains (recompiled calls + tail calls) need a large host stack. */

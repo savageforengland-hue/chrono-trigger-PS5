@@ -91,20 +91,20 @@ def main():
                     text=path.read_text()
                     notifications=directory/'notification.txt'
                     assert not notifications.exists() or 'startup log (app path)' not in notifications.read_text()
-                assert 'CTPS5 0.1.0-rc2 entry reached' in text
+                assert 'CTPS5 0.1.0-rc3 entry reached' in text
                 assert 'stage=10 before _init_env' in text
                 assert 'stage=40 SDL_Init begin' in text
                 kernel=(directory/'klog.txt').read_text()
-                assert '[CTPS5 RC2] stage=1 ' not in kernel
-                assert '[CTPS5 RC2] stage=20' in kernel
-                assert '[CTPS5 RC2] stage=40 SDL_Init begin' in kernel
+                assert '[CTPS5 RC3] stage=1 ' not in kernel
+                assert '[CTPS5 RC3] stage=20' in kernel
+                assert '[CTPS5 RC3] stage=40 SDL_Init begin' in kernel
                 assert 'stderr reaches startup log' in text
                 if failure=='normal':
                     assert 'STARTUP FAILURE SDL_Init: simulated video failure' in text
                     assert 'main returned status=1' in text
                     # Includes no-file mode: the actual cause must be visible
                     # even if the game log cannot be retrieved through FTP.
-                    assert 'CTPS5 RC2 SDL_Init: simulated video failure' in (directory/'notification.txt').read_text()
+                    assert 'CTPS5 RC3 SDL_Init: simulated video failure' in (directory/'notification.txt').read_text()
                 else:
                     assert 'FATAL signal=' in text and 'last_stage=40' in text
                     assert 'native_pc=0x' in text and 'fault_address=0x' in text
@@ -123,7 +123,7 @@ def main():
         run=subprocess.run([str(executable),str(directory),'long-failure'],env=env,capture_output=True,text=True,timeout=10)
         assert run.returncode==0
         notification=(directory/'notification.txt').read_text().splitlines()[-1]
-        assert notification.startswith('CTPS5 RC2 SDL_Init: '+'X'*100)
+        assert notification.startswith('CTPS5 RC3 SDL_Init: '+'X'*100)
         assert len(notification)==2046
         print('pass: bounded notification with an 8191-byte error and no log file')
     print('11 host integration cases passed. PS5 mount/signal behavior remains untested.')
