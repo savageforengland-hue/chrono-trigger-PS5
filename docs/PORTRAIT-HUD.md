@@ -36,8 +36,9 @@ Portraits come from the original 48×48 menu faces. Each character uses its
 **own 16-colour palette bank**, correcting the previous Marle/Lucca colour
 error and the same error for other party members. Action symbols come from
 the game's weapon sword, Tech lightning and inventory bag. The original
-inventory button background/bevel is omitted. A thin outline keeps symbols
-visible on the battlefield; there are no blue action-button boxes.
+inventory button background/bevel is omitted. A bold black outer outline and thin light inner edge keep symbols visible
+on light and dark battlefields. Labels also have black outlines. There are no
+blue action-button boxes, and the HUD blue fill stays inside its frame.
 
 Cards follow party order and show current/maximum HP/MP and the game's own
 ATB countdown. KO portraits are grey; unused slots are empty. Names currently

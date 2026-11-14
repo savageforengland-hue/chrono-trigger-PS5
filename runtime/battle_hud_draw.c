@@ -11,17 +11,21 @@ static void rect(uint32_t *p,int x,int y,int w,int h,uint32_t c) {
 static void frame(uint32_t*p,int x,int y,int w,int h,uint32_t c) {
     rect(p,x,y,w,1,c);rect(p,x,y+h-1,w,1,c);rect(p,x,y,1,h,c);rect(p,x+w-1,y,1,h,c);
 }
-static void text(uint32_t*p,int x,int y,const char*s,uint32_t c,int scale) {
+static void text_impl(uint32_t*p,int x,int y,const char*s,uint32_t c,int scale,int outline) {
     uint32_t glyphs[128*16]={0};
     ui_draw_text_in(glyphs,128,s,0,0,c);
     int w=ui_text_width(s)+1;
     if(w>128)w=128;
     /* scale 2: 1x; 3: 1.5x; 4: 2x. Preserve the source pixel font. */
+    if(outline)for(int r=0;r<9*scale/2;r++)for(int k=0;k<w*scale/2;k++){
+        if(glyphs[(r*2/scale)*128+k*2/scale])rect(p,x+k-outline,y+r-outline,1+outline*2,1+outline*2,RGB(0,0,0));
+    }
     for(int r=0;r<9*scale/2;r++)for(int k=0;k<w*scale/2;k++) {
         uint32_t ink=glyphs[(r*2/scale)*128+k*2/scale];
         if(ink)rect(p,x+k,y+r,1,1,ink);
     }
 }
+static void text(uint32_t*p,int x,int y,const char*s,uint32_t c,int scale){text_impl(p,x,y,s,c,scale,0);}
 static void bar(uint32_t*p,int x,int y,int w,unsigned now,unsigned max,uint32_t c) {
     rect(p,x,y,w,4,RGB(4,6,18));
     if(max){unsigned n=now>max?max:now;int fill=(int)((uint64_t)n*(unsigned)(w-2)/max);
@@ -65,15 +69,21 @@ void ct_hud_draw_commands(uint32_t p[CT_CMD_W*CT_CMD_H],int command,const uint32
     for(int i=0;i<3;i++){
         int x=i*80;uint32_t edge=i==command?RGB(238,195,91):RGB(238,223,187);
         if(i==command)rect(canvas,x+24,35,32,2,edge);
-        for(int y=0;y<32;y++)for(int k=0;k<32;k++){
-            uint32_t c=icons[i][y*32+k];
+        /* Three-pixel black silhouette, with one light inner pixel so dark
+         * Tech artwork remains legible on dark as well as light battlefields. */
+        for(int y=-3;y<35;y++)for(int k=-3;k<35;k++){
+            uint32_t c=0;int inner=0,outer=0;
+            if(y>=0&&y<32&&k>=0&&k<32)c=icons[i][y*32+k];
+            if(!(c>>24))for(int dy=-3;dy<=3;dy++)for(int dx=-3;dx<=3;dx++){
+                int sy=y+dy,sx=k+dx;
+                if(dx*dx+dy*dy>9||sy<0||sy>=32||sx<0||sx>=32||!(icons[i][sy*32+sx]>>24))continue;
+                outer=1;if(dx*dx+dy*dy<=2)inner=1;
+            }
+            if(!(c>>24)&&outer)c=inner?RGB(238,223,187):RGB(0,0,0);
             if(c>>24)canvas[(y+3)*CT_HUD_W+x+24+k]=c;
-            else if((k&&icons[i][y*32+k-1]>>24)||(k<31&&icons[i][y*32+k+1]>>24)||
-                    (y&&icons[i][(y-1)*32+k]>>24)||(y<31&&icons[i][(y+1)*32+k]>>24))
-                canvas[(y+3)*CT_HUD_W+x+24+k]=RGB(238,223,187);
         }
         int w=ui_text_width(names[i])*3/2;
-        text(canvas,x+(80-w)/2,38,names[i],edge,3);
+        text_impl(canvas,x+(80-w)/2,38,names[i],edge,3,2);
     }
     for(int y=0;y<CT_CMD_H;y++)memcpy(p+y*CT_CMD_W,canvas+y*CT_HUD_W,CT_CMD_W*4);
 }

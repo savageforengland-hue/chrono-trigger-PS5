@@ -32,7 +32,7 @@ void ctps5_battle_hud_cell(uint32_t entry,int ds_column,int ds_row){
     if(id==22){cursor_column=ds_column;cursor_row=ds_row;cursor_frame=rt_frame_count;return;}
     if(id!=0)return;
     int top=ds_row-9;
-    if(top<0||top+44>192)return;
+    if(top<0||top+46>192)return;
     panel_row=top;digit_frame=rt_frame_count;
 }
 static SDL_Mutex *lock;
@@ -125,10 +125,18 @@ int ctps5_battle_hud_prepare(SDL_Renderer*ren,SDL_Texture**texture,SDL_Texture**
     }
     float ui_scale=zoom_ui==1?(float)rows/192:1;
     float top=zoom_ui==1?y*ui_scale:y+(zoom_ui==2&&y>=96?rows-192:0);
-    layout->cover=(SDL_FRect){game->x,game->y+top*game->h/rows,game->w,44*ui_scale*game->h/rows};
-    float k=layout->cover.h/CT_HUD_H*ctps5_battle_hud_scale(0)/100;
+    /* Erase only the original DS panel, not the wide side margins. The
+     * replacement texture supplies its own bounded blue fill and frame. */
+    float old_width=256*ui_scale*game->w/columns;
+    if(old_width>game->w)old_width=game->w;
+    layout->cover=(SDL_FRect){game->x+(game->w-old_width)/2,game->y+top*game->h/rows,
+        old_width,46*ui_scale*game->h/rows};
+    /* The stock panel occupies 46 rows. Keep a two-row bottom margin under
+     * the 44-row card area, erasing the old box's final border as well. */
+    float card_height=44*ui_scale*game->h/rows;
+    float k=card_height/CT_HUD_H*ctps5_battle_hud_scale(0)/100;
     if(k>game->w*.94f/CT_HUD_W)k=game->w*.94f/CT_HUD_W;
-    float bottom=layout->cover.y+layout->cover.h,hud_y=bottom-CT_HUD_H*k;
+    float bottom=layout->cover.y+layout->cover.h,hud_y=layout->cover.y+card_height-CT_HUD_H*k;
     if(hud_y<game->y)hud_y=game->y;
     layout->hud=(SDL_FRect){game->x+(game->w-CT_HUD_W*k)/2,hud_y,CT_HUD_W*k,CT_HUD_H*k};
     if(hud_y<layout->cover.y){layout->cover.h+=layout->cover.y-hud_y;layout->cover.y=hud_y;}

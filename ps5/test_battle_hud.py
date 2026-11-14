@@ -60,6 +60,11 @@ int main(void){
  ct_hud_draw_commands(commands+1,1,icons);assert(commands[1]==0&&commands[1+CT_CMD_W*20+1]==0);
  assert(commands[0]==0xdeadbeef&&commands[CT_CMD_W*CT_CMD_H+1]==0xdeadbeef);
  for(int c=0;c<3;c++)assert(commands[1+3*CT_CMD_W+c*80+24]==icons[c][0]);
+ assert(commands[1+3*CT_CMD_W+21]==0xff000000u); /* Bold black outer edge. */
+ assert(commands[1+3*CT_CMD_W+23]!=0xff000000u); /* Light inner edge. */
+ s.member[0].present=1;s.member[0].hp=s.member[0].max_hp=9999;s.member[0].mp=s.member[0].max_mp=999;
+ ct_hud_draw(p,&s,faces);
+ for(int y=3;y<CT_HUD_H-3;y++)assert(p[y*CT_HUD_W+159]!=faces[0][0]);
  puts("PASS: live unaligned HP/MP, all seven party identities, ATB countdown/ready/KO, empty slots, invalid pointers/state, immutable RAM and renderer guards");
 }
 '''

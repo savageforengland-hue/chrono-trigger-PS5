@@ -965,7 +965,7 @@ static void draw_screens(View *v) {
     SDL_RenderTexture(ren, internal, NULL, &dest);
 #ifdef EGG_PS5
     if (portrait_hud) {
-        SDL_SetRenderDrawColor(ren,15,18,48,255);
+        SDL_SetRenderDrawColor(ren,0,0,0,255);
         SDL_RenderFillRect(ren,&battle_layout.cover);
         SDL_RenderTexture(ren, v->battle_hud, NULL, &battle_layout.hud);
         if(battle_layout.commands.w>0)SDL_RenderTexture(ren,v->battle_commands,NULL,&battle_layout.commands);

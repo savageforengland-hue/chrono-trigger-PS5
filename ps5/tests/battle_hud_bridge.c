@@ -57,10 +57,12 @@ int main(void){
   int row=top?2:146,rows=zoom?240:192;observe(row,1);assert(PREP(340,rows,zoom));
   assert(!memcmp(&rect,&before,sizeof rect));
   SDL_FRect cover=layout.cover,hud=layout.hud,bar=layout.commands;
-  assert(fabs(cover.x-rect.x)<.001&&fabs(cover.w-rect.w)<.001);
+  float old_ui=256*(zoom==1?(float)rows/192:1)*rect.w/340;
+  assert(fabs(cover.x+cover.w/2-1920)<.001&&fabs(cover.w-old_ui)<.001);
   assert(cover.y>=0&&cover.y+cover.h<=2160.001);
+  assert(cover.y+cover.h>=hud.y+hud.h); /* Erase the old panel's final border. */
   assert(fabs(hud.x+hud.w/2-1920)<.001);assert(fabs(bar.x+bar.w/2-1920)<.001);
-  assert(hud.x>=cover.x-.001&&hud.y>=cover.y-.001&&hud.x+hud.w<=cover.x+cover.w+.001&&hud.y+hud.h<=cover.y+cover.h+.001);
+  assert(hud.x>=rect.x&&hud.x+hud.w<=rect.x+rect.w&&hud.y>=0&&hud.y+hud.h<=2160.001);
   assert(fabs(hud.w/hud.h-(float)CT_HUD_W/CT_HUD_H)<.001);
   assert(bar.y>=0&&bar.y+bar.h<=2160.001);
   assert(bar.y+bar.h<=cover.y||bar.y>=cover.y+cover.h);
