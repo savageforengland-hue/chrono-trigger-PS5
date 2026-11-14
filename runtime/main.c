@@ -21,6 +21,7 @@
 #include "../ps5/diagnostics.h"
 #include "../ps5/memory.h"
 #include "../ps5/game_prompts.h"
+#include "../ps5/battle_hud.h"
 #define PS5_STAGE(n, message) egg_ps5_diag_stage(n, message)
 #define PS5_FAILURE(where, detail) do { egg_ps5_diag_failure(where, detail); egg_ps5_memory_report(where); } while (0)
 #else
@@ -277,6 +278,7 @@ int main(int argc, char **argv) {
     if (display_setting_get(SET_MODS)) gfxmod_load(); /* graphics mods: into the ROM in memory, and HD art */
 #ifdef EGG_PS5
     (void)egg_ps5_game_prompts_init();
+    ctps5_battle_hud_init();
 #endif
     spu_open_output();
 

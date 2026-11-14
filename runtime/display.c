@@ -1,3 +1,6 @@
+#ifdef EGG_PS5
+#include "../ps5/battle_hud.h"
+#endif
 /* Presentation of the two 256x192 screens: window, layout, internal resolution, filter, aspect ratio, touch
  * mapping, and the display settings (System Settings menu, eggoftime.ini next to the executable).
  *
@@ -164,6 +167,9 @@ typedef struct View {
     SDL_Texture *native[6], *smooth[6], *internal; /* top, bottom, main, party, still, UI (zoom out) */
     SDL_Texture *hd_tex[6]; /* the screens drawn from HD art (graphics mods) */
     int hd_k[6];            /* their scale; 0: not drawn this way */
+#ifdef EGG_PS5
+    SDL_Texture *battle_hud;
+#endif
     SDL_Texture *lcd_mask;  /* LCD filter: one pixel's grid at lcd_mask_n */
     int lcd_mask_n;
 } View;
@@ -950,7 +956,15 @@ static void draw_screens(View *v) {
 #ifdef EGG_PS5_CORE
     draw_fixed_screen_panels(v, internal, cw * n, ch * n, &dest);
 #endif
+#ifdef EGG_PS5
+    SDL_FRect hud_rect;
+    int portrait_hud = v == &primary && main_shown(v) && !sysmenu_is_open() &&
+        ctps5_battle_hud_prepare(ren, &v->battle_hud, &dest, &hud_rect);
+#endif
     SDL_RenderTexture(ren, internal, NULL, &dest);
+#ifdef EGG_PS5
+    if (portrait_hud) SDL_RenderTexture(ren, v->battle_hud, NULL, &hud_rect);
+#endif
 }
 
 /* ---- interface ---- */

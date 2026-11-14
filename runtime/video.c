@@ -1,3 +1,6 @@
+#ifdef EGG_PS5
+#include "../ps5/battle_hud.h"
+#endif
 /* DS 2D graphics: VRAM bank mapping (VRAMCNT_A..I) and per-scanline rendering of engines A and B.
  * Reference: GBATEK "DS Video". The 3D layer (engine A BG0 in 3D mode) is not rendered yet. */
 #include <SDL3/SDL.h>
@@ -1822,6 +1825,9 @@ static void ui_to_edges(int w, int rows, int shown) {
 }
 
 void video_end_frame(void) {
+#ifdef EGG_PS5
+    ctps5_battle_hud_frame();
+#endif
     /* POWCNT1 bit 15: engine A on the top screen. */
     int a_top = (io_get16(0x304) >> 15) & 1;
     const uint32_t *ft = frame[a_top ? 0 : 1], *fb = frame[a_top ? 1 : 0];

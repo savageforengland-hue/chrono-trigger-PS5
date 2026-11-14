@@ -63,6 +63,9 @@ set(EGG_VERSION "dev" CACHE STRING "Version of this build")
 
 set(RUNTIME_SOURCES
     runtime/main.c
+    runtime/battle_hud_faces.c
+    runtime/battle_hud_draw.c
+    runtime/battle_hud_state.c
     runtime/boot.c
     runtime/controls.c
     runtime/cpu.c
