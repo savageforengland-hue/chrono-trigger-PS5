@@ -1,0 +1,1506 @@
+/* Single screen mode: the boot, title and Game Settings screens, which the DS spreads over both screens, laid
+ * out on the main (top) screen, for devices with one screen. Off (EGG_SINGLE_SCREEN=0) the main screen is the
+ * top screen.
+ *
+ * The running scene is the game's own: Scene::run (main 0x0202514c), which every scene runs in, stores the
+ * scene's secondary base (scene + 8) at 0x0207088c (func 0x02025d30), where the VBlank handler finds it. That
+ * base's vtable names the scene class. Being game memory, it is right after loading a save state too.
+ *   - Logos (ov007): first "Licensed by Nintendo" on the bottom screen alone, then Square Enix in the middle
+ *     of the top screen and Mobiclip in the middle of the bottom one, on the same plain backdrop. Shown: the
+ *     bottom screen while the top one is blank, then both logos stacked.
+ *   - Title (ov007): logo and pendulum on the top screen. The bottom screen shows "Touch to Start" (title
+ *     state 8), with the copyright once the logo has formed; a touch or START opens the menu (phase 7), the
+ *     buttons (New Game...) on the bottom screen. The main screen gets the copyright, "Press any button to
+ *     start" (blinking with the game's own prompt) and then the menu buttons, left of the pendulum and
+ *     right above the copyright; any button stands in for the touch. In the menu, SELECT also opens the
+ *     runtime's menu (not shown on screen).
+ *   - Game Settings (ov007, after New Game): the options on the bottom screen, the highlighted one's
+ *     description on the top screen. The main screen shows Battle Mode and Movies with the description under
+ *     the highlighted one; Game Mode is left out (single screen mode always plays Classic) and SELECT reads
+ *     "System settings" instead of the game's "Defaults": it opens the runtime's menu (system_menu.c).
+ *   - Name entry (ov012): the character on a patch of grass on the top screen, the keyboard, name and
+ *     portrait filling the bottom screen. The main screen shows the top screen while the character appears
+ *     and after the name is accepted (the character's animation), the bottom screen while the name is entered.
+ *   - Field menu (ov012, X), its Main Menu page: the party, location, time and gold on the top screen, the
+ *     command icons and the description on the bottom one. The main screen shows the party as three compact
+ *     cards (portrait, name and LV, HP, MP) built from the game's panels, the icons, then one bar with the time,
+ *     the location and the gold, and the description; the "Main Menu" title is left out.
+ *   - Its Equipment page: the member's portrait, stats and EXP on the top screen, the members (L/R), the four
+ *     slots (or, while an item is chosen, the slot and the item list) and the description on the bottom one.
+ *     The main screen shows the members, the name, LV, HP and MP, the stats packed closer, the slots in a 2x2
+ *     grid (the slot being changed and two rows of the list while choosing) and the description; the portrait
+ *     shows as a strip across the eyes beside the element; the title and the items' power are left out.
+ *   - Its Inventory page: the party's HP and MP on the top screen, the items (and, once one is used, the
+ *     member cards to use it on) on the bottom one. The main screen shows the bottom screen; while choosing
+ *     who uses the item, with the item's bar moved to the top and a line per member (name, HP, MP) under it.
+ *   - Its Techs page: the member's HP, MP and the tech's cost on the top screen, the techs on the bottom one, then
+ *     the cards as in the Inventory. The main screen shows the bottom screen with the member's HP and MP added
+ *     under the category; choosing who a tech is used on, as in the Inventory.
+ *   - Its Party page: the party's sprites and their Dual and Triple techs (four boxes) on the top screen, all
+ *     members' cards and the description on the bottom one. The main screen shows the bottom screen with the
+ *     sprites under the party's cards, or with Y (and back) the top screen; a hint names the other view.
+ *   - Its Save page: the highlighted file's party, location, time and gold on the top screen, the three files on
+ *     the bottom one. The main screen shows the files narrowed at the left, the file's members (portrait, LV, HP
+ *     and MP) at the right, then the time, location and gold in one bar as on the Main Menu page.
+ *   - Its Settings page: every option's value on the top screen, the tabs, four options and "Defaults" on
+ *     the bottom one. The main screen shows the bottom screen; on the first tab without Game Mode (single
+ *     screen mode always plays Classic), the other options moved up. SELECT reads "System settings" instead
+ *     of "Defaults": it opens the runtime's menu, as in Game Settings.
+ *   - Its Bestiary page: the monster and its panel on the top screen, the tabs, a list of four (number, name) and
+ *     the count discovered on the bottom one. The main screen shows the top screen with the tabs over its title,
+ *     and under the monster the list as lines of text, the selected one framed, then the count.
+ *   - Shops (ov012): each member's sprite, name and attack and defense (now and with the item highlighted) on the
+ *     top screen; Buy / Sell / Equip, the categories, the gold, the item's panel, the list or the quantity on the
+ *     bottom one, with the item's description in the help bar. The main screen shows the bottom screen moved up into
+ *     the gap under the tabs, the item's panel packed to make room for the description in a box under it, and, in
+ *     place of the help bar, every member's name and the stat the item changes as lines
+ *     of text, three to a line. Equip opens the Equipment page.
+ *   - Arena of the Ages (ov013), a monster's page: its name, wins, HP, element and sprite, then its stats (or with
+ *     Toggle Display nothing in their place) on the top screen; Train Monster, Toggle Display and Release Monster
+ *     stacked and the help bar on the bottom one. The main screen shows the top screen with the sprite moved up
+ *     beside the name and the stats under it, then the three buttons narrowed into one row, then the help bar;
+ *     Left/Right move between the buttons like Up/Down.
+ *     Train Monster then shows the same top screen (on its last page with the item chosen as a fifth line) over
+ *     three pages on the bottom one: a prompt to choose an item and an era, the items (a tab bar, a grid of two
+ *     columns and the help bar), and the five eras stacked. The main screen shows the top screen with the prompt
+ *     under it, then the bottom screen with its items (or eras) packed closer and the stats as lines of text under
+ *     them.
+ *   - The Arena's shop (ov013): the title and the monster's name, wins, HP, element and sprite on the top screen;
+ *     Buy / Sell and the funds, or a category's items (tabs, funds, price and stock, the list) on the bottom one.
+ *     The main screen shows the title and the monster over Buy / Sell and the funds, the bottom screen for the
+ *     items.
+ *   - The Arena's battle starting (ov013): "Preparing arena for battle." in a box on the bottom screen, the top
+ *     screen the same backdrop without it. The main screen shows the bottom screen.
+ *   - The Arena's battle (ov013): the Pit with the monsters and the battle's text box on the top screen; the two
+ *     monsters' panels (name, HP), the moves they use, the eight items in two columns of four and the help bar on
+ *     the bottom one. The main screen shows the panels and moves, the Pit around the monsters, the items as four
+ *     columns of two (the game's columns as rows: Left/Right and Up/Down swap while they are chosen), their buttons
+ *     narrowed without the count, then the text box or, while an item is chosen, the help bar with its count.
+ *   - After an Arena battle won (ov013): the monster in a spotlight on the top screen; the prize in a box and
+ *     "Return to the stables." on the bottom one. The main screen shows the spotlight over the box and the button.
+ *   - Age selector (ov012, time travel): the chosen age's map on the top screen, the ring of ages with the age's
+ *     name, A Warp and B on the bottom one. The main screen shows the bottom screen with the ring and name moved
+ *     left (a second picture of the bottom screen, swirl and buttons in place) and the map at half size beside the
+ *     ring, centred together (compose_ages).
+ *   - Widescreen (the top screen with its margins): the field, and the warp through a time gate (ov010): an
+ *     affine BG with wraparound, whose margins the renderer draws as they are, under a star of sprites that
+ *     covers the DS screen exactly, stretched across the margins (video.c); and the world map (ov002), whose
+ *     margins are filled from its own map data (widescreen.c); and the race against Johnny in Lab 32 (ov011),
+ *     whose road is an affine BG with wraparound (drawn as it is) and whose sky layers are 256-wide maps that
+ *     repeat into the margins (video.c). Its sprites (the bikes, the HUD) stay within the 4:3 view, centred.
+ *   - The Minimap setting: the field's and the world map's map panel (ov016, cFieldMenu and cWorldMenu, always on
+ *     the bottom screen) made smaller in the top left of the main screen, drawn by the display over the picture
+ *     (display.c), since the field's picture slides with camera smoothing and the map must not. Left out in
+ *     battles and while the text box would be under it.
+ *   - Everything else, the intro movie included, shows the top screen as it is; while the field is paused,
+ *     with "Press SELECT to open System Settings" at the bottom (the menu opens from there too). */
+#include <SDL3/SDL.h>
+
+#include "dispatch.h"
+#include "rt.h"
+#include "ui_text.h"
+#include "single_screen.h"
+#include "system_menu.h"
+#include "ui_font.h"
+#include "video.h"
+
+enum { SCENE_OTHER, SCENE_LOGOS, SCENE_TITLE, SCENE_SETTINGS, SCENE_NAMING, SCENE_FIELD, SCENE_WARP, SCENE_OVERWORLD, SCENE_MENU, SCENE_EQUIP, SCENE_ITEMS, SCENE_TECHS, SCENE_BESTIARY, SCENE_OPTIONS, SCENE_PARTY, SCENE_SAVE, SCENE_SHOP, SCENE_RACE, SCENE_AGES, SCENE_ARENA, SCENE_TRAIN, SCENE_TRAIN_ITEMS, SCENE_TRAIN_ERA, SCENE_ARENA_SHOP, SCENE_ARENA_PREP, SCENE_ARENA_BATTLE, SCENE_ARENA_RESULT };
+typedef struct Scene { int kind; uint32_t obj; } Scene;
+static uint32_t title_held; /* keys held since before the title started: not a press */
+#define TITLE_STATE 0x4a  /* title scene: current state (halfword); +0x48 holds the requested one */
+#define TITLE_WAITING 8   /* "Touch to Start", until the phase is the menu's */
+#define TITLE_PHASE 0x38b6 /* title scene: phase (halfword): 0 and 3 the logo forming, 5 formed, 7 menu, 0x10 leaving */
+#define TITLE_MENU 7      /* a touch before the logo has formed opens it through states 0-0x1e, one after in state 8 */
+#define OBJ 0x1000u       /* DISPCNT: sprites on */
+#define SETTINGS_ROW 0x3f00       /* Game Settings: cursor row (byte); +0x3f01 the row shown, +0x3f02 the column */
+#define SETTINGS_ROW_SHOWN 0x3f01
+#define NAMING_STATE 0x4e48 /* name entry: state (word): 0 the character and keyboard fading in, 1 entering, 2 accepted */
+#define NAMING_ENTERING 1
+
+#define MENU_PAGE 0x19c4      /* field menu (ov012, X): its current page object (Main Menu, Equipment...) */
+#define MENU_MAIN GAME_ADDR(0x02159bf8u, 0x02159c58u) /* the Main Menu page's vtable */
+#define MENU_EQUIP GAME_ADDR(0x021595fcu, 0x0215965cu) /* the Equipment page's: +4 its state (EQUIP_PICKING: choosing an item), +0x32c the slot */
+#define MENU_ITEMS GAME_ADDR(0x02159774u, 0x021597d4u) /* the Inventory page's vtable */
+#define MENU_TECHS GAME_ADDR(0x02159b30u, 0x02159b90u) /* the Techs page's */
+#define MENU_PARTY GAME_ADDR(0x021596ccu, 0x0215972cu) /* the Party page's vtable */
+#define MENU_SAVE GAME_ADDR(0x02159a10u, 0x02159a70u)  /* the Save page's */
+#define MENU_OPTIONS GAME_ADDR(0x02159510u, 0x02159570u) /* the Settings page's: +0xa the tab, +0xc the row, +0xe the option (tab * 4 + row) */
+#define OPTIONS_TAB 0xa
+#define OPTIONS_ROW 0xc
+#define OPTIONS_INDEX 0xe
+#define CONFIG GAME_ADDR(0x020708d0u, 0x020708f0u) /* points to the save configuration: Game Mode byte 2 bit 7 (1 = Classic) */
+#define EQUIP_STATE 0x4
+#define EQUIP_PICKING 5
+#define EQUIP_SLOT 0x32c
+#define EQUIP_CHARACTER 0x6688 /* field menu scene: the Equipment page's character (id, byte), set as its data is
+                                * shown; the page's own +0x332 is a place on the members bar, in the menu's order */
+
+#define ARENA_PAGE 0x19c4      /* Arena of the Ages (ov013): its current page object, as the field menu's */
+#define ARENA_MONSTER 0x02147688u /* the monster's page's vtable (+8 the button: 0 Train, 1 Toggle, 2 Release) */
+#define ARENA_TRAIN 0x02147718u   /* Train Monster's pages: the prompt, */
+#define ARENA_TRAIN_ITEMS 0x021477b0u /* the items, */
+#define ARENA_TRAIN_ERA 0x0214783cu   /* the eras */
+#define ARENA_PREP 0x02148838u /* ov013: the scene before an Arena battle ("Preparing arena for battle.") */
+#define ARENA_BATTLE 0x02147f7cu /* ov013: an Arena battle */
+#define ARENA_RESULT 0x021465c0u /* ov013: after an Arena battle (the prize, "Return to the stables.") */
+#define ARENA_SHOP_BUY 0x2a4e /* the Arena's shop: its Buy button's sprite is shown (byte), on Buy / Sell only */
+
+#define CURRENT_SCENE GAME_ADDR(0x0207088cu, 0x020708acu) /* the running scene's secondary base (scene + 8), set by Scene::run */
+
+static Scene current(void) {
+    Scene sc = {SCENE_OTHER, 0};
+    uint32_t base = rt_r32(CURRENT_SCENE);
+    if (!EGG_SINGLE_SCREEN || base >> 24 != 0x02) return sc;
+    sc.obj = base - 8;
+    uint32_t vt = rt_r32(base); /* the secondary base's vtable */
+    if (rt_overlay_resident(7)) {
+        if (vt == GAME_ADDR(0x0212ad68u, 0x0212abe8u)) sc.kind = SCENE_LOGOS;
+        else if (vt == GAME_ADDR(0x0212aed4u, 0x0212ad54u)) sc.kind = SCENE_TITLE;
+        else if (vt == GAME_ADDR(0x0212b300u, 0x0212b180u)) sc.kind = SCENE_SETTINGS;
+    }
+    if (vt == GAME_ADDR(0x02156880u, 0x021568e0u) && rt_overlay_resident(12)) sc.kind = SCENE_NAMING;
+    if (vt == GAME_ADDR(0x02158b24u, 0x02158b84u) && rt_overlay_resident(12)) {
+        uint32_t page = rt_r32(sc.obj + MENU_PAGE);
+        if (page >> 24 == 0x02 && rt_r32(page) == MENU_MAIN) sc.kind = SCENE_MENU;
+        if (page >> 24 == 0x02 && rt_r32(page) == MENU_EQUIP) sc.kind = SCENE_EQUIP;
+        if (page >> 24 == 0x02 && rt_r32(page) == MENU_ITEMS) sc.kind = SCENE_ITEMS;
+        if (page >> 24 == 0x02 && rt_r32(page) == MENU_TECHS) sc.kind = SCENE_TECHS;
+        if (page >> 24 == 0x02 && rt_r32(page) == MENU_OPTIONS) sc.kind = SCENE_OPTIONS;
+        if (page >> 24 == 0x02 && rt_r32(page) == MENU_PARTY) sc.kind = SCENE_PARTY;
+        if (page >> 24 == 0x02 && rt_r32(page) == MENU_SAVE) sc.kind = SCENE_SAVE;
+    }
+    if (vt == GAME_ADDR(0x021575f0u, 0x02157650u) && rt_overlay_resident(12)) sc.kind = SCENE_SHOP; /* ov012: a shop */
+    if (vt == 0x0219fc8cu && rt_overlay_resident(18)) sc.kind = SCENE_BESTIARY; /* ov018: the menu's Bestiary */
+    if (vt == GAME_ADDR(0x02115558u, 0x02115578u) && rt_overlay_resident(0)) sc.kind = SCENE_FIELD; /* ov000: towns, maps, battles */
+    if (vt == 0x0212535cu && rt_overlay_resident(10)) sc.kind = SCENE_WARP;  /* ov010: travel through a time gate */
+    if (vt == 0x02120a68u && rt_overlay_resident(2)) sc.kind = SCENE_OVERWORLD; /* ov002: the world map */
+    if (vt == 0x02148574u && rt_overlay_resident(11)) sc.kind = SCENE_RACE; /* ov011: the race against Johnny (Lab 32) */
+    if (vt == GAME_ADDR(0x02158290u, 0x021582f0u) && rt_overlay_resident(12)) sc.kind = SCENE_AGES; /* ov012: the age selector (time travel) */
+    if (vt == ARENA_PREP && rt_overlay_resident(13)) sc.kind = SCENE_ARENA_PREP;
+    if (vt == ARENA_BATTLE && rt_overlay_resident(13)) sc.kind = SCENE_ARENA_BATTLE;
+    if (vt == ARENA_RESULT && rt_overlay_resident(13)) sc.kind = SCENE_ARENA_RESULT;
+    if (vt == 0x0214a550u && rt_overlay_resident(13)) sc.kind = SCENE_ARENA_SHOP; /* ov013: the Arena's shop */
+    if (vt == 0x02147460u && rt_overlay_resident(13)) { /* ov013: the Arena of the Ages */
+        uint32_t page = rt_r32(sc.obj + ARENA_PAGE);
+        uint32_t pvt = page >> 24 == 0x02 ? rt_r32(page) : 0;
+        if (pvt == ARENA_MONSTER) sc.kind = SCENE_ARENA;
+        else if (pvt == ARENA_TRAIN) sc.kind = SCENE_TRAIN;
+        else if (pvt == ARENA_TRAIN_ITEMS) sc.kind = SCENE_TRAIN_ITEMS;
+        else if (pvt == ARENA_TRAIN_ERA) sc.kind = SCENE_TRAIN_ERA;
+    }
+    return sc;
+}
+
+/* The bottom screen's engine registers (POWCNT1 bit 15: engine A on the top screen). */
+static uint32_t bottom_io(void) { return (io_get16(0x304) & 0x8000) ? 0x1000u : 0; }
+
+static int title_waiting(Scene sc) {
+    return sc.kind == SCENE_TITLE && rt_r16(sc.obj + TITLE_STATE) == TITLE_WAITING &&
+           rt_r16(sc.obj + TITLE_PHASE) < TITLE_MENU;
+}
+
+/* Up/Down in Game Settings: the direction the game gets for the press being held (0: not held). */
+static uint32_t settings_up, settings_down;
+
+static uint32_t settings_dir(uint32_t keys, uint32_t key, uint32_t *held_as, int wraps, uint32_t other) {
+    if (!(keys & key)) {
+        *held_as = 0;
+        return keys;
+    }
+    if (!*held_as) *held_as = wraps ? other : key; /* decided when the press starts, kept while it is held */
+    return (keys & ~key) | *held_as;
+}
+
+/* Game Settings without its Game Mode row (rows 0 Game Mode, 1 Battle Mode, 2 Movies): the cursor leaves
+ * row 0 (a pulsed Down, so the scene sees a fresh press once it takes input), and Up/Down wrap between the
+ * two other rows. SELECT, the game's "Defaults", is kept for "System settings" (not implemented yet). */
+static uint32_t settings_keys(Scene sc, uint32_t keys) {
+    keys &= ~KEY_SELECT;
+    int row = rt_r8(sc.obj + SETTINGS_ROW);
+    if (row == 0) {
+        keys &= ~(KEY_UP | KEY_DOWN);
+        return rt_frame_count & 2 ? keys | KEY_DOWN : keys;
+    }
+    keys = settings_dir(keys, KEY_UP, &settings_up, row == 1, KEY_DOWN);
+    return settings_dir(keys, KEY_DOWN, &settings_down, row == 2, KEY_UP);
+}
+
+/* Equipment page, browsing: the slots form a 2x2 grid on the main screen (Weapon, Helm / Armor, Accessory), so the
+ * D-pad moves in it. The game moves through them in a column with Up/Down (Right chooses an item, like A): a
+ * press becomes the one Up or Down that reaches the slot in that direction, if there is one. Down and Up within
+ * a column skip a slot: the cursor is put on the slot between first (unseen: the game draws it only after
+ * moving on), so the game's own move lands on the target. While choosing an item, the list is beside the slot
+ * as on the DS, but Left (the game's way back to the slots, like B) is left out: only B goes back. */
+static uint32_t equip_held, equip_key; /* the key held for the game until the cursor is on the slot */
+static int equip_to = -1, equip_wait;
+
+static uint32_t equip_keys(Scene sc, uint32_t keys) {
+    uint32_t page = rt_r32(sc.obj + MENU_PAGE), dirs = KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT;
+    uint32_t pressed = keys & ~equip_held;
+    equip_held = keys;
+    uint32_t state = rt_r32(page + EQUIP_STATE);
+    if (state != 0) {
+        equip_to = -1;
+        return state == EQUIP_PICKING ? keys & ~KEY_LEFT : keys; /* the list: Left would leave it, as B does */
+    }
+    uint32_t v = rt_r32(page + EQUIP_SLOT);
+    int slot = (int)(v & 3), to = -1;
+    if (equip_to >= 0) {
+        if (equip_to == slot || ++equip_wait > 30) equip_to = -1; /* there, or the game took none */
+        return equip_to >= 0 ? (keys & ~dirs) | equip_key : keys & ~dirs;
+    }
+    if ((pressed & KEY_RIGHT) && !(slot & 1)) to = slot + 1;
+    if ((pressed & KEY_LEFT) && (slot & 1)) to = slot - 1;
+    if ((pressed & KEY_DOWN) && slot < 2) to = slot + 2;
+    if ((pressed & KEY_UP) && slot >= 2) to = slot - 2;
+    keys &= ~dirs;
+    if (to < 0) return keys;
+    if (to - slot == 2 || slot - to == 2) rt_w32(page + EQUIP_SLOT, (v & ~3u) | (uint32_t)(slot + to) / 2);
+    equip_to = to, equip_wait = 0, equip_key = to > slot ? KEY_DOWN : KEY_UP;
+    return keys | equip_key;
+}
+
+/* Field menu, Settings page, without Game Mode (tab 0, row 0: single screen mode always plays Classic, kept
+ * so whatever sets it). The cursor leaves row 0 with a pulsed Down, as in Game Settings; Up from Battle
+ * Mode puts the cursor on row 0 first (unseen), so the game's own Up wraps to the last option. */
+static int options_wrap; /* row 0 stands in for Battle Mode until the game takes the Up */
+
+static uint32_t options_keys(Scene sc, uint32_t keys) {
+    uint32_t cfg = rt_r32(CONFIG), page = rt_r32(sc.obj + MENU_PAGE);
+    rt_w8(cfg + 2, rt_r8(cfg + 2) | 0x80u);
+    int row = rt_r8(page + OPTIONS_ROW);
+    if (rt_r8(page + OPTIONS_TAB) != 0) row = -1;
+    if (row == 1 && (keys & KEY_UP)) {
+        rt_w8(page + OPTIONS_ROW, 0);
+        rt_w8(page + OPTIONS_INDEX, 0);
+        options_wrap = 1;
+        return keys;
+    }
+    if (row != 0) {
+        options_wrap = 0;
+        return keys;
+    }
+    if (options_wrap && (keys & KEY_UP)) return keys;
+    options_wrap = 0;
+    keys &= ~(KEY_UP | KEY_DOWN | KEY_A);
+    return rt_frame_count & 2 ? keys | KEY_DOWN : keys;
+}
+
+/* Party page: Y (unused by the game there) switches the main screen between the members and the Dual and
+ * Triple techs. The techs view hides the cursor, so it keeps the D-pad and A from the game. */
+static int party_techs;
+static uint32_t party_held;
+
+static uint32_t party_keys(uint32_t keys) {
+    if (keys & ~party_held & KEY_Y) party_techs = !party_techs;
+    party_held = keys;
+    keys &= ~KEY_Y;
+    return party_techs ? keys & ~(KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT | KEY_A) : keys;
+}
+
+/* Arena monster page: the buttons are side by side on the main screen, so Left/Right move between them as the
+ * game's Up/Down do. */
+static uint32_t arena_keys(uint32_t keys) {
+    uint32_t moved = (keys & KEY_LEFT ? KEY_UP : 0) | (keys & KEY_RIGHT ? KEY_DOWN : 0);
+    return (keys & ~(KEY_LEFT | KEY_RIGHT)) | moved;
+}
+
+/* Arena battle: while an item is chosen (arena_choosing, from the picture), the main screen shows the game's columns
+ * of items as rows, so Left/Right move as the game's Up/Down and Up/Down as its Left/Right. */
+static SDL_AtomicInt arena_choosing;
+static uint32_t arena_battle_keys(uint32_t keys) {
+    if (!SDL_GetAtomicInt(&arena_choosing)) return keys;
+    uint32_t moved = (keys & KEY_LEFT ? KEY_UP : 0) | (keys & KEY_RIGHT ? KEY_DOWN : 0) |
+                     (keys & KEY_UP ? KEY_LEFT : 0) | (keys & KEY_DOWN ? KEY_RIGHT : 0);
+    return (keys & ~(KEY_LEFT | KEY_RIGHT | KEY_UP | KEY_DOWN)) | moved;
+}
+
+static SDL_AtomicInt turned_off;
+
+int ss_enabled(void) { return EGG_SINGLE_SCREEN && !SDL_GetAtomicInt(&turned_off); }
+void ss_set_enabled(int on) { SDL_SetAtomicInt(&turned_off, !on); }
+
+uint32_t ss_game_keys(uint32_t keys) {
+    static int seen = SCENE_OTHER;
+    Scene sc = current();
+    if (!ss_enabled()) sc.kind = SCENE_OTHER;
+    if (sc.kind != seen) { /* a scene started */
+        seen = sc.kind;
+        title_held = keys;
+        settings_up = settings_down = 0;
+        equip_to = -1;
+        options_wrap = 0;
+        party_techs = 0;
+        party_held = keys;
+    }
+    if (sc.kind == SCENE_EQUIP) return equip_keys(sc, keys);
+    if (sc.kind == SCENE_SETTINGS) return settings_keys(sc, keys);
+    if (sc.kind == SCENE_OPTIONS) return options_keys(sc, keys);
+    if (sc.kind == SCENE_PARTY) return party_keys(keys);
+    if (sc.kind == SCENE_ARENA) return arena_keys(keys);
+    if (sc.kind == SCENE_ARENA_BATTLE) return arena_battle_keys(keys);
+    if (!title_waiting(sc)) return keys;
+    title_held &= keys;
+    return keys & ~title_held ? keys | KEY_START : keys;
+}
+
+/* ---- composition ---- */
+
+#define BLACK 0xFF000000u
+
+/* Copies the non-black pixels of rows [y0, y1) of src into dst, moved by (dx, dy). */
+static void overlay(uint32_t *dst, const uint32_t *src, int y0, int y1, int dx, int dy) {
+    for (int y = y0; y < y1; y++) {
+        int ty = y + dy;
+        if (ty < 0 || ty >= SCREEN_H) continue;
+        for (int x = 0; x < SCREEN_W; x++) {
+            int tx = x + dx;
+            uint32_t p = src[y * SCREEN_W + x];
+            if (p != BLACK && tx >= 0 && tx < SCREEN_W) dst[ty * SCREEN_W + tx] = p;
+        }
+    }
+}
+
+/* Title layout on the main screen: the free area left of the resting pendulum. */
+#define FREE_CX 95       /* centre column */
+#define FREE_CY 130      /* centre row */
+#define MENU_DX (-32)    /* bottom-screen buttons (centred at column 127) moved into it... */
+#define MENU_Y1 165      /* ...ending right above the copyright (main rows 166-188), over the logo's lower part */
+#define COPYRIGHT_Y0 156 /* bottom-screen rows holding the copyright (BG2)... */
+#define COPYRIGHT_Y1 186
+#define COPYRIGHT_DY 6   /* ...moved down to the main screen's last rows (its text from row 166, x up to 245) */
+#define SELECT_HINT_X1 250 /* the SELECT button ends left of this column... */
+#define SELECT_HINT_Y1 164 /* ...and above this row */
+
+static void compose_title(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, top, SCREEN_W * SCREEN_H * 4);
+    overlay(main, bottom, COPYRIGHT_Y0, COPYRIGHT_Y1, 0, COPYRIGHT_DY);
+    Scene sc = current();
+    /* States before the waiting one set the bottom screen up, "Touch to Start" included: no menu yet. */
+    if (sc.kind == SCENE_TITLE && rt_r16(sc.obj + TITLE_STATE) < TITLE_WAITING) return;
+    if (title_waiting(sc)) {
+        uint32_t io = bottom_io();
+        if (!(io_get32(io) & OBJ)) return; /* the game's prompt blinks by turning its sprites off */
+        /* Follow the bottom screen's fade (master brightness, darken mode). */
+        uint16_t mb = io_get16(io + 0x6C);
+        int f = (mb >> 14) == 2 ? (mb & 31) : 0;
+        if (f > 16) f = 16;
+        uint32_t v = 255u * (uint32_t)(16 - f) / 16;
+        const char *prompt = ui_text_in(rt_language(), "Press any button to start");
+        ui_draw_text(main, prompt, FREE_CX - ui_text_width(prompt) / 2, FREE_CY - 4, BLACK | v << 16 | v << 8 | v);
+        return;
+    }
+    /* Menu: the buttons, wherever the game puts them above the copyright, in the free area. They don't fit
+     * between the logo and the copyright, so they end above the copyright and cover part of the logo. */
+    int first = -1, last = -1;
+    for (int y = 0; y < COPYRIGHT_Y0; y++) {
+        for (int x = 0; x < SCREEN_W; x++) {
+            if (bottom[y * SCREEN_W + x] != BLACK) {
+                if (first < 0) first = y;
+                last = y;
+                break;
+            }
+        }
+    }
+    /* Each row from its first to its last lit pixel, black included: the black outlines of the labels must
+     * hide the logo under them. */
+    for (int y = first; first >= 0 && y <= last; y++) {
+        const uint32_t *src = &bottom[y * SCREEN_W];
+        int x0 = 0, x1 = SCREEN_W - 1;
+        while (x0 <= x1 && src[x0] == BLACK) x0++;
+        while (x1 >= x0 && src[x1] == BLACK) x1--;
+        int ty = y + MENU_Y1 - (last + 1);
+        if (ty < 0) continue;
+        for (int x = x0; x <= x1; x++) {
+            if (x + MENU_DX >= 0 && x + MENU_DX < SCREEN_W) main[ty * SCREEN_W + x + MENU_DX] = src[x];
+        }
+    }
+    /* SELECT opens System Settings from the menu: its button, bottom right, right above the copyright. */
+    if (rt_r16(sc.obj + TITLE_PHASE) == TITLE_MENU) sysmenu_draw_select_button(main, SELECT_HINT_X1, SELECT_HINT_Y1);
+}
+
+/* Game Settings: top screen, the highlighted option's title and description box; bottom screen, the options
+ * (Game Mode, Battle Mode, Movies), SELECT "Defaults" / START "Accept" and the footer. The main screen stacks
+ * full-width bands of both: header, Battle Mode, Movies with the description box under the highlighted one,
+ * the buttons with SELECT relabelled, footer (26 + 27 + 27 + 66 + 20 + 26 = 192 rows). */
+typedef struct Band { int screen, y0, h; } Band;
+static const Band SET_HEADER = {0, 0, 26}, SET_BATTLE = {1, 58, 27}, SET_MOVIES = {1, 98, 27},
+                  SET_DESC = {0, 119, 66}, SET_BUTTONS = {1, 142, 20}, SET_FOOTER = {1, 166, 26};
+#define SELECT_LABEL_X0 46 /* the "Defaults" label (x 48-84 of the SELECT button, x 16-119)... */
+#define SELECT_LABEL_X1 117
+#define SELECT_LABEL_Y0 5  /* ...rows 147-156 of the bottom screen, painted over with... */
+#define SELECT_LABEL_Y1 15
+#define SELECT_FILL_X 86   /* ...the plain button texture at x 86-115 */
+#define SELECT_FILL_W 30
+
+static int put_band(uint32_t *main, int y, Band b, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(&main[y * SCREEN_W], &(b.screen ? bottom : top)[b.y0 * SCREEN_W], (size_t)b.h * SCREEN_W * 4);
+    return y + b.h;
+}
+
+/* The SELECT button's "Defaults" relabelled "System settings" (the runtime's menu), the button's top at row y of the
+ * bottom screen: every layout shows it, and SELECT opens the menu in all of them. */
+static void relabel_select(uint32_t *main, int y) {
+    for (int r = SELECT_LABEL_Y0; r < SELECT_LABEL_Y1; r++) {
+        uint32_t *row = &main[(y + r) * SCREEN_W];
+        for (int x = SELECT_LABEL_X0; x < SELECT_LABEL_X1; x++) {
+            row[x] = row[SELECT_FILL_X + (x - SELECT_LABEL_X0) % SELECT_FILL_W];
+        }
+    }
+    ui_draw_text(main, ui_text_in(rt_language(), "System settings"), SELECT_LABEL_X0 + 2, y + 6, 0xFFFFFFFFu);
+}
+
+static void compose_settings(Scene sc, uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    int movies = rt_r8(sc.obj + SETTINGS_ROW_SHOWN) == 2;
+    int y = put_band(main, 0, SET_HEADER, top, bottom);
+    y = put_band(main, y, SET_BATTLE, top, bottom);
+    if (!movies) y = put_band(main, y, SET_DESC, top, bottom);
+    y = put_band(main, y, SET_MOVIES, top, bottom);
+    if (movies) y = put_band(main, y, SET_DESC, top, bottom);
+    y = put_band(main, y, SET_BUTTONS, top, bottom);
+    put_band(main, y, SET_FOOTER, top, bottom);
+}
+
+/* Field menu, Main Menu page (see the top). Top screen: title rows 0-22, party panels 127x47 at x 0, y 24 + 48 n
+ * (absent members: no panel), location panel x 128-255, y 136-166 (two text lines, either may be empty), time
+ * and gold bar rows 168-190. Bottom screen: icon rows 36-83 and 92-139 (the cursor included), description
+ * rows 168-191, backdrop elsewhere. Main screen: cards rows 1-42, icons 44-91 and 92-139, bar 141-163,
+ * description 168-191 (as on the bottom screen). Text glyphs: 6 rows (7 with descenders), outlined. */
+#define CARD_W 85
+#define CARD_H 42
+#define BAR_Y 168    /* the bar on the top screen... */
+#define BAR_H 23
+#define BAR_TO 141   /* ...and on the main screen */
+#define BAR_TEXT 8   /* bar rows of the text crops below (glyphs from row 9) */
+
+/* Copies a w x h rectangle between two 256-wide screens, clipped to dst. */
+static void blit(uint32_t *dst, int dx, int dy, const uint32_t *src, int sx, int sy, int w, int h) {
+    for (int y = 0; y < h; y++) {
+        if (dy + y < 0 || dy + y >= SCREEN_H) continue;
+        for (int x = 0; x < w; x++) {
+            if (dx + x >= 0 && dx + x < SCREEN_W) dst[(dy + y) * SCREEN_W + dx + x] = src[(sy + y) * SCREEN_W + sx + x];
+        }
+    }
+}
+
+static int green(uint32_t p) { return (p >> 8) & 0xFF; }
+
+/* A member's panel: its top bevel (a light row over a dark one) under the black gap; the backdrop where there
+ * is none. Relative, so it holds while the menu fades. */
+static int panel_at(const uint32_t *top, int py) {
+    return green(top[(py + 1) * SCREEN_W + 60]) > 2 * green(top[(py + 2) * SCREEN_W + 60]) + 4;
+}
+
+/* Text on the panels is white with a black shadow, neutral grey while the menu fades in (the text fades from
+ * black, the stone does not): the stone (a dithered blue-grey gradient, lighter at the top) is never neutral. */
+static int text_px(uint32_t p) { return (p & 0xFF) == ((p >> 8) & 0xFF) && (p & 0xFF) == ((p >> 16) & 0xFF); }
+
+/* Copies the text pixels of a w x h rectangle (see text_px) between two 256-wide screens. */
+static void blit_text(uint32_t *dst, int dx, int dy, const uint32_t *src, int sx, int sy, int w, int h) {
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            uint32_t p = src[(sy + y) * SCREEN_W + sx + x];
+            if (text_px(p)) dst[(dy + y) * SCREEN_W + dx + x] = p;
+        }
+    }
+}
+
+/* The member's panel at (0, py) rebuilt as a card at (cx, cy): its frame, its stone with the text taken out
+ * (card row y shows panel row y + 2, so the gradient matches), the portrait, then the text: name and LV on one
+ * line over HP and MP. */
+static void menu_card(uint32_t *main, const uint32_t *top, int py, int cx, int cy) {
+    enum { SX = 34, IN = CARD_W - 8 }; /* the stone shown: panel columns SX.., under the text */
+    uint32_t stone[IN];
+    for (int y = 4; y < CARD_H - 4; y++) {
+        const uint32_t *row = &top[(py + y + 2) * SCREEN_W + SX];
+        for (int x = 0; x < IN; x++) { /* a text pixel takes the stone 8 columns left (glyphs are narrower) */
+            if (!text_px(row[x])) stone[x] = row[x];
+            else if (x >= 8) stone[x] = stone[x - 8];
+            else { /* left of SX is the portrait: the nearest stone 8, 16... columns right, in the dither's phase */
+                int k = x + 8;
+                while (k + 8 < IN && text_px(row[k])) k += 8;
+                stone[x] = row[k];
+            }
+        }
+        memcpy(&main[(cy + y) * SCREEN_W + cx + 4], stone, sizeof stone);
+    }
+    blit(main, cx, cy, top, 0, py, CARD_W - 4, 4);                                  /* top edge */
+    blit(main, cx + CARD_W - 4, cy, top, 123, py, 4, 4);
+    blit(main, cx, cy + CARD_H - 4, top, 0, py + 43, CARD_W - 4, 4);                /* bottom edge */
+    blit(main, cx + CARD_W - 4, cy + CARD_H - 4, top, 123, py + 43, 4, 4);
+    for (int y = 4; y < CARD_H - 4; y++) {                                            /* sides, row for row */
+        blit(main, cx, cy + y, top, 0, py + y + 2, 4, 1);
+        blit(main, cx + CARD_W - 4, cy + y, top, 123, py + y + 2, 4, 1);
+    }
+    blit(main, cx + 3, cy + 4, top, 12, py + 6, 16, 34);       /* portrait, on its own rows */
+    blit_text(main, cx + 20, cy + 5, top, 33, py + 9, 32, 7);  /* name */
+    blit_text(main, cx + 53, cy + 5, top, 33, py + 21, 28, 7); /* LV n (99 shows as two stars, up to x 60) */
+    blit_text(main, cx + 21, cy + 16, top, 61, py + 21, 60, 7); /* HP n/ n */
+    blit_text(main, cx + 21, cy + 26, top, 61, py + 31, 60, 7); /* MP n/ n */
+}
+
+/* Columns of the outlined text in rows [y0, y0 + h) of the top screen between x0 and x1 (lit glyph pixels: text
+ * other than the shadow), with the outline; 0 when there is none. */
+static int text_span(const uint32_t *top, int y0, int h, int x0, int x1, int *from) {
+    int a = x1, b = x0 - 1;
+    for (int y = y0; y < y0 + h; y++) {
+        for (int x = x0; x < x1; x++) {
+            uint32_t p = top[y * SCREEN_W + x];
+            if (text_px(p) && p != BLACK) a = SDL_min(a, x), b = SDL_max(b, x);
+        }
+    }
+    if (b < a) return 0;
+    *from = a - 1;
+    return b - a + 3;
+}
+
+/* The top screen's time and gold bar at row y of the main screen (Main Menu and Save pages): emptied with its own
+ * text-free middle (x 95-184: the time ends by x 92, 7 digits of gold start from x 191), then TIME and the time
+ * at the left (5 columns apart, as the gold and its G), the location (the panel above the bar, x 128-255 rows
+ * 136-167, when there: the Save page's empty files have none) centred, the gold at the right. */
+static void menu_bar(uint32_t *main, const uint32_t *top, int y) {
+    blit(main, 0, y, top, 0, BAR_Y, SCREEN_W, BAR_H);
+    for (int x = 4; x < SCREEN_W - 4; x += 90) blit(main, x, y, top, 95, BAR_Y, SDL_min(90, SCREEN_W - 4 - x), BAR_H);
+    int ft = 0, fv = 0, fg = 0, ty = BAR_Y + BAR_TEXT + 1;
+    int wt = text_span(top, ty, 7, 4, 50, &ft), wv = text_span(top, ty, 7, 50, 128, &fv), wg = text_span(top, ty, 7, 128, 252, &fg);
+    blit(main, 6, y + BAR_TEXT, top, ft, BAR_Y + BAR_TEXT, wt, 9);                    /* TIME */
+    blit(main, 6 + wt + 3, y + BAR_TEXT, top, fv, BAR_Y + BAR_TEXT, wv, 9);           /* the time */
+    blit(main, SCREEN_W - 6 - wg, y + BAR_TEXT, top, fg, BAR_Y + BAR_TEXT, wg, 9);   /* the gold and G */
+    if (text_px(top[140 * SCREEN_W + 200])) return; /* backdrop, not the panel's stone */
+    int f1 = 0, f2 = 0, w1 = text_span(top, 143, 7, 132, 252, &f1), w2 = text_span(top, 154, 7, 132, 252, &f2);
+    int gap = w1 && w2 ? 4 : 0, x = (SCREEN_W - w1 - gap - w2) / 2;
+    if (w1) blit_text(main, x, y + BAR_TEXT, top, f1, 142, w1, 9); /* the text alone: the bar's stone around it */
+    if (w2) blit_text(main, x + w1 + gap, y + BAR_TEXT, top, f2, 153, w2, 9);
+}
+
+static void compose_menu(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, bottom, SCREEN_W * SCREEN_H * 4);                    /* backdrop, second icon row, description */
+    for (int y = 83; y >= 36; y--) memcpy(&main[(y + 8) * SCREEN_W], &bottom[y * SCREEN_W], SCREEN_W * 4); /* first row */
+    memcpy(&main[36 * SCREEN_W], &bottom[28 * SCREEN_W], 8 * SCREEN_W * 4); /* backdrop where it was */
+    for (int i = 0; i < 3; i++) {
+        if (panel_at(top, 24 + 48 * i)) menu_card(main, top, 24 + 48 * i, i * CARD_W, 1);
+    }
+    menu_bar(main, top, BAR_TO);
+}
+
+/* Field menu, Equipment page (see the top). Top screen: title rows 0-22, portrait x 8-50 and element rows 31-73,
+ * element icon 16x16 at (64, 31), name and HP rows 51-60, LV and MP rows 65-74 (from x 62), stat lines (glyphs) at rows 89, 106, 122, 138, 154,
+ * EXP at 177. Bottom screen: members bar rows 0-22, slots 120x28 at x 4, y 36 + 28 n (label and button), the
+ * item list while choosing at x 128, y 36 + 28 n (button rows, the cursor framed in cyan), description rows
+ * 168-191. Main screen: members 0-22, the two info rows 23-42 (left of them the portrait's eye strip, portrait
+ * rows 43-62, and the element icon), stat lines
+ * 43-108 (11 rows each), slots 110-165, description. Whole rows are moved where possible: the backdrop is
+ * brushed along the rows. */
+#define EQ_ROW 28
+/* The portrait's rows shown (20 from this one), by character (0 Crono, 1 Marle, 2 Lucca, 3 Robo, 4 Frog, 5 Ayla,
+ * 6 Magus): the eyes (Frog's are at the top). */
+static const int8_t EYES[7] = {14, 17, 13, 10, 0, 17, 12};
+#define EQ_GRID 110
+
+static int cyan(uint32_t p) {
+    int r = p & 0xFF, g = (p >> 8) & 0xFF, b = (p >> 16) & 0xFF;
+    return g > 2 * r + 60 && b > 2 * r + 60;
+}
+
+/* Slot n of the bottom screen at (dx, dy) of the main screen, without the backdrop around it (it is shaded
+ * across the screen, darker at the sides): the button (cursor frame included, x 8-119, from row 4) and the
+ * label's text (white with a black shadow; grey while fading in, the backdrop stays below 80). */
+static void equip_slot(uint32_t *main, const uint32_t *bottom, int n, int dx, int dy) {
+    int sy = 36 + EQ_ROW * n;
+    blit(main, dx + 4, dy + 4, bottom, 8, sy + 4, 112, EQ_ROW - 4);
+    for (int y = 0; y < 7; y++) {
+        for (int x = 0; x < 64; x++) {
+            uint32_t p = bottom[(sy + y) * SCREEN_W + 4 + x];
+            if (text_px(p) && ((p & 0xFF) == 0 || (p & 0xFF) >= 80)) main[(dy + y) * SCREEN_W + dx + x] = p;
+        }
+    }
+}
+
+static int equip_portrait = -1, equip_portrait_wait; /* the character whose portrait is on screen (-1: unknown) */
+static int equip_row; /* choosing: the list row (0-3) the cursor was last seen on */
+
+/* Whether the item list is on the bottom screen: its buttons (blue-grey) across x 200, where the slots leave
+ * the backdrop (greys). The page's state leaves EQUIP_PICKING for a few frames while the list scrolls. */
+static int equip_list_shown(const uint32_t *bottom) {
+    for (int y = 36; y < 36 + 4 * EQ_ROW; y += 4) {
+        if (!text_px(bottom[y * SCREEN_W + 200])) return 1;
+    }
+    return 0;
+}
+
+static void compose_equip(Scene sc, uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    uint32_t page = rt_r32(sc.obj + MENU_PAGE);
+    memcpy(main, bottom, SCREEN_W * SCREEN_H * 4); /* members bar, the grid's backdrop, description */
+    memcpy(&main[23 * SCREEN_W], &top[51 * SCREEN_W], 10 * SCREEN_W * 4); /* name, HP */
+    memcpy(&main[33 * SCREEN_W], &top[65 * SCREEN_W], 10 * SCREEN_W * 4); /* LV, MP */
+    for (int y = 23; y < 43; y++) { /* the portrait's columns: the row's empty end (x 216-255) */
+        blit(main, 0, y, main, 216, y, 40, 1);
+        blit(main, 40, y, main, 216, y, 22, 1);
+    }
+    /* The member changes at once on L/R, the portrait only after fading out to black: the strip follows the
+     * portrait on screen (or the member, if no black frame came within 30 frames). */
+    int member = rt_r8(sc.obj + EQUIP_CHARACTER);
+    if (member != equip_portrait) {
+        int black = 1;
+        for (int y = 31; y < 74 && black; y += 3) {
+            for (int x = 8; x < 56 && black; x += 3) black = top[y * SCREEN_W + x] == BLACK;
+        }
+        if (equip_portrait < 0 || black || ++equip_portrait_wait > 30) equip_portrait = member, equip_portrait_wait = 0;
+    }
+    int eyes = equip_portrait < 7 ? EYES[equip_portrait] : 12;
+    blit(main, 2, 23, top, 11, 31 + eyes, 42, 20); /* a full-size strip of the portrait across the eyes */
+    blit(main, 46, 25, top, 64, 31, 16, 16); /* the element icon */
+    static const int lines[] = {89, 106, 122, 138, 154, 177};
+    for (int i = 0; i < 6; i++) memcpy(&main[(43 + 11 * i) * SCREEN_W], &top[(lines[i] - 2) * SCREEN_W], 11 * SCREEN_W * 4);
+    memcpy(&main[(EQ_GRID - 1) * SCREEN_W], &top[187 * SCREEN_W], SCREEN_W * 4); /* backdrop down to the grid */
+    for (int y = EQ_GRID; y < EQ_GRID + 2 * EQ_ROW; y += 20) { /* the grid's backdrop: clean rows 148-167 */
+        memcpy(&main[y * SCREEN_W], &bottom[148 * SCREEN_W], (size_t)SDL_min(20, EQ_GRID + 2 * EQ_ROW - y) * SCREEN_W * 4);
+    }
+    int slot = (int)(rt_r32(page + EQUIP_SLOT) & 3);
+    if (rt_r32(page + EQUIP_STATE) != EQUIP_PICKING && !equip_list_shown(bottom)) {
+        for (int i = 0; i < 4; i++) equip_slot(main, bottom, i, (i & 1) * 128, EQ_GRID + (i >> 1) * EQ_ROW);
+        equip_row = 0;
+        return;
+    }
+    /* Choosing: the slot at the left; the list's two rows around the cursor at the right (its own columns). The
+     * cursor is hidden while the list scrolls: the rows stay those it was last on, the items sliding through. */
+    equip_slot(main, bottom, slot, 0, EQ_GRID);
+    for (int i = 0; i < 4; i++) {
+        for (int y = 36 + EQ_ROW * i; y < 36 + EQ_ROW * (i + 1); y++) {
+            if (cyan(bottom[y * SCREEN_W + 129]) || cyan(bottom[y * SCREEN_W + 130])) equip_row = i;
+        }
+    }
+    int first = equip_row & ~1;
+    blit(main, 128, EQ_GRID, bottom, 128, 36 + EQ_ROW * first, 128, 2 * EQ_ROW);
+}
+
+/* Field menu, Inventory and Techs pages (see the top). Top screen: a member every 56 rows from row 24, name (x 54-97) and
+ * HP (x 150-233) at rows 32-41, MP at 46-55. Bottom screen, choosing who uses the item: the item's bar rows
+ * 38-63, the member cards from row 72, backdrop rows 23-39. Text is white with a black shadow on a backdrop
+ * that stays below 80 (neutral grey while fading in). */
+static void blit_light_text(uint32_t *dst, int dx, int dy, const uint32_t *src, int sx, int sy, int w, int h) {
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            uint32_t p = src[(sy + y) * SCREEN_W + sx + x];
+            if (text_px(p) && ((p & 0xFF) == 0 || (p & 0xFF) >= 80)) dst[(dy + y) * SCREEN_W + dx + x] = p;
+        }
+    }
+}
+
+/* The number an item or tech that heals shows on the top screen, over the member's sprite on its panel (rows py ..
+ * py + 55, x 0-53): green (0x00ff7b) with a black shadow right of and under each pixel. */
+static int heal_px(uint32_t p) {
+    int r = p & 0xFF, g = (p >> 8) & 0xFF, b = (p >> 16) & 0xFF;
+    return r < 0x20 && g > 0xe0 && b > 0x60 && b < 0x98;
+}
+
+/* The columns of the member's HP or MP (the value before the slash) on the top screen, its line at row: lit text
+ * between x 165 and the slash. 0 when there is none. */
+static int value_span(const uint32_t *top, int row, int *left, int *right) {
+    *left = SCREEN_W, *right = -1;
+    for (int x = 165; x < 207; x++) {
+        for (int y = row + 2; y < row + 8; y++) {
+            uint32_t p = top[y * SCREEN_W + x];
+            if (text_px(p) && (p & 0xFF) >= 150) *left = SDL_min(*left, x), *right = x;
+        }
+    }
+    return *right >= 0;
+}
+
+/* What the number stands for: the stat that rose last, HP or MP, of any character (it rises some frames before the
+ * number shows; Elixirs raise both: HP). The characters' stats, 0x60 bytes each (Crono, Marle, Lucca, Robo, Frog,
+ * Ayla, Magus): +2 HP, +6 MP. */
+#define STATS GAME_ADDR(0x0207291cu, 0x0207293cu)
+static uint16_t stats_seen[7][2];
+static int stats_known, heal_mp;
+
+static void watch_heals(void) {
+    int hp_up = 0, mp_up = 0;
+    for (int c = 0; c < 7; c++) {
+        uint16_t hp = (uint16_t)rt_r16(STATS + 0x60u * (uint32_t)c + 2), mp = (uint16_t)rt_r16(STATS + 0x60u * (uint32_t)c + 6);
+        hp_up |= stats_known && hp > stats_seen[c][0], mp_up |= stats_known && mp > stats_seen[c][1];
+        stats_seen[c][0] = hp, stats_seen[c][1] = mp;
+    }
+    stats_known = 1;
+    if (hp_up) heal_mp = 0;
+    else if (mp_up) heal_mp = 1;
+}
+
+/* That number, with its shadow, over the member's HP or MP on its line of the main screen (the line's text at row
+ * line, columns from at top screen column 150; the top screen's at row value), moving as it does over the sprite,
+ * by half as much (the lines are 11 rows apart, the panels 56): for HP it rises from 7 rows below where it rests
+ * (panel rows 50-55) to 16 above, falls back and stays a while, the HP it brings, its rest on the HP; for MP it
+ * starts 15 rows below that rest and rises 32 until it goes, from the MP. Taken over unhalved, it passed over the
+ * others' lines, the MP's never over the MP. The text under it (the lines above as it passes, the value, all of it,
+ * where it is on the value's line) is taken out, back to the backdrop (bottom rows 23-39, as compose_targets lays it). */
+#define HEAL_REST 52    /* HP: the panel row of the number's middle at rest */
+#define HEAL_MP_FROM 67 /* MP: the panel row of its middle where it starts */
+static void heal_number(uint32_t *main, const uint32_t *top, const uint32_t *bottom, int py, int value, int line, int from, int rest) {
+    int x0 = 54, x1 = -1, y0 = py + 56, y1 = -1;
+    for (int y = py; y < py + 56 && y < SCREEN_H; y++) {
+        for (int x = 0; x < 54; x++) {
+            if (!heal_px(top[y * SCREEN_W + x])) continue;
+            x0 = SDL_min(x0, x), x1 = SDL_max(x1, x), y0 = SDL_min(y0, y), y1 = SDL_max(y1, y);
+        }
+    }
+    if (x1 < 0) return;
+    int left, right;
+    if (!value_span(top, value, &left, &right)) left = right = 204;
+    left += from - 150, right += from - 150;
+    int mid = (y0 + y1) / 2, dx = right - x1, dy = line + 4 + (mid - (py + rest)) / 2 - mid; /* the motion halved */
+    for (int y = SDL_max(y0 + dy, 0); y <= y1 + 1 + dy && y < SCREEN_H; y++) { /* the text under it, with its shadow */
+        int hp = y >= line && y < line + 10, xa = hp ? SDL_min(left, x0 + dx) : x0 + dx, xb = hp ? SDL_max(right, x1 + dx) : x1 + dx;
+        for (int x = SDL_max(xa, 0); x <= xb + 1 && x < SCREEN_W; x++) main[y * SCREEN_W + x] = bottom[(23 + y % 17) * SCREEN_W + x];
+    }
+    for (int y = y0; y <= y1 + 1 && y < SCREEN_H; y++) {
+        for (int x = x0; x <= x1 + 1; x++) {
+            uint32_t p = top[y * SCREEN_W + x];
+            int shadow = p == BLACK && x > 0 && y > 0 && (heal_px(top[y * SCREEN_W + x - 1]) || heal_px(top[(y - 1) * SCREEN_W + x]) ||
+                                        heal_px(top[(y - 1) * SCREEN_W + x - 1]));
+            int ty = y + dy, tx = x + dx;
+            if ((heal_px(p) || shadow) && ty >= 0 && ty < SCREEN_H && tx >= 0 && tx < SCREEN_W) main[ty * SCREEN_W + tx] = p;
+        }
+    }
+}
+
+/* Choosing who uses an item or tech (Inventory and Techs alike): the item's or tech's bar moved to the top, a
+ * line per member under it, the cards as they are. Returns 0 when not choosing. The page's state (8-9 in the
+ * Inventory) starts a frame before the cards and ends a frame before they go, so this goes by the bar itself:
+ * stone across the middle (x 128) where the lists have backdrop. The Techs list's buttons pass there while it
+ * scrolls, under its categories, which leave a black gap at (128, 40) the bar covers. */
+static int compose_targets(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    watch_heals();
+    if (text_px(bottom[50 * SCREEN_W + 128]) || bottom[40 * SCREEN_W + 128] == BLACK) return 0;
+    for (int y = 0; y < 72; y += 17) memcpy(&main[y * SCREEN_W], &bottom[23 * SCREEN_W], (size_t)SDL_min(17, 72 - y) * SCREEN_W * 4);
+    memcpy(main, &bottom[38 * SCREEN_W], 26 * SCREEN_W * 4); /* the bar */
+    for (int i = 0; i < 3; i++) {
+        int sy = 56 * i, y = 29 + 11 * i;
+        blit_light_text(main, 8, y, top, 54, sy + 32, 44, 10);   /* name */
+        blit_light_text(main, 70, y, top, 150, sy + 32, 84, 10); /* HP n/ n */
+        blit_light_text(main, 162, y, top, 150, sy + 46, 84, 10); /* MP n/ n */
+        if (heal_mp) heal_number(main, top, bottom, sy, sy + 46, y, 162, HEAL_MP_FROM);
+        else heal_number(main, top, bottom, sy, sy + 32, y, 70, HEAL_REST);
+    }
+    return 1;
+}
+
+static void compose_items(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, bottom, SCREEN_W * SCREEN_H * 4);
+    compose_targets(main, top, bottom);
+}
+
+/* Techs page, the list: the bottom screen, with the member's HP and MP (top screen, first member's lines) in the
+ * empty rows between the category and the list; the tech's name and cost on the top screen are on its row.
+ * While the list scrolls its buttons pass through those rows (hidden only from row 47 up): the rows are kept
+ * from the last frame at rest (backdrop at x 8, where the buttons start) and put back under the line. */
+#define TECHS_BAND_Y 48
+#define TECHS_BAND_H 16
+static uint32_t techs_band[TECHS_BAND_H * SCREEN_W];
+static int techs_band_kept;
+
+static void compose_techs(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, bottom, SCREEN_W * SCREEN_H * 4);
+    if (compose_targets(main, top, bottom)) return;
+    int rest = 1;
+    for (int y = TECHS_BAND_Y; y < TECHS_BAND_Y + TECHS_BAND_H; y++) rest &= text_px(bottom[y * SCREEN_W + 8]);
+    if (rest) {
+        memcpy(techs_band, &bottom[TECHS_BAND_Y * SCREEN_W], sizeof techs_band);
+        techs_band_kept = 1;
+    } else if (techs_band_kept) {
+        memcpy(&main[TECHS_BAND_Y * SCREEN_W], techs_band, sizeof techs_band);
+    }
+    blit_light_text(main, 30, 51, top, 150, 32, 84, 10);  /* HP n/ n */
+    blit_light_text(main, 142, 51, top, 150, 46, 84, 10); /* MP n/ n */
+}
+
+/* Field menu, Save page (see the top). Top screen: the highlighted file's party as the Main Menu's (cards every 48
+ * rows from row 24, x 0-127, LV and HP at card row 20, MP at 31, from x 33), its reserve every 28 rows from row 25
+ * (x 128-255, LV and HP at row 3, MP at 14, from x 160), the location and the bar as the Main Menu's. Bottom
+ * screen: the files every 48 rows from row 16 (40 rows, x 8-247, the cursor framed in cyan), a used one with its
+ * number at x 21-28 rows 15-23 and the members' portraits (16x16 at row 20: three, a gap, the others), backdrop
+ * rows 152-167, the description from row 168. Main screen: the files narrowed to x 2-125 from row 4 (a used one's
+ * number beside its name, the portraits packed), the highlighted file's members on the right a line each (its
+ * portrait, LV and HP, MP), the bar at row 144, the description. Text: white with a black shadow. While a file is
+ * confirmed (Yes / No in place of the two others) the main screen shows the bottom screen. */
+#define SAVE_FILE_Y 16
+#define SAVE_FILE_H 40
+#define SAVE_ROW 48
+#define SAVE_TO 4
+#define SAVE_LINE_H 20
+#define SAVE_BAR_TO 144
+static const uint8_t SAVE_PORTRAIT_X[7] = {40, 56, 72, 92, 108, 124, 140};
+
+static void save_text(uint32_t *main, int dx, int dy, const uint32_t *top, int sx, int sy, int w) {
+    for (int y = 0; y < 9; y++) {
+        for (int x = 0; x < w; x++) {
+            uint32_t p = top[(sy + y) * SCREEN_W + sx + x];
+            if (text_px(p) && ((p & 0xFF) == 0 || (p & 0xFF) >= 200)) main[(dy + y) * SCREEN_W + dx + x] = p;
+        }
+    }
+}
+
+static int save_portrait(const uint32_t *bottom, int sy, int k) { /* whether the file at row sy has member k */
+    for (int y = sy + 22; y < sy + 34; y += 2) {
+        for (int x = SAVE_PORTRAIT_X[k] + 2; x < SAVE_PORTRAIT_X[k] + 14; x += 2) {
+            uint32_t p = bottom[y * SCREEN_W + x];
+            int r = p & 0xFF, g = (p >> 8) & 0xFF, b = (p >> 16) & 0xFF;
+            if (SDL_abs(r - b) > 40 || SDL_abs(r - g) > 40) return 1; /* the stone is grey-blue */
+        }
+    }
+    return 0;
+}
+
+static int save_shown = -1; /* the row of the file last seen highlighted (the cursor pulses up to near white) */
+
+static void compose_save(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, bottom, SCREEN_W * SCREEN_H * 4);
+    uint32_t stone = bottom[(SAVE_FILE_Y + SAVE_ROW + 20) * SCREEN_W + 128]; /* the second file's bluish stone... */
+    if (((stone >> 16) & 0xFF) < (stone & 0xFF) + 8) {                       /* ...or the confirmation's grey */
+        save_shown = -1;
+        return;
+    }
+    for (int y = 0; y < SAVE_BAR_TO; y += 16) blit(main, 0, y, bottom, 0, 152, SCREEN_W, SDL_min(16, SAVE_BAR_TO - y));
+    for (int i = 0; i < 3; i++) {
+        int sy = SAVE_FILE_Y + SAVE_ROW * i, dy = SAVE_TO + SAVE_ROW * i;
+        uint32_t c = bottom[(sy + 20) * SCREEN_W + 9];
+        int r = c & 0xFF, g = (c >> 8) & 0xFF, b = (c >> 16) & 0xFF;
+        if (g > r + 40 && b > r + 40) save_shown = sy;
+        blit(main, 2, dy, bottom, 8, sy, 116, SAVE_FILE_H);
+        blit(main, 118, dy, bottom, 240, sy, 8, SAVE_FILE_H); /* its right end */
+        int used = 0;
+        for (int k = 0; k < 7; k++) used |= save_portrait(bottom, sy, k);
+        if (!used) continue;
+        blit(main, 8, dy + 5, bottom, 160, sy + 5, 24, 31); /* stone over the number's place... */
+        blit(main, 15, dy + 5, bottom, 21, sy + 15, 8, 9);  /* ...the number up beside the name */
+        for (int k = 0; k < 7; k++) blit(main, 10 + 16 * k, dy + 20, bottom, SAVE_PORTRAIT_X[k], sy + 20, 16, 16);
+    }
+    for (int k = 0; save_shown >= 0 && k < 7; k++) {
+        if (!save_portrait(bottom, save_shown, k)) continue;
+        int y = 2 + SAVE_LINE_H * k;
+        blit(main, 132, y + 2, bottom, SAVE_PORTRAIT_X[k], save_shown + 20, 16, 16);
+        int ty = k < 3 ? 24 + 48 * k + 20 : 25 + 28 * (k - 3) + 3, tx = k < 3 ? 33 : 160;
+        save_text(main, 160, y + 1, top, tx, ty, 90);       /* LV, HP */
+        save_text(main, 160, y + 11, top, tx, ty + 11, 90); /* MP */
+    }
+    menu_bar(main, top, SAVE_BAR_TO);
+}
+
+/* Field menu, Party page (see the top). Top screen: title rows 0-23, the party's sprites x 80-175 rows 24-62 on a
+ * backdrop of greys up to 33, the tech boxes below. Bottom screen: the cards in two columns every 42 rows (the
+ * party's three on the left, so x 0-127 rows 126-167 stays free), the help bar from row 168 (text rows 177-183).
+ * The backdrop is greys only (lighter towards the middle); the sprites' greys and outlines count as the sprite
+ * next to one of its coloured pixels. */
+#define PARTY_SPRITES_X 80
+#define PARTY_SPRITES_Y 24
+#define PARTY_SPRITES_W 96
+#define PARTY_SPRITES_H 39 /* row 63 borders the boxes' bevel */
+#define PARTY_SLOT_X 16
+#define PARTY_SLOT_Y 126
+#define PARTY_HINT_RIGHT 214 /* the help bar's text area ends here (the B button follows) */
+#define PARTY_HINT_Y 176
+
+static void compose_party(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    const char *hint = party_techs ? "Y: Party" : "Y: Techs";
+    if (party_techs) {
+        memcpy(main, top, SCREEN_W * SCREEN_H * 4);
+        ui_draw_text(main, hint, SCREEN_W - 8 - ui_text_width(hint), 8, 0xFFFFFFFFu);
+        return;
+    }
+    memcpy(main, bottom, SCREEN_W * SCREEN_H * 4);
+    for (int y = 0; y < PARTY_SPRITES_H; y++) {
+        for (int x = 0; x < PARTY_SPRITES_W; x++) {
+            const uint32_t *q = &top[(PARTY_SPRITES_Y + y) * SCREEN_W + PARTY_SPRITES_X + x];
+            int sprite = !text_px(*q) || !text_px(q[-1]) || !text_px(q[1]) || !text_px(q[-SCREEN_W]) ||
+                         !text_px(q[SCREEN_W]);
+            if (sprite) main[(PARTY_SLOT_Y + y) * SCREEN_W + PARTY_SLOT_X + x] = *q;
+        }
+    }
+    ui_draw_text(main, hint, PARTY_HINT_RIGHT - ui_text_width(hint), PARTY_HINT_Y, 0xFFFFFFFFu);
+}
+
+/* Field menu, Settings page (see the top). Bottom screen: tab bar rows 0-31, the four options every 28 rows
+ * from row 32 (24 tall), plain backdrop rows 140-147, "Defaults" and the description below. On tab 0 the main
+ * screen leaves out Game Mode: the three other options move up a row, the backdrop fills the row freed. */
+#define OPTION_Y 32
+#define OPTION_H 28
+#define OPTIONS_END 144
+#define BACKDROP_Y 140
+#define OPTIONS_SELECT_Y 146 /* the SELECT button, as relabel_select places it (label rows 151-160) */
+
+static void compose_options(Scene sc, uint32_t *main, const uint32_t *bottom) {
+    memcpy(main, bottom, SCREEN_W * SCREEN_H * 4);
+    if (rt_r8(rt_r32(sc.obj + MENU_PAGE) + OPTIONS_TAB) != 0) return;
+    blit(main, 0, OPTION_Y, bottom, 0, OPTION_Y + OPTION_H, SCREEN_W, OPTIONS_END - OPTION_Y - OPTION_H);
+    for (int y = OPTIONS_END - OPTION_H; y < OPTIONS_END; y++)
+        blit(main, 0, y, bottom, 0, BACKDROP_Y + (y - OPTIONS_END + OPTION_H) % (OPTIONS_END - BACKDROP_Y), SCREEN_W, 1);
+}
+
+/* Field menu, Bestiary page (see the top). Top screen: title rows 0-23, the monster in x 0-119, the panel from
+ * x 120. Bottom screen: tabs rows 0-23, list entries every 28 rows from row 40 (number x 18-47, name from x 78,
+ * glyphs from row 49 + 28 n, the cursor framed in cyan from x 16), "Discovered" and the percentage at rows
+ * 176-183. Text: white, grey (165) or yellow (the selected known name) with a black shadow; the buttons' bevels
+ * are greys below 160. Main screen: tabs, the monster rows 24-133, the list lines 138 + 11 n, the count at 182. */
+static int bestiary_text(uint32_t p) {
+    int r = p & 0xFF, g = (p >> 8) & 0xFF, b = (p >> 16) & 0xFF;
+    return (text_px(p) && (r == 0 || r >= 160)) || (r > b + 60 && g > b + 40);
+}
+
+static void blit_bestiary_text(uint32_t *main, int dx, int dy, const uint32_t *bottom, int sx, int sy, int w, int h) {
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            uint32_t p = bottom[(sy + y) * SCREEN_W + sx + x];
+            if (bestiary_text(p)) main[(dy + y) * SCREEN_W + dx + x] = p;
+        }
+    }
+}
+
+/* Arena of the Ages, a monster's page (see the top). Top screen: title rows 0-23, name, wins and HP from x 100 in
+ * rows 31-67 with the element at the right, the sprite left of them standing on row 96, a divider at row 102, the
+ * stats rows 113-167. Bottom screen: buttons 144x40 at x 56, y 12 + 52 n (the cursor's frame their edge, the label
+ * in rows 17-23, 68 columns wide at most, centred), the help bar from row 168. Main screen: title, the info from
+ * top row 27 at row 24 with the sprite's column (x 0-95) from 24 rows lower, the stats from the divider (top rows
+ * 99-170) at row 72, the buttons 82x24 in one row at 144 (frame columns 6 and rows 6 each side kept, the label's
+ * middle between), the help bar. */
+#define ARENA_INFO_Y 27
+#define ARENA_SPRITE_W 96
+#define ARENA_SPRITE_DY 24
+#define ARENA_STATS_AT 72
+#define ARENA_STATS_Y 99
+#define ARENA_BUTTONS_Y 144
+#define ARENA_BUTTON_W 82
+#define ARENA_BUTTON_H 24
+
+static void compose_arena(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, top, 24 * SCREEN_W * 4);
+    memcpy(&main[24 * SCREEN_W], &top[ARENA_INFO_Y * SCREEN_W], (ARENA_STATS_AT - 24) * SCREEN_W * 4);
+    blit(main, 0, 24, top, 0, ARENA_INFO_Y + ARENA_SPRITE_DY, ARENA_SPRITE_W, ARENA_STATS_AT - 24);
+    memcpy(&main[ARENA_STATS_AT * SCREEN_W], &top[ARENA_STATS_Y * SCREEN_W],
+           (ARENA_BUTTONS_Y - ARENA_STATS_AT) * SCREEN_W * 4);
+    memcpy(&main[ARENA_BUTTONS_Y * SCREEN_W], &top[168 * SCREEN_W], ARENA_BUTTON_H * SCREEN_W * 4); /* backdrop */
+    memcpy(&main[168 * SCREEN_W], &bottom[168 * SCREEN_W], (SCREEN_H - 168) * SCREEN_W * 4);
+    static const int sy[3] = {0, 13, 34}, h[3] = {6, 12, 6}; /* top frame, the label's rows, bottom frame */
+    int mid = ARENA_BUTTON_W - 12, mid_x = 56 + (144 - mid) / 2;
+    for (int n = 0; n < 3; n++) {
+        int bx = 3 + 84 * n, by0 = 12 + 52 * n;
+        for (int k = 0, dy = ARENA_BUTTONS_Y; k < 3; dy += h[k++]) {
+            blit(main, bx, dy, bottom, 56, by0 + sy[k], 6, h[k]);
+            blit(main, bx + 6, dy, bottom, mid_x, by0 + sy[k], mid, h[k]);
+            blit(main, bx + 6 + mid, dy, bottom, 194, by0 + sy[k], 6, h[k]);
+        }
+    }
+}
+
+/* Train Monster (see the top). Top screen: as the monster's page, with the stats' text lines at rows 113 + 16 n
+ * and, on the eras page, the item chosen at row 177. Bottom screen: the prompt's two lines in rows 43-59; the
+ * items' tab bar rows 0-21, the backdrop to row 39, the rows of items (24 with the cursor's frame) from row 39,
+ * 28 apart, the help bar from row 168; the eras (24 rows with the cursor's frame) from row 8, 32 apart. Main
+ * screen: the prompt at row 172 under the top screen; the items 25 apart from row 26, then the stats' lines 9
+ * apart from row 128; the eras one under the other from row 1, then the stats' lines and the item from row 122. */
+#define TRAIN_PROMPT_Y 42
+#define TRAIN_PROMPT_H 19
+#define TRAIN_PROMPT_AT 172
+#define TRAIN_LINE_Y 113
+#define TRAIN_LINE_H 9
+
+/* The top screen's stats (and with item, the item chosen) as lines of text TRAIN_LINE_H apart from row y. */
+static void train_lines(uint32_t *main, const uint32_t *top, int y, int item) {
+    for (int n = 0; n < 4 + item; n++)
+        memcpy(&main[(y + TRAIN_LINE_H * n) * SCREEN_W], &top[(TRAIN_LINE_Y - 1 + 16 * n) * SCREEN_W],
+               TRAIN_LINE_H * SCREEN_W * 4);
+}
+
+static void compose_train(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, top, SCREEN_W * SCREEN_H * 4);
+    memcpy(&main[TRAIN_PROMPT_AT * SCREEN_W], &bottom[TRAIN_PROMPT_Y * SCREEN_W], TRAIN_PROMPT_H * SCREEN_W * 4);
+}
+
+static void compose_train_items(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, bottom, SCREEN_W * SCREEN_H * 4);
+    for (int y = 24; y < 128; y += 12) /* the backdrop under the tab bar, over the rows' old places */
+        memcpy(&main[y * SCREEN_W], &bottom[24 * SCREEN_W], (size_t)SDL_min(12, 128 - y) * SCREEN_W * 4);
+    for (int n = 0; n < 4; n++)
+        memcpy(&main[(26 + 25 * n) * SCREEN_W], &bottom[(39 + 28 * n) * SCREEN_W], 24 * SCREEN_W * 4);
+    train_lines(main, top, 128, 0);
+}
+
+static void compose_train_era(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, bottom, SCREEN_W * SCREEN_H * 4);
+    for (int n = 0; n < 5; n++)
+        memcpy(&main[(1 + 24 * n) * SCREEN_W], &bottom[(8 + 32 * n) * SCREEN_W], 24 * SCREEN_W * 4);
+    train_lines(main, top, 122, 1);
+}
+
+/* The Arena's shop (see the top). Top screen: title and monster rows 0-101 (the divider at row 102), nothing under
+ * them. Bottom screen: Buy / Sell rows 0-23, the funds rows 40-63, the help bar from row 168. Main screen: the top
+ * screen's rows 0-101, then Buy / Sell and the funds (bottom rows 0-65), then the bottom screen. */
+#define ARENA_SHOP_TOP_H 102
+
+static void compose_arena_shop(Scene sc, uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, bottom, SCREEN_W * SCREEN_H * 4);
+    if (!rt_r8(sc.obj + ARENA_SHOP_BUY)) return; /* a category's items */
+    memcpy(main, top, ARENA_SHOP_TOP_H * SCREEN_W * 4);
+    memcpy(&main[ARENA_SHOP_TOP_H * SCREEN_W], bottom, (168 - ARENA_SHOP_TOP_H) * SCREEN_W * 4);
+}
+
+/* The Arena's battle (see the top). Top screen: the Pit rows 0-127 (the monsters on their pads within rows 28-103),
+ * the text box rows 128-191 (its lines in rows 137-165). Bottom screen: the panels rows 0-31 and the moves rows
+ * 32-46, the backdrop rows 47-55, the items 116x24 at x 8 + 124 c, y 56 + 28 r (column c, row r; the cursor's frame
+ * their edge, the label's text in rows 9-16 from column 8, the count's ending at column 107), the help bar rows
+ * 168-191 (its text in rows 176-183). Main screen: the panels and moves, the Pit's rows 28-103 at row 47, the
+ * items 62x14 at x 1 + 64 r, y 123 + 14 c (frame rows 0-1 and 22-23, label rows 6-15, columns 0-55 and the
+ * frame's last 6), then from row 151 the text box (frame rows 0-5, lines 137-165, frame rows 186-191) while it has
+ * text, else the help bar with the chosen item's count at its right end. */
+#define AB_HEAD_H 47
+#define AB_PIT_Y 28
+#define AB_PIT_H 76
+#define AB_ITEMS_AT (AB_HEAD_H + AB_PIT_H)
+#define AB_ITEM_W 62
+#define AB_ITEM_H 14
+#define AB_TEXT_AT (AB_ITEMS_AT + 2 * AB_ITEM_H)
+#define AB_WHITE 0xFFFFFFFFu
+
+static int arena_item = -1; /* the item the cursor was last seen on (c * 4 + r; its frame pulses) */
+
+/* Whether rows [y0, y1) of a screen between columns x0 and x1 have white text. */
+static int has_text(const uint32_t *px, int x0, int x1, int y0, int y1) {
+    for (int y = y0; y < y1; y++) {
+        for (int x = x0; x < x1; x++) {
+            if (px[y * SCREEN_W + x] == AB_WHITE) return 1;
+        }
+    }
+    return 0;
+}
+
+static void compose_arena_battle(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, bottom, AB_HEAD_H * SCREEN_W * 4);
+    memcpy(&main[AB_HEAD_H * SCREEN_W], &top[AB_PIT_Y * SCREEN_W], AB_PIT_H * SCREEN_W * 4);
+    for (int y = AB_ITEMS_AT; y < AB_TEXT_AT; y++) /* the backdrop under the items */
+        memcpy(&main[y * SCREEN_W], &bottom[(48 + (y - AB_ITEMS_AT) % 8) * SCREEN_W], SCREEN_W * 4);
+    static const int sy[3] = {0, 6, 22}, h[3] = {2, 10, 2}; /* top frame, the label's rows, bottom frame */
+    for (int c = 0; c < 2; c++) {
+        for (int r = 0; r < 4; r++) {
+            int bx = 8 + 124 * c, by = 56 + 28 * r, dx = 1 + 64 * r, dy = AB_ITEMS_AT + AB_ITEM_H * c;
+            if (cyan(bottom[(by + 1) * SCREEN_W + bx + 2])) arena_item = c * 4 + r;
+            for (int k = 0, y = dy; k < 3; y += h[k++]) {
+                blit(main, dx, y, bottom, bx, by + sy[k], AB_ITEM_W - 6, h[k]);
+                blit(main, dx + AB_ITEM_W - 6, y, bottom, bx + 110, by + sy[k], 6, h[k]);
+            }
+        }
+    }
+    int box = has_text(top, 16, 240, 137, 166), help = has_text(bottom, 8, 248, 174, 186);
+    SDL_SetAtomicInt(&arena_choosing, help);
+    int at = AB_TEXT_AT;
+    if (box || !help) { /* the text box, its frame and lines */
+        memcpy(&main[at * SCREEN_W], &top[128 * SCREEN_W], 6 * SCREEN_W * 4);
+        memcpy(&main[(at + 6) * SCREEN_W], &top[137 * SCREEN_W], 29 * SCREEN_W * 4);
+        memcpy(&main[(at + 35) * SCREEN_W], &top[186 * SCREEN_W], 6 * SCREEN_W * 4);
+        return;
+    }
+    for (int y = at; y < 168; y++) /* the backdrop over the help bar */
+        memcpy(&main[y * SCREEN_W], &bottom[(48 + (y - at) % 8) * SCREEN_W], SCREEN_W * 4);
+    memcpy(&main[168 * SCREEN_W], &bottom[168 * SCREEN_W], (SCREEN_H - 168) * SCREEN_W * 4);
+    if (arena_item < 0) return;
+    /* The count (its text and shadow, right-aligned at column 107 of the button) at the bar's right end, on the
+     * description's line, where the description does not reach. */
+    int bx = 8 + 124 * (arena_item / 4), by = 56 + 28 * (arena_item % 4), to = 240 - 107;
+    if (has_text(bottom, 96 + to - 8, 248, 174, 186)) return;
+    for (int y = 9; y <= 16; y++) {
+        for (int x = 96; x <= 107; x++) {
+            uint32_t p = bottom[(by + y) * SCREEN_W + bx + x];
+            if (p == AB_WHITE || p == BLACK) main[(167 + y) * SCREEN_W + x + to] = p;
+        }
+    }
+}
+
+/* After an Arena battle (see the top). Top screen: the spotlight in rows 68-139 on black. Bottom screen: the
+ * backdrop rows 0-19, the prize's box rows 20-99, the button rows 112-151 (its frame rows 112-116 and 147-151, its
+ * label and the A icon within rows 122-141). Main screen: the spotlight (top rows 67-140) at the top, then on the
+ * backdrop the box from row 78 and the button, its empty rows left out, from row 162. */
+#define RESULT_SPOT_Y 67
+#define RESULT_SPOT_H 74
+#define RESULT_BOX_AT 78
+#define RESULT_BUTTON_AT 162
+
+static void compose_arena_result(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, &top[RESULT_SPOT_Y * SCREEN_W], RESULT_SPOT_H * SCREEN_W * 4);
+    for (int y = RESULT_SPOT_H; y < SCREEN_H; y++) memcpy(&main[y * SCREEN_W], &bottom[(y % 20) * SCREEN_W], SCREEN_W * 4);
+    memcpy(&main[RESULT_BOX_AT * SCREEN_W], &bottom[20 * SCREEN_W], 80 * SCREEN_W * 4);
+    static const int sy[3] = {112, 122, 147}, h[3] = {5, 20, 5}; /* top frame, label and icon, bottom frame */
+    for (int k = 0, y = RESULT_BUTTON_AT; k < 3; y += h[k++])
+        memcpy(&main[y * SCREEN_W], &bottom[sy[k] * SCREEN_W], (size_t)h[k] * SCREEN_W * 4);
+}
+
+static void compose_bestiary(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, top, SCREEN_W * SCREEN_H * 4);
+    memcpy(main, bottom, 24 * SCREEN_W * 4); /* the tabs over the title */
+    for (int y = 134; y < SCREEN_H; y++) blit(main, 0, y, top, 0, 24 + (y - 134) % 10, 120, 1); /* backdrop under the monster */
+    for (int i = 0; i < 4; i++) {
+        int sy = 49 + 28 * i, y = 138 + 11 * i;
+        blit_bestiary_text(main, 6, y, bottom, 22, sy, 26, 8);  /* number */
+        blit_bestiary_text(main, 30, y, bottom, 78, sy, 88, 8); /* name */
+        uint32_t c = bottom[(40 + 28 * i + 10) * SCREEN_W + 16];
+        if (cyan(c)) { /* the cursor: a frame round the line, in its colour (it pulses) */
+            for (int x = 1; x <= 118; x++) main[(y - 2) * SCREEN_W + x] = main[(y + 8) * SCREEN_W + x] = c;
+            for (int v = y - 2; v <= y + 8; v++) main[v * SCREEN_W + 1] = main[v * SCREEN_W + 118] = c;
+        }
+    }
+    blit_bestiary_text(main, 4, 182, bottom, 4, 176, 86, 8);    /* Discovered: n */
+    blit_bestiary_text(main, 84, 182, bottom, 176, 176, 36, 8); /* n % */
+}
+
+/* Shops (see the top). Top screen: title rows 0-23, the members in two columns of 128 (the party at the left, the
+ * others at the right), a member every 40 rows from row 24: the sprite x 16-31, the name x 40-67 at rows 10-17 of
+ * the member's 40, then two lines of text (9 rows from row 21: attack, from row 31: defense): the icon x 40-48,
+ * the value right-aligned at x 80, and for a member who can use the item highlighted an arrow x 91-97 and the
+ * value with it from x 104 (blue: higher, red: lower). Text and icons are white, black or coloured on a dark
+ * backdrop (never black, no channel above 80; its tint follows the menu colour). Bottom screen: tabs rows 0-23,
+ * backdrop rows 24-37, everything else in rows 38-167, the help bar from row 168 (the item's description, white on
+ * black shadow, rows 176-185). Main screen: tabs, the bottom screen from row 38 at row 24, then the members as lines
+ * of text in a 3 x 3 grid (the party on the first line): the name and the stat the item changes (defense if only
+ * defense values are coloured, else attack), these spans of its line packed.
+ * The item's panel (x 8-127, rows 64-159, with its shadow) holds up to three lines of text 16 rows apart and the
+ * members who can use the item in rows 122-151: the lines go 8 rows apart, and under them a box of the panel's own
+ * rows shows the description in up to two lines, broken between words. */
+#define SHOP_SHIFT 14
+#define SHOP_GRID_Y 154
+#define SHOP_LINE_H 11
+static const struct { uint8_t x, w; } SHOP_SPANS[] = {{40, 9}, {66, 15}, {91, 7}, {104, 16}};
+#define SHOP_PANEL_X 8
+#define SHOP_PANEL_W 120
+#define SHOP_PANEL_Y 50 /* on the main screen */
+static const struct { uint8_t y, h; } SHOP_PANEL_ROWS[] = {{64, 5}, {74, 8}, {90, 8}, {106, 8}, {122, 30}, {154, 6}};
+
+static int shop_fg(uint32_t p) {
+    return p == BLACK || (p & 0xFF) > 80 || ((p >> 8) & 0xFF) > 80 || ((p >> 16) & 0xFF) > 80;
+}
+
+static void blit_shop_fg(uint32_t *main, int dx, int dy, const uint32_t *top, int sx, int sy, int w, int h) {
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            uint32_t p = top[(sy + y) * SCREEN_W + sx + x];
+            if (shop_fg(p)) main[(dy + y) * SCREEN_W + dx + x] = p;
+        }
+    }
+}
+
+static void blit_shop_panel_row(uint32_t *main, int dy, const uint32_t *bottom, int sy) {
+    memcpy(&main[dy * SCREEN_W + SHOP_PANEL_X], &bottom[sy * SCREEN_W + SHOP_PANEL_X], SHOP_PANEL_W * 4);
+}
+
+static void compose_shop_panel(uint32_t *main, const uint32_t *bottom) {
+    enum { TEXT_X0 = 6, TEXT_X1 = 222, TEXT_Y = 176, TEXT_H = 10, BOX_X = 13, BOX_W = 110, WORD_GAP = 3, LINES = 2 };
+    /* The panel's black shadow: nothing else is there (Buy / Sell, nothing available). */
+    if (bottom[63 * SCREEN_W + 64] != BLACK || bottom[159 * SCREEN_W + 64] != BLACK || bottom[110 * SCREEN_W + 127] != BLACK) return;
+    int dy = SHOP_PANEL_Y;
+    for (size_t i = 0; i < SDL_arraysize(SHOP_PANEL_ROWS); i++) {
+        for (int y = 0; y < SHOP_PANEL_ROWS[i].h; y++) blit_shop_panel_row(main, dy++, bottom, SHOP_PANEL_ROWS[i].y + y);
+    }
+    /* The box: the panel's top edge, its fill above the first line (rows 68-73), repeated, and its bottom edge. */
+    int box = dy;
+    for (int y = 0; y < 4; y++) blit_shop_panel_row(main, dy++, bottom, 64 + y);
+    while (dy < SHOP_PANEL_Y + 96 - 6) blit_shop_panel_row(main, dy, bottom, 68 + (dy - box) % 6), dy++;
+    for (int y = 0; y < 6; y++) blit_shop_panel_row(main, dy++, bottom, 154 + y);
+    uint8_t used[TEXT_X1] = {0};
+    int last = -1;
+    for (int x = TEXT_X0; x < TEXT_X1; x++) {
+        for (int y = 0; y < TEXT_H; y++) {
+            uint32_t p = bottom[(TEXT_Y + y) * SCREEN_W + x];
+            used[x] |= p == BLACK || p == 0xFFFFFFFFu;
+        }
+        if (used[x]) last = x;
+    }
+    int at = TEXT_X0;
+    for (int line = 0; line < LINES && last >= 0; line++) {
+        while (at <= last && !used[at]) at++;
+        if (at > last) break;
+        int end = at + BOX_W; /* one word too long for the line: cut */
+        if (last < end) {
+            end = last + 1;
+        } else {
+            int run = 0, word_end = 0;
+            for (int x = at; x < at + BOX_W; x++) {
+                if (used[x]) run = 0;
+                else if (++run == WORD_GAP) word_end = x - WORD_GAP + 1;
+            }
+            if (word_end) end = word_end;
+        }
+        for (int y = 0; y < TEXT_H; y++) {
+            for (int x = at; x < end; x++) {
+                uint32_t p = bottom[(TEXT_Y + y) * SCREEN_W + x];
+                if (p == BLACK || p == 0xFFFFFFFFu) main[(box + 4 + line * TEXT_H + y) * SCREEN_W + BOX_X + x - at] = p;
+            }
+        }
+        at = end;
+    }
+}
+
+/* Whether any member's line (from row 21: attack, 31: defense) has a value with the item in colour. */
+static int shop_changed(const uint32_t *top, int line) {
+    for (int m = 0; m < 8; m++) {
+        for (int y = 0; y < 7; y++) {
+            const uint32_t *row = &top[(24 + 40 * (m & 3) + line + y) * SCREEN_W + 128 * (m >> 2)];
+            for (int x = 104; x < 120; x++) {
+                int r = row[x] & 0xFF, g = (row[x] >> 8) & 0xFF, b = (row[x] >> 16) & 0xFF;
+                if (SDL_max(r, b) >= 200 && SDL_min(r, g) <= 100) return 1; /* red or blue text, not the backdrop */
+            }
+        }
+    }
+    return 0;
+}
+
+static void compose_shop(uint32_t *main, const uint32_t *top, const uint32_t *bottom) {
+    memcpy(main, bottom, 24 * SCREEN_W * 4);
+    memcpy(&main[24 * SCREEN_W], &bottom[(24 + SHOP_SHIFT) * SCREEN_W], (SHOP_GRID_Y - 24) * SCREEN_W * 4);
+    for (int y = SHOP_GRID_Y; y < SCREEN_H; y += SHOP_SHIFT) /* the backdrop the shift left out */
+        memcpy(&main[y * SCREEN_W], &bottom[24 * SCREEN_W], (size_t)SDL_min(SHOP_SHIFT, SCREEN_H - y) * SCREEN_W * 4);
+    compose_shop_panel(main, bottom);
+    int line = shop_changed(top, 21) || !shop_changed(top, 31) ? 21 : 31;
+    for (int m = 0, n = 0; m < 8; m++) { /* the party (three at most), then the others */
+        int sx = 128 * (m >> 2), sy = 24 + 40 * (m & 3);
+        int named = 0; /* a name: text in its place */
+        for (int y = sy + 10; y < sy + 17 && m != 3; y++) {
+            for (int x = sx + 40; x < sx + 68; x++) named |= top[y * SCREEN_W + x] == 0xFFFFFFFFu;
+        }
+        if (!named) {
+            if (m < 3) n = 3; /* the party ends: the others from the second line */
+            continue;
+        }
+        int x = 85 * (n % 3) + 2, y = SHOP_GRID_Y + 3 + SHOP_LINE_H * (n / 3);
+        n++;
+        blit_shop_fg(main, x, y, top, sx + 40, sy + 9, 28, 9); /* the name */
+        x += 29;
+        for (size_t k = 0; k < SDL_arraysize(SHOP_SPANS); k++) {
+            blit_shop_fg(main, x, y, top, sx + SHOP_SPANS[k].x, sy + line, SHOP_SPANS[k].w, 9);
+            x += SHOP_SPANS[k].w + 1;
+        }
+    }
+}
+
+/* The age selector: the map of the chosen age on the top screen; the selector on the bottom one, sprites over
+ * the swirl of an affine BG: the ring (64x64 + 64x32 at x 88, rows 40-135), the age's name with a line to the
+ * ring (above it, rows 7-35, or under it, rows 140-147; up to x 250), A Warp and B buttons (rows 150-172). The
+ * main screen shows a second picture of the bottom screen that the renderer draws with the sprites starting
+ * above AGES_SELECTOR_ROWS (ring, line and name) AGES_SHIFT columns left (ss_bottom_shift), the swirl and the
+ * buttons in place, and the map at half size right of the ring, the two centred together, under the sprites
+ * (Middle Ages' name, beside the ring, reaches over it). That picture has the
+ * widescreen margins (wide_w columns), the swirl continuing into them. */
+#define AGES_SHIFT 44
+#define AGES_SELECTOR_ROWS 148 /* the buttons' sprites start below */
+#define AGES_RING_X 88         /* the ring's columns on the DS: 88-145 */
+#define AGES_RING_W 58
+#define AGES_GAP 10            /* between ring and map */
+#define AGES_RING_Y 40         /* the ring's rows: 40-135 */
+#define AGES_RING_H 96
+#define AGES_MAP_X 26          /* the map's parchment on the top screen, halved to MAP_W x MAP_H */
+#define AGES_MAP_Y 26
+#define AGES_MAP_W 102
+#define AGES_MAP_H 70          /* the parchment ends at row 165: the screen's dark backdrop below */
+#define AGES_MAP_TO_Y (AGES_RING_Y + (AGES_RING_H - AGES_MAP_H) / 2) /* the map's top row: centred on the ring */
+
+/* The top screen's backdrop around the parchment is grey, the parchment never. */
+static int grey(uint32_t c) { return (c & 0xFF) == (c >> 8 & 0xFF) && (c & 0xFF) == (c >> 16 & 0xFF); }
+
+/* The average of a 2x2 block of the map; on its outer pixels only of the parchment's (its corners are rounded):
+ * 0 when there is none there. */
+static uint32_t map_pixel(const uint32_t *p, int edge) {
+    const uint32_t px[4] = {p[0], p[1], p[SCREEN_W], p[SCREEN_W + 1]};
+    uint32_t sum[4] = {0}, n = 0;
+    for (int i = 0; i < 4; i++) {
+        if (edge && grey(px[i])) continue;
+        for (int s = 0; s < 4; s++) sum[s] += px[i] >> 8 * s & 0xFF;
+        n++;
+    }
+    uint32_t out = 0;
+    for (int s = 0; n && s < 4; s++) out |= (sum[s] + n / 2) / n << 8 * s;
+    return out;
+}
+
+static void compose_ages(uint32_t *main, const uint32_t *top, const uint32_t *shifted, const uint8_t *sprite,
+                         int wide_w) {
+    memcpy(main, shifted, (size_t)wide_w * SCREEN_H * 4);
+    int mx = (wide_w - SCREEN_W) / 2 + AGES_RING_X - AGES_SHIFT + AGES_RING_W + AGES_GAP, my = AGES_MAP_TO_Y;
+    for (int y = 0; y < AGES_MAP_H; y++) {
+        for (int x = 0; x < AGES_MAP_W; x++) {
+            const uint32_t *p = &top[(AGES_MAP_Y + 2 * y) * SCREEN_W + AGES_MAP_X + 2 * x];
+            int edge = x < 2 || y < 2 || x >= AGES_MAP_W - 2 || y >= AGES_MAP_H - 2;
+            uint32_t c = map_pixel(p, edge);
+            int at = (my + y) * wide_w + mx + x;
+            if (c && !sprite[at]) main[at] = c; /* else the swirl, or a sprite */
+        }
+    }
+}
+
+/* Whether a screen is one plain colour. */
+static int blank(const uint32_t *px) {
+    for (int i = 1; i < SCREEN_W * SCREEN_H; i++) {
+        if (px[i] != px[0]) return 0;
+    }
+    return 1;
+}
+
+/* The field's pause (ov000 func 0x0210155c, START): dims both screens and loops until START, with the byte
+ * at *(0x0207b520) + 0x407 set to 0xff meanwhile. */
+static int field_paused(void) {
+    if (!rt_overlay_resident(0)) return 0;
+    uint32_t base = rt_r32(GAME_ADDR(0x0207b520u, 0x0207b540u));
+    return base >> 24 == 0x02 && rt_r8(base + 0x407) == 0xff;
+}
+
+int ss_in_field(void) { return current().kind == SCENE_FIELD; }
+int ss_in_warp(void) { return current().kind == SCENE_WARP; }
+int ss_in_overworld(void) { return current().kind == SCENE_OVERWORLD; }
+int ss_in_race(void) { return current().kind == SCENE_RACE; }
+int ss_bottom_shift(int *rows) {
+    *rows = AGES_SELECTOR_ROWS;
+    return ss_enabled() && current().kind == SCENE_AGES ? AGES_SHIFT : 0;
+}
+
+static SDL_AtomicInt menu_place, minimap_rows;
+
+int ss_menu_place(void) { return SDL_GetAtomicInt(&menu_place); }
+int ss_minimap_rows(void) { return SDL_GetAtomicInt(&minimap_rows); }
+
+/* The map panel is on the bottom screen: black just outside it, its parchment inside (red over blue whatever the
+ * map, and through a fade until it is nearly black). */
+static int map_panel_shown(const uint32_t *bottom) {
+    enum { CX = SS_MAP_X + SS_MAP_W / 2, IN = 8, MIN_TINT = 8 };
+    static const struct { short x, y; } inside[] = {
+        {CX, SS_MAP_Y + 1}, {CX, SS_MAP_Y + SS_MAP_H - 2}, {SS_MAP_X + IN, SS_MAP_Y + IN}, {SS_MAP_X + SS_MAP_W - IN, SS_MAP_Y + IN},
+        {SS_MAP_X + IN, SS_MAP_Y + SS_MAP_H - IN}, {SS_MAP_X + SS_MAP_W - IN, SS_MAP_Y + SS_MAP_H - IN},
+    };
+    if (bottom[(SS_MAP_Y - 1) * SCREEN_W + CX] != BLACK || bottom[(SS_MAP_Y + SS_MAP_H) * SCREEN_W + CX] != BLACK) return 0;
+    for (size_t i = 0; i < SDL_arraysize(inside); i++) {
+        uint32_t p = bottom[inside[i].y * SCREEN_W + inside[i].x];
+        if ((int)(p & 0xFF) < (int)((p >> 16) & 0xFF) + MIN_TINT) return 0;
+    }
+    return 1;
+}
+
+/* The field paused: how to open the System Settings menu, at the bottom of the main screen (w columns). */
+static void pause_hint(uint32_t *main, int w, int h) {
+    const char *hint = ui_text_in(rt_language(), "Press SELECT to open System Settings");
+    ui_draw_text_in(main, w, hint, (w - ui_text_width(hint)) / 2, h - UI_FONT_H - 6, 0xFFFFFFFFu);
+}
+
+int ss_compose(uint32_t *main, const uint32_t *top, uint32_t *bottom, const uint32_t *wide, int wide_w, int wide_h,
+               const uint32_t *bottom_shifted, const uint8_t *shifted_sprite, int *from) {
+    Scene sc = current();
+    *from = SS_FROM_NONE;
+    if (sc.kind != SCENE_EQUIP) equip_portrait = -1; /* the page opens with its member's portrait */
+    if (sc.kind != SCENE_ARENA_BATTLE) arena_item = -1, SDL_SetAtomicInt(&arena_choosing, 0);
+    int paused = EGG_SINGLE_SCREEN && sc.kind == SCENE_FIELD && field_paused();
+    int title_menu = sc.kind == SCENE_TITLE && rt_r16(sc.obj + TITLE_PHASE) == TITLE_MENU;
+    /* SELECT relabelled "System settings" (off, it stays the game's "Defaults") */
+    int settings = ss_enabled() && (sc.kind == SCENE_SETTINGS || sc.kind == SCENE_OPTIONS);
+    if (settings) relabel_select(bottom, sc.kind == SCENE_OPTIONS ? OPTIONS_SELECT_Y : SET_BUTTONS.y0);
+    SDL_SetAtomicInt(&menu_place, settings     ? SS_MENU_GAME_SETTINGS
+                                  : paused     ? SS_MENU_PAUSE
+                                  : title_menu ? SS_MENU_TITLE
+                                               : SS_MENU_NONE);
+    int map_ok = ss_enabled() && (sc.kind == SCENE_FIELD || sc.kind == SCENE_OVERWORLD) &&
+                 !rt_overlay_resident(3) /* a battle */ && map_panel_shown(bottom);
+    SDL_SetAtomicInt(&minimap_rows, map_ok ? video_box_top() : 0);
+    if (sc.kind == SCENE_FIELD || sc.kind == SCENE_WARP || sc.kind == SCENE_OVERWORLD || sc.kind == SCENE_RACE) { /* widescreen: the top screen with its margins (also with single screen mode off: the second window) */
+        memcpy(main, wide, (size_t)wide_w * wide_h * 4);
+        *from = SS_FROM_WIDE;
+        if (paused) pause_hint(main, wide_w, wide_h);
+        return wide_w;
+    }
+    if (!ss_enabled()) {
+        memcpy(main, top, SCREEN_W * SCREEN_H * 4);
+        *from = SS_FROM_TOP;
+        if (paused) pause_hint(main, SCREEN_W, SCREEN_H);
+        return SCREEN_W;
+    }
+    switch (sc.kind) {
+    case SCENE_LOGOS:
+        if (blank(top)) {
+            memcpy(main, bottom, SCREEN_W * SCREEN_H * 4);
+            *from = SS_FROM_BOTTOM;
+            break;
+        }
+        /* Square Enix (top rows 85-107) above Mobiclip (bottom rows 50-141), centred together. */
+        for (int y = 0; y < SCREEN_H; y++) {
+            const uint32_t *src = y < 60 ? &top[(y + 57) * SCREEN_W] : &bottom[(y - 21) * SCREEN_W];
+            memcpy(&main[y * SCREEN_W], src, SCREEN_W * 4);
+        }
+        break;
+    case SCENE_TITLE:
+        compose_title(main, top, bottom);
+        break;
+    case SCENE_SETTINGS:
+        compose_settings(sc, main, top, bottom);
+        break;
+    case SCENE_MENU:
+        compose_menu(main, top, bottom);
+        break;
+    case SCENE_EQUIP:
+        compose_equip(sc, main, top, bottom);
+        break;
+    case SCENE_ITEMS:
+        compose_items(main, top, bottom);
+        break;
+    case SCENE_TECHS:
+        compose_techs(main, top, bottom);
+        break;
+    case SCENE_OPTIONS:
+        compose_options(sc, main, bottom);
+        break;
+    case SCENE_PARTY:
+        compose_party(main, top, bottom);
+        break;
+    case SCENE_SAVE:
+        compose_save(main, top, bottom);
+        break;
+    case SCENE_SHOP:
+        compose_shop(main, top, bottom);
+        break;
+    case SCENE_BESTIARY:
+        compose_bestiary(main, top, bottom);
+        break;
+    case SCENE_ARENA:
+        compose_arena(main, top, bottom);
+        break;
+    case SCENE_ARENA_SHOP:
+        compose_arena_shop(sc, main, top, bottom);
+        break;
+    case SCENE_TRAIN:
+        compose_train(main, top, bottom);
+        break;
+    case SCENE_TRAIN_ITEMS:
+        compose_train_items(main, top, bottom);
+        break;
+    case SCENE_TRAIN_ERA:
+        compose_train_era(main, top, bottom);
+        break;
+    case SCENE_AGES:
+        if (bottom_shifted) {
+            compose_ages(main, top, bottom_shifted, shifted_sprite, wide_w);
+            return wide_w;
+        }
+        memcpy(main, bottom, SCREEN_W * SCREEN_H * 4); /* the first frame, drawn before the scene was known */
+        *from = SS_FROM_BOTTOM;
+        break;
+    case SCENE_ARENA_BATTLE:
+        compose_arena_battle(main, top, bottom);
+        break;
+    case SCENE_ARENA_RESULT:
+        compose_arena_result(main, top, bottom);
+        break;
+    case SCENE_ARENA_PREP:
+        memcpy(main, bottom, SCREEN_W * SCREEN_H * 4);
+        *from = SS_FROM_BOTTOM;
+        break;
+    case SCENE_NAMING: {
+        int entering = rt_r32(sc.obj + NAMING_STATE) == NAMING_ENTERING;
+        memcpy(main, entering ? bottom : top, SCREEN_W * SCREEN_H * 4);
+        *from = entering ? SS_FROM_BOTTOM : SS_FROM_TOP;
+        break;
+    }
+    default:
+        memcpy(main, top, SCREEN_W * SCREEN_H * 4);
+        *from = SS_FROM_TOP;
+        break;
+    }
+    return SCREEN_W;
+}

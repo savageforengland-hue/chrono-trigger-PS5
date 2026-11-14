@@ -1,0 +1,86 @@
+Egg of Time R6: start here
+============================
+R5 still fails on the user's PS5. The last screenshot has only an OK button.
+The user confirmed on 14 November 2026 that both R6 and Boot Check cannot start
+on their PS5. The previous offline fixes did not establish a playable port.
+See DIAGNOSTICS.txt for ShadowMountPlus's independent debug.log collection.
+
+Install the ordinary home-screen Boot Check first
+-------------------------------------------------
+1. Extract EggOfTime-PS5-Native-Boot-Check.zip. Copy its PPSA90436 folder into
+   /data/homebrew/ through FileZilla. This gives:
+       /data/homebrew/PPSA90436/eboot.bin
+       /data/homebrew/PPSA90436/sce_module/libc.prx
+       /data/homebrew/PPSA90436/sce_sys/param.json
+       /data/homebrew/PPSA90436/sce_sys/icon0.png
+2. Refresh/rescan ShadowMountPlus, then launch Egg Native Boot Check from the
+   PS5 home screen. This needs no ROM and does not use Payload Manager.
+3. A successful entry attempts to show "Egg Boot Check: native entry reached"
+   and append ENTRY_REACHED to /data/eggoftime-boot-check.log.
+   The screen may be black after the notification; that is expected for this
+   small test. Close it using the PS button menu. It does not run the game.
+4. Tell us whether it shows that notification, fails with Can't start, or
+   produces the log file. If the log file is unavailable, the notification
+   alone can still demonstrate native entry. Without either, entry is unknown.
+
+Install the updated game candidate
+----------------------------------
+1. Extract EggOfTime-1.3.5-PS5-R6-controller.zip. Copy its PPSA90435 contents into
+   the existing /data/homebrew/PPSA90435/ folder, selecting Overwrite. Keep the
+   parent folder and close the old title before transfer.
+2. Preserve /data/eggoftime/ and your ROM/saves/mods/settings. Every player must
+   supply their own USA YQUE CT.nds at /data/eggoftime/rom/CT.nds. No game assets
+   or ROM are supplied. An app-local rom folder is not the configured path.
+3. Refresh/rescan ShadowMountPlus. Launch Egg of Time (R6 Controller), version
+   01.003.010. The title ID remains PPSA90435; the probe is separately PPSA90436.
+4. If Boot Check opens but the game fails, send any new R6 log found at:
+       /data/eggoftime/eggoftime.log
+       /data/eggoftime-startup.log
+   The selected path may instead be /download0/eggoftime.log or /temp0/eggoftime.log
+   inside the title sandbox; its notification gives the path if reached.
+   Boot Check does not prove that the C-runtime or game modules are loadable.
+
+What changed
+-------------
+R6 uses the 0xEEF51454 SELF container format found in the actual user-reported
+working Parasitic Event Revisited package. R2-R5 used 0x1D3D154F. That header
+mismatch was missed in the earlier comparison. Both the game and Boot Check
+now match the working reference's first 16 container-header bytes. This is
+an observed difference and a compatibility choice, not a confirmed diagnosis
+of the user's failure. The package gate rejects the old container profile.
+
+R6 removes hard requirements on libSceKeyboard and libSceImeDialog. Its
+controller-only adapter avoids extracting the optional keyboard object from
+SDL. DualSense remains supported; native USB/system on-screen keyboard input
+is disabled in this profile. PNG packs, file-based mods and the compiled game
+remain in place. The link also removes unused sections, reducing imports from
+240 in R5 to 180. Both removed system modules are absent from the working
+reference. Their exact role in the failure is still unknown.
+
+Early logging now uses only kernel Open/Write/Fsync calls, matching the working
+reference's pre-C-runtime pattern. Directory creation and kernel debug output
+are deferred until later. The direct /data/eggoftime-startup.log fallback works
+without first making an app-specific directory. Later fatal-signal/SDL/stdio
+logging remains available where supported.
+
+The experimental manifest profile uses UP9000 content IDs, attribute3=524352
+and downloadDataSize=256, as in the supplied working release, retaining our own
+title and concept IDs. The field semantics have not been established as the
+cause. Existing R5 RELRO mapping corrections and section/geometry checks remain.
+4K output/60fps target remains configured but throughput is unverified.
+
+Boot Check uses only six kernel/SystemService imports and no C startup, SDL,
+allocator, game code or game data. Its own log/notification gives a simpler
+entry test. Its fresh title ID also avoids reusing the old game's registration.
+The supplied .elf payload logger is no longer needed for this first check.
+
+Validation and source
+----------------------
+The actual signed game and probe passed SELF integrity, geometry and mapped
+section byte checks. The game has 180 audited app imports; the probe has six.
+10 host logging cases, 3 host probe cases, the native layout/packaging regression
+checks and the existing directory/IEEE/exit compatibility tests passed. Host
+tests do not certify firmware 13.20 behavior. No console test has succeeded yet.
+The matched R6 source ZIP contains the port, adapters, probe, build scripts,
+public clean-room runtime tooling and licenses. No reference-game code/art or
+extracted game assets are copied into this release.

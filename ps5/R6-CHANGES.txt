@@ -1,0 +1,25 @@
+R6: unresolved native startup investigation
+============================================
+- Native PS5 SELF magic now 0xEEF51454, exactly matching the working binary.
+- Both final first-16-byte prefixes: 5414f5ee000101120101000060051006.
+- Controller-only: no libSceKeyboard or libSceImeDialog load requirements.
+- Native link --gc-sections/--exclude-libs=ALL; audited imports reduced 240->180.
+- Pre-runtime log path only kernel Open/Write/Fsync; no mkdir/debug output then.
+- Direct /data/eggoftime-startup.log fallback, avoiding missing parent directory.
+- Manifest profile follows selected fields of the user-reported working title;
+  its causal relevance is unverified.
+- New PPSA90436 home-screen Boot Check: six imports, no ROM/SDL/C initialization.
+- R5 native RELRO correction, byte checks, existing saves/mods paths retained.
+- No claims of console boot, gameplay, 4K60 performance, or a confirmed fix.
+
+R6 native modules:
+libSceLibcInternal.prx, libkernel.prx, libSceAudioOut.prx, libScePad.prx,
+libSceSystemService.prx, libSceUserService.prx, libSceVideoOut.prx.
+
+Boot Check modules: libkernel.prx and libSceSystemService.prx. The identical
+clean-room libc.prx companion remains included in both folders for the loader.
+
+The earlier root-cause claims were limited by missing console logs. R5's
+structural defect was demonstrated offline but fixing it did not make the app
+launch on this console. R6 makes observed compatibility changes and supplies
+an independent entry test instead of calling another untested build solved.

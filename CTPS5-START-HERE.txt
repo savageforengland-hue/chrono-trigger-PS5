@@ -1,0 +1,49 @@
+CTPS5 0.1.0-rc1
+===============
+Native PS5 homebrew port of Chrono Trigger (Nintendo DS USA), based on
+Egg of Time 1.3.5. This is the first CTPS5 release candidate. Console
+verification of the new presentation/UI paths is pending.
+
+Install or update
+-----------------
+1. Fully close the game, then extract CTPS5-0.1.0-rc1-PS5.zip.
+2. Copy the PPSA90435 folder into /data/homebrew/ on the PS5. If updating,
+   overwrite matching files in the existing PPSA90435 folder. Avoid another
+   nested PPSA90435 folder. Include eboot.bin, sce_sys and sce_module.
+3. Preserve /data/eggoftime/ and your ROM, settings, saves and mods. The
+   retained title ID and data paths allow existing installations to update.
+4. Each player supplies their own unmodified USA YQUE NDS file, named CT.nds
+   at /data/eggoftime/rom/CT.nds. No ROM or extracted game assets are included.
+5. Refresh/rescan ShadowMountPlus and wait for the title to be ready.
+   The PS5 title is CTPS5; its metadata version is 01.004.000.
+6. Launch CTPS5 from the home screen. No separate Boot Check or ELF payload
+   is required. Your requested icon, native scanout and direct-memory heap
+   are retained. The configured output target remains 4K at 60 Hz.
+
+What changed
+------------
+- The project and PS5 title are CTPS5, with upstream attribution retained.
+- A one-time display profile enables 16:9, room-edge filling and matching
+  panels for fixed-size screens. Later choices and unrelated settings are
+  preserved. See CONTROLS-WIDESCREEN.txt for the exact behavior and options.
+- DualSense symbols and Create/Options/L1/R1/L2/R2 names appear in runtime
+  controls/help prompts. They follow your existing button bindings.
+- The native Controls page shows controller rebinding rather than keyboard
+  options. Normal startup is quiet; file logs and actual error notifications
+  remain available.
+
+Reporting a problem
+-------------------
+Attach the newest CTPS5 section of /data/eggoftime/eggoftime.log, or a photo
+of its error notification. Earlier R6-R9 attempts may remain because the log
+appends. The CTPS5 attempt begins "CTPS5 0.1.0-rc1 entry reached".
+
+Release status
+--------------
+Host presentation/prompt/font/settings tests and native package checks pass.
+R8 previously reached game execution and music on the user's PS5. CTPS5 RC1
+still needs console checks of the new UI/presentation paths, normal save/load,
+battle/room transitions and longer gameplay. Sustained 4K60 has not been
+established. Complete translated-game coverage has not been established;
+unknown translated call targets can stop gameplay. Source, licenses, build report, asset audit and hashes accompany
+this candidate. This package is not represented as a verified stable release.

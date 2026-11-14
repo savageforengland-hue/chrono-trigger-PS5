@@ -1,0 +1,32 @@
+name: Source and host checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m pip install -r requirements-site.txt
+      - run: python3 tools/build_site_docs.py
+      - name: Source and website checks
+        run: |
+          python3 tools/package_public_source.py
+          python3 tools/check_site.py
+      - name: Runtime host checks (no ROM required)
+        run: |
+          python3 ps5/test_diagnostics.py
+          python3 ps5/test_memory.py
+          python3 ps5/test_presentation.py
+      - name: Check pinned downstream SDL display code
+        run: |
+          git clone --no-checkout https://github.com/OpenAGC/SDL3.git "$RUNNER_TEMP/SDL3"
+          git -C "$RUNNER_TEMP/SDL3" checkout 37ff89ab9233e49a39b362b2023cab64520d9cca
+          git -C "$RUNNER_TEMP/SDL3" apply "$GITHUB_WORKSPACE/ps5/sdl3-static.patch"
+          python3 ps5/test_scanout.py --sdl-source "$RUNNER_TEMP/SDL3"
+          python3 ps5/test_video_failure_paths.py --sdl-source "$RUNNER_TEMP/SDL3"
+          python3 ps5/test_prompts.py --sdl-source "$RUNNER_TEMP/SDL3"
+          python3 ps5/test_settings_migration.py --sdl-source "$RUNNER_TEMP/SDL3"

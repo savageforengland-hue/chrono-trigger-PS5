@@ -1,0 +1,9 @@
+https://github.com/drakmor/ps5-native-app-boilerplate
+commit 470695e0c557f99ff2df0e36e4df713c5e636526
+Native tooling sources, clean-room runtime manifests and selected documentation; app_crt.cpp has downstream hooks noted below.
+
+Downstream R3 change: app_crt.cpp calls Egg PS5 entry/stage/exit diagnostic hooks. Other native tooling and runtime manifests remain unmodified.
+
+R4: app_crt also calls the pinned compat/ps5_fp_ieee before _init_env.
+
+R5: sce_module_writer.cpp fixes RELRO base translation when .data.rel.ro precedes .got, and validates segment geometry plus retained-section bytes.

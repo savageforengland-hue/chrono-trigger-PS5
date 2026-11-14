@@ -1,0 +1,62 @@
+{
+  "repository": "https://github.com/mihawk-99/PS5_PayloadSDK",
+  "commit": "b83202be73e930050e00de0f1b4d9ec46c0391bf",
+  "license": "GPL-3.0-or-later; dlmalloc malloc.c MIT-0, original notice retained",
+  "files": [
+    {
+      "upstream": "src/heap.c",
+      "local": "heap.c",
+      "sha256": "855bd48a719ae06b1170bbf8ef25a5577779f962eae9bdb3322a146bde8ebfe0"
+    },
+    {
+      "upstream": "src/heap_wrap.c",
+      "local": "heap_wrap.c",
+      "sha256": "88188f58a64a3aa67ab845e760300d3f21e2b651ae9dd56d06fb529c356a5d34"
+    },
+    {
+      "upstream": "src/placement.c",
+      "local": "placement.c",
+      "sha256": "3b87284094e459f8d3133b0e4b736536fef5c099f0ae27b8d6e5a2f89013ca28"
+    },
+    {
+      "upstream": "src/placement.h",
+      "local": "placement.h",
+      "sha256": "71efaa2fa5a66c16215a4154e267f8aa6396894e2e26330d13a3377adc905b29"
+    },
+    {
+      "upstream": "src/dlmalloc/mspace.c",
+      "local": "dlmalloc/mspace.c",
+      "sha256": "48f6cca7d08b3abe4bc9e1802c3cf516b7f8da795bd26737e9bfc1ecd9ef6776"
+    },
+    {
+      "upstream": "src/dlmalloc/malloc.c",
+      "local": "dlmalloc/malloc.c",
+      "sha256": "be7be56b40b4b31417e74e77687f9b96127ea6cae534cf236aee40a4c739508d"
+    },
+    {
+      "upstream": "src/dlmalloc/SOURCE",
+      "local": "dlmalloc/SOURCE",
+      "sha256": "b6ac826c3b163d5513fc646b46514c83a7f2009d3cd2e51453a2c91bb89033af"
+    },
+    {
+      "upstream": "include/ps5platform/heap.h",
+      "local": "ps5platform/heap.h",
+      "sha256": "e15598af8b6e446105c31330845006c4866be8e35f7e323d5694eba596972620"
+    },
+    {
+      "upstream": "include/ps5platform/kernel.h",
+      "local": "ps5platform/kernel.h",
+      "sha256": "3042a8d81b5ca2668d477ea8c84eef0cfb01985d208c1678d17a52086feb7ffb"
+    },
+    {
+      "upstream": "tests/host_kernel.c",
+      "local": "tests/host_kernel.c",
+      "sha256": "538c60dd6a255103b482d3920db39ebf3dceba6310a149d551204b607b8c120d"
+    },
+    {
+      "upstream": "tests/host_kernel.h",
+      "local": "tests/host_kernel.h",
+      "sha256": "e1a93bbc845182db4a2be95fd9f3b7fc05bab8a32a05daf1bac385f6391d9d91"
+    }
+  ]
+}

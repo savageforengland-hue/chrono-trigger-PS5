@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a reproducible CTPS5 problem
+body:
+  - type: markdown
+    attributes:
+      value: Please include sanitized logs. Never attach ROMs, extracted assets, saves or generated game code.
+  - type: input
+    id: version
+    attributes:
+      label: CTPS5 version
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: PS5 setup
+      description: Firmware, kstuff, Shadow Mount / launcher version and output resolution.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps, scene and expected result
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized log and configuration changes
+      render: text

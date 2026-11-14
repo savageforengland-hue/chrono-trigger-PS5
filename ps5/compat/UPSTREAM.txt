@@ -1,0 +1,9 @@
+Mihawk-99 PS5_PayloadSDK
+https://github.com/mihawk-99/PS5_PayloadSDK
+commit b83202be73e930050e00de0f1b4d9ec46c0391bf
+GPL-3.0-or-later; source notices retained.
+Selected source/header/test files from the exact SDK pinned by ApricotGS00.040.007.
+Downstream directory.c adds EGG_PS5_DIRECTORY_STREAMS_ONLY to exclude unrelated *at wrappers; directory parsing remains unchanged.
+Native shell-exit behavior and stream redirection follow ApricotGS source patterns; no artwork or game code/assets copied.
+
+R8 adds the same pinned platform heap/heap_wrap/placement/mspace, associated headers and host kernel fixture, unchanged. HEAP-UPSTREAM.json records exact file hashes. malloc.c is the original Doug Lea MIT-0 source; GPL notices retained on platform files. Integration and memory preflight are downstream.

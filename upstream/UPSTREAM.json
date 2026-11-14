@@ -1,0 +1,11 @@
+{
+  "project": "Egg of Time",
+  "author": "Power Pudu",
+  "repository": "https://github.com/power-pudu/egg-of-time",
+  "version": "1.3.5",
+  "commit": "d294c017e53d137b3729bddcd120e0f7a2b82590",
+  "archive": "egg-of-time-v1.3.5-source.tar.gz",
+  "sha256": "8dbb275317cd484e14473b62cf4a7f011edd46ed922653a5288d8eb0ebf63c45",
+  "method": "git archive of the unmodified upstream commit",
+  "license": "MIT; original LICENSE.md preserved"
+}

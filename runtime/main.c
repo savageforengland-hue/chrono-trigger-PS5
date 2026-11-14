@@ -1,0 +1,541 @@
+/* Host entry point: SDL3 window, input and presentation; the game runs on its own thread. */
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
+
+#include "cheevos.h"
+#include "controls.h"
+#include "display.h"
+#include "game_build.h"
+#include "gfx_mod.h"
+#include "rt.h"
+#include "sound.h"
+#include "system_menu.h"
+#include "ui_text.h"
+#include "video.h"
+#ifdef EGG_PS5
+#include "../ps5/diagnostics.h"
+#include "../ps5/memory.h"
+#define PS5_STAGE(n, message) egg_ps5_diag_stage(n, message)
+#define PS5_FAILURE(where, detail) do { egg_ps5_diag_failure(where, detail); egg_ps5_memory_report(where); } while (0)
+#else
+#define PS5_STAGE(n, message) ((void)0)
+#define PS5_FAILURE(where, detail) ((void)0)
+#endif
+
+static SDL_AtomicInt game_finished;
+
+void rt_log(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    SDL_LogMessageV(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, fmt, ap);
+    va_end(ap);
+}
+
+static char install_dir[1024], data_dir[1024];
+
+/* The AppImage's data folder starts with the mod folders and their readme files, so the player finds where mods go. */
+static void make_mod_folders(void) {
+#ifdef EGG_PS5_CORE
+    static const char *const mods[] = {"graphics", "packs"};
+#else
+    static const char *const mods[] = {"cutscenes", "music", "translation", "shaders", "graphics"};
+#endif
+    for (size_t i = 0; i < SDL_arraysize(mods); i++) {
+        char from[1024], to[1024];
+        snprintf(to, sizeof to, "%smods/%s", data_dir, mods[i]);
+        SDL_CreateDirectory(to);
+        snprintf(to, sizeof to, "%smods/%s/readme.txt", data_dir, mods[i]);
+        snprintf(from, sizeof from, "%smods/%s/readme.txt", install_dir, mods[i]);
+        SDL_PathInfo info;
+        size_t size = 0;
+        void *text = SDL_GetPathInfo(to, &info) ? NULL : SDL_LoadFile(from, &size);
+        if (text) SDL_SaveFile(to, text, size);
+        SDL_free(text);
+    }
+}
+
+static void find_dirs(void) {
+#ifdef EGG_PS5
+    snprintf(install_dir, sizeof install_dir, "/app0/");
+    snprintf(data_dir, sizeof data_dir, "/data/eggoftime/");
+    SDL_CreateDirectory(data_dir);
+    SDL_CreateDirectory("/data/eggoftime/rom");
+    make_mod_folders();
+    return;
+#else
+    const char *base = SDL_GetBasePath();
+    snprintf(install_dir, sizeof install_dir, "%s", base ? base : "");
+    snprintf(data_dir, sizeof data_dir, "%s", install_dir);
+    /* An AppImage runs mounted at $APPDIR (read-only); APPDIR alone could be inherited from another AppImage. */
+    const char *appdir = getenv("APPDIR");
+    size_t n = appdir ? strlen(appdir) : 0;
+    if (!n || strncmp(install_dir, appdir, n) != 0 || (install_dir[n] != '/' && install_dir[n] != 0)) return;
+    char *pref = SDL_GetPrefPath("", "EggOfTime");
+    if (!pref) {
+        rt_log("no data folder: %s", SDL_GetError());
+        return;
+    }
+    snprintf(data_dir, sizeof data_dir, "%s", pref);
+    SDL_free(pref);
+    make_mod_folders();
+    rt_log("data folder: %s", data_dir);
+#endif
+}
+
+const char *rt_install_dir(void) {
+    if (!install_dir[0]) find_dirs();
+    return install_dir;
+}
+
+const char *rt_data_dir(void) {
+    if (!install_dir[0]) find_dirs();
+    return data_dir;
+}
+
+_Noreturn void rt_fatal(CPU *cpu, const char *fmt, ...) {
+    char msg[512];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof msg, fmt, ap);
+    va_end(ap);
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "fatal: %s", msg);
+    if (cpu) {
+        for (int i = 0; i < 16; i += 4) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "  r%-2d=%08x r%-2d=%08x r%-2d=%08x r%-2d=%08x", i, cpu->r[i],
+                         i + 1, cpu->r[i + 1], i + 2, cpu->r[i + 2], i + 3, cpu->r[i + 3]);
+        }
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "  call depth %u, innermost return 0x%08x", cpu->ret_depth,
+                     cpu->ret_depth ? cpu->ret_stack[cpu->ret_depth - 1] : 0);
+    }
+    /* EGG_DUMP_RAM=<file>: also dump main RAM (<file>) and ITCM (<file>.itcm) at a fatal error. */
+    const char *dump = getenv("EGG_DUMP_RAM");
+    if (dump) {
+        char path[1024];
+        FILE *f = fopen(dump, "wb");
+        if (f) { fwrite(rt_main_ram, 1, RT_MAIN_RAM_SIZE, f); fclose(f); }
+        snprintf(path, sizeof path, "%s.itcm", dump);
+        f = fopen(path, "wb");
+        if (f) { fwrite(rt_itcm, 1, RT_ITCM_SIZE, f); fclose(f); }
+    }
+    fflush(stderr);
+    exit(1);
+}
+
+static int SDLCALL game_thread(void *arg) {
+    (void)arg;
+#ifdef EGG_PS5
+    egg_ps5_diag_game_thread();
+#endif
+    rt_threads_run(rt_boot);
+    SDL_SetAtomicInt(&game_finished, 1);
+    return 0;
+}
+
+/* ---- input ---- */
+
+/* EGG_AUTOKEYS="<ms>:<KEY>:<ms>,...": press keys at fixed times after start (automated tests).
+ * KEY TOUCH taps the bottom screen at EGG_TOUCH_POS="x,y" (default: the centre); SAVESTATE / LOADSTATE
+ * act like F5 / F7, REBOOT like confirming a restart (System Settings, Language), LAYOUT / SWAP / FILTER like
+ * F2 / F3 / F4, ESC like holding Exit game, FF like holding Left Shift (fast forward). */
+#define AUTO_TOUCH (1u << 31)
+#define AUTO_SAVE (1u << 30)
+#define AUTO_LOAD (1u << 29)
+#define AUTO_LAYOUT (1u << 28)
+#define AUTO_SWAP (1u << 27)
+#define AUTO_FILTER (1u << 26)
+#define AUTO_ESC (1u << 25)
+#define AUTO_REBOOT (1u << 24)
+#define AUTO_FF (1u << 23)
+#define AUTO_HOST (AUTO_TOUCH | AUTO_SAVE | AUTO_LOAD | AUTO_LAYOUT | AUTO_SWAP | AUTO_FILTER | AUTO_ESC | AUTO_REBOOT | AUTO_FF)
+typedef struct AutoKey { Uint64 at, until; uint32_t key; } AutoKey;
+static AutoKey autokeys[64];
+static int autokey_count;
+
+static void parse_autokeys(const char *spec) {
+    static const struct { const char *name; uint32_t key; } names[] = {
+        {"A", KEY_A}, {"B", KEY_B}, {"X", KEY_X}, {"Y", KEY_Y}, {"L", KEY_L}, {"R", KEY_R}, {"START", KEY_START},
+        {"SELECT", KEY_SELECT}, {"UP", KEY_UP}, {"DOWN", KEY_DOWN}, {"LEFT", KEY_LEFT}, {"RIGHT", KEY_RIGHT},
+        {"TOUCH", AUTO_TOUCH}, {"SAVESTATE", AUTO_SAVE}, {"LOADSTATE", AUTO_LOAD}, {"REBOOT", AUTO_REBOOT},
+        {"LAYOUT", AUTO_LAYOUT}, {"SWAP", AUTO_SWAP}, {"FILTER", AUTO_FILTER}, {"ESC", AUTO_ESC}, {"FF", AUTO_FF},
+    };
+    while (spec && *spec && autokey_count < (int)SDL_arraysize(autokeys)) {
+        char name[16];
+        unsigned long at, dur;
+        int used = 0;
+        if (sscanf(spec, "%lu:%15[A-Z]:%lu%n", &at, name, &dur, &used) != 3) break;
+        for (size_t i = 0; i < SDL_arraysize(names); i++) {
+            if (!strcmp(names[i].name, name)) autokeys[autokey_count++] = (AutoKey){at, at + dur, names[i].key};
+        }
+        spec += used;
+        if (*spec == ',') spec++;
+    }
+}
+
+static uint32_t auto_keys(Uint64 now) {
+    uint32_t keys = 0;
+    for (int i = 0; i < autokey_count; i++) {
+        if (now >= autokeys[i].at && now < autokeys[i].until) keys |= autokeys[i].key;
+    }
+    return keys;
+}
+
+/* ---- presentation ---- */
+
+static uint32_t top_px[SCREEN_W * SCREEN_H], bottom_px[SCREEN_W * SCREEN_H], main_px[VIDEO_LINE_MAX * VIDEO_ROWS_MAX];
+static const uint32_t *const screens[3] = {top_px, bottom_px, main_px};
+static int main_w = SCREEN_W, main_h = SCREEN_H; /* main_px: rows of this width (widescreen), this many (zoom out) */
+static uint32_t party_px[VIDEO_LINE_MAX * VIDEO_ROWS_MAX]; /* main screen's party layer (camera smoothing) */
+static uint32_t still_px[VIDEO_LINE_MAX * VIDEO_ROWS_MAX]; /* main screen's still layer (camera smoothing) */
+static uint32_t ui_px[VIDEO_LINE_MAX * VIDEO_ROWS_MAX];     /* main screen's UI layer (zoom out) */
+/* The screens' sources for HD graphics mods (gfx_mod.c). */
+static VideoHd hd_top[SCREEN_W * SCREEN_H], hd_bottom[SCREEN_W * SCREEN_H], hd_main[VIDEO_LINE_MAX * VIDEO_ROWS_MAX],
+    hd_party[VIDEO_LINE_MAX * VIDEO_ROWS_MAX], hd_still[VIDEO_LINE_MAX * VIDEO_ROWS_MAX];
+static uint16_t hd_palette[RT_PALETTE_SIZE / 2];
+static VideoHdFrame hd = {hd_top, hd_bottom, hd_main, hd_party, hd_still, hd_palette, 0};
+static int party_on, still_on, ui_on;
+
+
+/* EGG_SHOTS=<dir>: save the screens (top, bottom, and the main screen of single screen mode, which may be
+ * wider, stacked, native, black beside narrower ones) and the presented window as BMP files, every
+ * EGG_SHOT_MS ms (default 3000) starting EGG_SHOT_FROM ms after start (bring-up aid; EGG_SHOT_MS=1 captures
+ * every presented frame). */
+/* Camera smoothing, one axis: the view is shown `lag` pixels from the camera of the frame on screen. A camera step
+ * leaves the view where it was (the lag grows by the step), then the lag glides to 0, linearly, over the time the
+ * camera took for its previous step: one game frame while walking (2 px a frame), four in a slow pan that moves
+ * 1 px every fourth frame, so that pan advances a quarter pixel a frame instead of a pixel then three stops.
+ * Longer gaps than VIDEO_GLIDE_FRAMES: the camera was at rest, the step glides over one frame. */
+typedef struct Glide { float from; uint64_t t0, dur, last_step; } Glide;
+
+static float glide_lag(const Glide *g, uint64_t t) {
+    if (t >= g->t0 + g->dur) return 0;
+    return t <= g->t0 ? g->from : g->from * (1.0f - (float)(t - g->t0) / (float)g->dur);
+}
+
+static void glide_step(Glide *g, int step, uint64_t t, uint64_t period) {
+    if (!step) return;
+    uint64_t frames = g->last_step && t > g->last_step ? (t - g->last_step + period / 2) / period : 0;
+    float lag = SDL_clamp(glide_lag(g, t) - (float)step, (float)-VIDEO_SLIDE_MAX, (float)VIDEO_SLIDE_MAX);
+    *g = (Glide){lag, t, (frames >= 1 && frames <= VIDEO_GLIDE_FRAMES ? frames : 1) * period, t};
+}
+
+/* An even beat from ticks that come about every `period` but each a little early or late (the threads' wakeups: game
+ * frames 15.7-17.5 ms apart, presents 7-9.5 ms apart against a screen refreshing every 8.3 ms). The glide is timed
+ * from the beats: timed from the ticks, the view landed up to a sixth of a step off its even spacing, which a camera
+ * walking at 144 fps showed as a judder. A tick far from the beat (a pause, a skipped frame) starts it over. */
+typedef struct Beat { uint64_t t; } Beat;
+
+static uint64_t beat(Beat *b, uint64_t t, uint64_t period) {
+    int64_t off = (int64_t)(t - (b->t + period));
+    b->t = b->t && off > -(int64_t)period / 4 && off < (int64_t)period / 4 ? b->t + period + off / 8 : t;
+    return b->t;
+}
+
+static void save_shot(const char *dir, int n) {
+    SDL_Surface *s = SDL_CreateSurface(main_w, SCREEN_H * 2 + main_h, SDL_PIXELFORMAT_ABGR8888);
+    if (!s) return;
+    SDL_ClearSurface(s, 0, 0, 0, 1);
+    for (int i = 0; i < 3; i++) {
+        int w = i == 2 ? main_w : SCREEN_W;
+        for (int y = 0; y < (i == 2 ? main_h : SCREEN_H); y++) {
+            memcpy((uint8_t *)s->pixels + (size_t)(y + i * SCREEN_H) * s->pitch, &screens[i][y * w], (size_t)w * 4);
+        }
+    }
+    char path[1024];
+    snprintf(path, sizeof path, "%s/shot_%04d.bmp", dir, n);
+    if (SDL_SaveBMP(s, path)) rt_log("screenshot %s", path);
+    SDL_DestroySurface(s);
+    snprintf(path, sizeof path, "%s/window_%04d.bmp", dir, n);
+    display_capture(path);
+}
+
+int main(int argc, char **argv) {
+#ifdef EGG_PS5
+    extern bool egg_ps5_init(void);
+    PS5_STAGE(30, "platform initialization");
+    if (!egg_ps5_init()) return 1;
+#endif
+    PS5_STAGE(40, "SDL_Init begin");
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMEPAD)) {
+        PS5_FAILURE("SDL_Init", SDL_GetError());
+        fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
+        return 1;
+    }
+    PS5_STAGE(50, "display_init begin");
+    if (!display_init()) { PS5_FAILURE("display_init", SDL_GetError()); return 1; }
+    PS5_STAGE(60, "controls_init begin");
+    controls_init();
+    PS5_STAGE(70, "ROM verification and static game binding begin");
+    if (!game_build_prepare(argc > 1 ? argv[1] : NULL)) { PS5_FAILURE("game_build_prepare", "See preceding ROM/game error"); return 1; }
+    PS5_STAGE(80, "graphics mods and audio initialization begin");
+    cheevos_init(); /* RetroAchievements: logs in with the saved login */
+    if (display_setting_get(SET_MODS)) gfxmod_load(); /* graphics mods: into the ROM in memory, and HD art */
+    spu_open_output();
+
+    /* Deep C call chains (recompiled calls + tail calls) need a large host stack. */
+    PS5_STAGE(90, "game thread creation begin");
+    SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER, (void *)game_thread);
+    SDL_SetStringProperty(props, SDL_PROP_THREAD_CREATE_NAME_STRING, "arm9");
+    SDL_SetNumberProperty(props, SDL_PROP_THREAD_CREATE_STACKSIZE_NUMBER, 64 << 20);
+    SDL_Thread *t = SDL_CreateThreadWithProperties(props);
+    SDL_DestroyProperties(props);
+    if (!t) {
+        PS5_FAILURE("SDL_CreateThread", SDL_GetError());
+        fprintf(stderr, "SDL_CreateThread: %s\n", SDL_GetError());
+        return 1;
+    }
+    SDL_DetachThread(t);
+    PS5_STAGE(100, "startup complete; entering host event loop");
+
+    /* EGG_DUMP_RAM=<file>: write main RAM to <file>.<n> at the times (ms) listed in EGG_DUMP_AT
+     * (default 3000) (bring-up aid). */
+    const char *dump_path = getenv("EGG_DUMP_RAM");
+    const char *dump_times = getenv("EGG_DUMP_AT") ? getenv("EGG_DUMP_AT") : "3000";
+    Uint64 start_ticks = SDL_GetTicks();
+    int dump_n = 0;
+    /* EGG_WATCH=1: every 2 s, log the running game thread's call stack (racy snapshot; bring-up aid). */
+    int watch = getenv("EGG_WATCH") != NULL;
+    Uint64 watch_at = SDL_GetTicks() + 2000;
+    const char *shots = getenv("EGG_SHOTS");
+    Uint64 shot_every = getenv("EGG_SHOT_MS") ? (Uint64)atoi(getenv("EGG_SHOT_MS")) : 3000;
+    Uint64 shot_at = SDL_GetTicks() + (getenv("EGG_SHOT_FROM") ? (Uint64)atoi(getenv("EGG_SHOT_FROM")) : shot_every);
+    int shot_n = 0;
+
+    parse_autokeys(getenv("EGG_AUTOKEYS"));
+    /* EGG_LOAD_STATE=<file>: start from a save state. */
+    if (getenv("EGG_LOAD_STATE")) {
+        snprintf(rt_state_load_path, sizeof rt_state_load_path, "%s", getenv("EGG_LOAD_STATE"));
+        rt_state_request = RT_STATE_LOAD;
+    }
+    uint32_t auto_prev = 0;
+    SDL_Gamepad *pad = NULL;
+    uint64_t shown_serial = 0, shown_t = 0, game_period = SDL_NS_PER_SECOND / 60;
+    Glide glide_x = {0}, glide_y = {0};
+    int running = 1;
+    uint64_t next_present = SDL_GetTicksNS();
+    Beat frame_beat = {0}, present_beat = {0};
+    uint64_t present_period = SDL_NS_PER_SECOND / 60, presented_t = 0;
+    /* EGG_LOG_FPS=1: log window frames and game frames (VBlanks) per second. */
+    int log_fps = getenv("EGG_LOG_FPS") != NULL, presented = 0;
+    Uint64 fps_at = SDL_GetTicks() + 1000, game_frames = rt_frame_count;
+    /* Holding Exit game's key or button for EXIT_HOLD_MS quits. The message waits, as that button can also be pressed
+     * (the gamepad's SELECT). */
+    enum { EXIT_HOLD_MS = 3000, EXIT_MESSAGE_MS = 500 };
+    Uint64 exit_since = 0;
+    /* The mouse cursor hides after CURSOR_HIDE_MS without mouse use, and shows again when the mouse moves. */
+    enum { CURSOR_HIDE_MS = 2000 };
+    Uint64 mouse_used = SDL_GetTicks();
+    int save_held = 0, load_held = 0; /* the Save state and Load state inputs (System Settings > Controls) */
+    while (running && !SDL_GetAtomicInt(&game_finished)) {
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            display_event(&e);
+            if (e.type == SDL_EVENT_QUIT) running = 0;
+            else if (controls_capture(&e)) continue; /* System Settings > Controls: rebinding */
+            else if (sysmenu_text_event(&e)) continue; /* System Settings > RetroAchievements: typing */
+            else if (e.type == SDL_EVENT_MOUSE_MOTION || e.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                     e.type == SDL_EVENT_MOUSE_WHEEL) {
+                mouse_used = SDL_GetTicks();
+                if (!SDL_CursorVisible()) SDL_ShowCursor();
+            } else if (e.type == SDL_EVENT_WINDOW_MOUSE_ENTER || e.type == SDL_EVENT_WINDOW_FOCUS_GAINED) {
+                /* A hide done while the window lacked the pointer may not have reached it (Wayland, gamescope):
+                 * SDL_SetCursor(NULL) applies the hidden cursor again. */
+                if (!SDL_CursorVisible()) SDL_SetCursor(NULL);
+            } else if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && display_key(e.key.scancode)) {
+                continue;
+            } else if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_F5 && !e.key.repeat) {
+                rt_state_request = RT_STATE_SAVE;
+            } else if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_F7 && !e.key.repeat) {
+                rt_state_load_path[0] = 0;
+                rt_state_request = RT_STATE_LOAD;
+            } else if (e.type == SDL_EVENT_GAMEPAD_ADDED && !pad) {
+                pad = SDL_OpenGamepad(e.gdevice.which);
+            } else if (e.type == SDL_EVENT_GAMEPAD_REMOVED && pad && e.gdevice.which == SDL_GetGamepadID(pad)) {
+                SDL_CloseGamepad(pad);
+                pad = NULL;
+            }
+        }
+        uint32_t autok = auto_keys(SDL_GetTicks());
+        if (autok & ~auto_prev & AUTO_SAVE) rt_state_request = RT_STATE_SAVE;
+        if (autok & ~auto_prev & AUTO_LOAD) {
+            rt_state_load_path[0] = 0;
+            rt_state_request = RT_STATE_LOAD;
+        }
+        if (autok & ~auto_prev & AUTO_REBOOT) rt_state_request = RT_STATE_REBOOT;
+        if (autok & ~auto_prev & AUTO_LAYOUT) display_key(SDL_SCANCODE_F2);
+        if (autok & ~auto_prev & AUTO_SWAP) display_key(SDL_SCANCODE_F3);
+        if (autok & ~auto_prev & AUTO_FILTER) display_key(SDL_SCANCODE_F4);
+        auto_prev = autok;
+        if (controls_held(pad, CTL_EXIT_GAME) || (autok & AUTO_ESC)) {
+            if (!exit_since) exit_since = SDL_GetTicks();
+            Uint64 held = SDL_GetTicks() - exit_since;
+            if (held >= EXIT_MESSAGE_MS) display_message(ui_text("Exiting..."), 100);
+            if (held >= EXIT_HOLD_MS) running = 0;
+        } else {
+            exit_since = 0;
+        }
+        cheevos_poll();
+        /* Pressed, not held, and not in the menu, where a key can be typed or being assigned. F5 and F7 stay above. */
+        int save_now = controls_held(pad, CTL_SAVE_STATE), load_now = controls_held(pad, CTL_LOAD_STATE);
+        if (!sysmenu_is_open()) {
+            if (save_now && !save_held) rt_state_request = RT_STATE_SAVE;
+            if (load_now && !load_held) {
+                rt_state_load_path[0] = 0;
+                rt_state_request = RT_STATE_LOAD;
+            }
+        }
+        save_held = save_now;
+        load_held = load_now;
+        rt_keys = sysmenu_input(controls_read(pad) | (autok & ~AUTO_HOST));
+        /* Fast forward (2x) while its key or button is held (default: Left Shift, the right trigger). */
+        int ff = controls_held(pad, CTL_FAST_FORWARD) || (autok & AUTO_FF);
+        rt_set_speed(ff ? 2 : 1);
+
+        /* Touch: left mouse button on the bottom screen, when it is shown. */
+        float mx, my;
+        SDL_MouseButtonFlags mb = SDL_GetMouseState(&mx, &my);
+        int tx_, ty_;
+        int touching = (mb & SDL_BUTTON_LMASK) && display_touch(mx, my, &tx_, &ty_);
+        if (touching) {
+            rt_touch_x = tx_;
+            rt_touch_y = ty_;
+        }
+        if (mb) mouse_used = SDL_GetTicks(); /* not while a button is held (touching the bottom screen) */
+        if (SDL_CursorVisible() && SDL_GetTicks() - mouse_used >= CURSOR_HIDE_MS) SDL_HideCursor();
+        if (auto_keys(SDL_GetTicks()) & AUTO_TOUCH) {
+            int tx = SCREEN_W / 2, ty = SCREEN_H / 2;
+            /* EGG_TOUCH_POS="x,y[;x,y...]": the n-th TOUCH entry of EGG_AUTOKEYS uses the n-th position. */
+            const char *pos = getenv("EGG_TOUCH_POS");
+            Uint64 now = SDL_GetTicks();
+            int idx = 0;
+            for (int i = 0; i < autokey_count; i++) {
+                if (autokeys[i].key != AUTO_TOUCH) continue;
+                if (now >= autokeys[i].at && now < autokeys[i].until) break;
+                idx++;
+            }
+            for (int i = 0; pos && *pos; i++) {
+                int x, y;
+                if (sscanf(pos, "%d,%d", &x, &y) == 2) { tx = x; ty = y; }
+                if (i == idx) break;
+                pos = strchr(pos, ';');
+                if (pos) pos++;
+            }
+            touching = 1;
+            rt_touch_x = tx;
+            rt_touch_y = ty;
+        }
+        rt_touch_down = touching;
+
+        int cam_dx, cam_dy, cam_cut;
+        uint64_t frame_t, serial = video_frame_serial(&cam_dx, &cam_dy, &cam_cut, &frame_t);
+        int new_frame = serial != shown_serial;
+        if (new_frame) {
+            if (shown_serial && frame_t > shown_t) { /* measured game frame period */
+                game_period = (game_period * 7 + SDL_clamp(frame_t - shown_t, 8000000u, 34000000u)) / 8;
+            }
+            shown_serial = serial;
+            shown_t = frame_t;
+            frame_t = beat(&frame_beat, frame_t, game_period);
+            main_w = video_copy_frame(top_px, bottom_px, main_px, &main_h, party_px, &party_on, still_px, &still_on, ui_px, &ui_on,
+                                      gfxmod_hd_scale() ? &hd : NULL);
+            if (cam_cut || !display_camera_smoothing()) {
+                glide_x = glide_y = (Glide){0};
+            } else {
+                glide_step(&glide_x, cam_dx, frame_t, game_period);
+                glide_step(&glide_y, cam_dy, frame_t, game_period);
+            }
+        }
+        /* Camera smoothing: the view glides between the camera's steps, timed from the beats of the frames' arrival and of
+         * the presents (so every window frame lands at its own position, whatever the refresh rate). */
+        uint64_t now_ns = SDL_GetTicksNS();
+        if (presented_t && now_ns > presented_t) { /* measured present period */
+            present_period = (present_period * 15 + SDL_clamp(now_ns - presented_t, 2000000u, 34000000u)) / 16;
+        }
+        presented_t = now_ns;
+        now_ns = beat(&present_beat, now_ns, present_period);
+        float lag_x = display_camera_smoothing() ? glide_lag(&glide_x, now_ns) : 0;
+        float lag_y = display_camera_smoothing() ? glide_lag(&glide_y, now_ns) : 0;
+        if (sysmenu_is_open()) {
+            main_w = SCREEN_W, main_h = SCREEN_H;
+            party_on = still_on = ui_on = 0;
+            sysmenu_draw(main_px);
+            memcpy(top_px, main_px, sizeof top_px); /* layouts other than top-only show it too */
+            new_frame = 1;
+        }
+        display_frame(screens, party_on ? party_px : NULL, still_on ? still_px : NULL, ui_on ? ui_px : NULL, main_w, main_h, new_frame, lag_x, lag_y,
+                      hd.on && !sysmenu_is_open() ? &hd : NULL);
+        presented++;
+        if (log_fps && SDL_GetTicks() >= fps_at) {
+            rt_log("fps: window %d, game %llu", presented, (unsigned long long)(rt_frame_count - game_frames));
+            presented = 0;
+            game_frames = rt_frame_count;
+            fps_at += 1000;
+        }
+        /* Framerate: pace the window's frames (the game runs on its own clock). */
+        uint64_t frame_ns = display_frame_ns();
+        if (frame_ns) {
+            uint64_t t = SDL_GetTicksNS();
+            next_present = next_present + frame_ns > t ? next_present + frame_ns : t; /* never catch up a backlog */
+            if (display_follows_game() && !ff && !sysmenu_is_open()) {
+                /* The game's 59.83 frames a second against 60 presents drift through each other every 5.8 s: for a
+                 * moment a frame lands right on a present, and frames repeat and skip, which a moving camera shows
+                 * as a stutter (a state load moves that moment, to just after it). So a frame is presented as it
+                 * arrives; the time limit is for when none comes (loading). */
+                uint64_t limit = next_present + frame_ns / 4;
+                int ignore_dx, ignore_dy, ignore_cut;
+                uint64_t ignore_t;
+                while (video_frame_serial(&ignore_dx, &ignore_dy, &ignore_cut, &ignore_t) == shown_serial && t < limit) {
+                    SDL_DelayPrecise(100000);
+                    t = SDL_GetTicksNS();
+                }
+                next_present = t;
+            } else if (next_present > t) {
+                SDL_DelayPrecise(next_present - t);
+            }
+        }
+
+        Uint64 now = SDL_GetTicks();
+        if (shots && now >= shot_at) {
+            shot_at = SDL_max(shot_at + shot_every, now);
+            save_shot(shots, ++shot_n);
+        }
+        if (dump_path && *dump_times && now >= start_ticks + (Uint64)atoi(dump_times)) {
+            char path[1024];
+            snprintf(path, sizeof path, "%s.%d", dump_path, ++dump_n);
+            FILE *f = fopen(path, "wb");
+            if (f) {
+                fwrite(rt_main_ram, 1, RT_MAIN_RAM_SIZE, f);
+                fclose(f);
+                rt_log("main RAM dumped to %s", path);
+            }            const char *comma = strchr(dump_times, ',');
+            dump_times = comma ? comma + 1 : "";
+        }
+        if (watch && now >= watch_at) {
+            watch_at += 2000;
+            CPU *c = rt_cur_cpu;
+            if (c) {
+                char buf[256];
+                int n = 0;
+                for (uint32_t i = c->ret_depth; i > 0 && c->ret_depth - i < 12 && n < (int)sizeof buf - 12; i--) {
+                    n += snprintf(buf + n, sizeof buf - (size_t)n, " %08x", c->ret_stack[i - 1]);
+                }
+                rt_log("watch: frame %llu, depth %u, returns:%s", (unsigned long long)rt_frame_count, c->ret_depth, buf);
+                rt_threads_log();
+                rt_log("watch: IME=%x IE=%08x IF=%08x DISPSTAT=%04x irqcheck=%08x irqqueue=%08x", io_get32(0x208),
+                       io_get32(0x210), irq_if(), io_get16(0x004), rt_r32(rt_dtcm_base + 0x3FF8u), rt_r32(0x027e0060u));
+                rt_log("watch: DISPCNT A=%08x B=%08x POWCNT1=%04x VRAMCNT=%08x %08x %04x MASTER_BRIGHT A=%04x B=%04x",
+                       io_get32(0x000), io_get32(0x1000), io_get16(0x304), io_get32(0x240), io_get32(0x244),
+                       io_get16(0x248), io_get16(0x06C), io_get16(0x106C));
+            }
+        }
+    }
+    /* SDL_Quit frees what the game thread uses (the audio stream, ...): stop it first. If it does not stop
+     * (code that never polls), the end of the process cleans up instead. */
+    if (SDL_GetAtomicInt(&game_finished) || rt_stop_game(1000)) SDL_Quit();
+    return 0;
+}

@@ -1,0 +1,12 @@
+{
+  "source": "user-requested artwork supplied inline in the conversation",
+  "preparation": "reference-preserving preparation with the image tool, followed by deterministic sizing/format conversion",
+  "master": "icon-source.png",
+  "launcher": "../sce_sys/icon0.png",
+  "launcher_pixels": [
+    512,
+    512
+  ],
+  "launcher_sha256": "7962cd598fb0afeb91bff086a7e03c62af54aa87210958d5a5e01a04c1414ec6",
+  "ICO": "icon.ico"
+}

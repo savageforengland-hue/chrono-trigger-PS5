@@ -1,0 +1,190 @@
+CTPS5 0.1.0-rc1 diagnostics
+=========================
+File logging remains enabled. Normal launches no longer show a startup-path
+notification; failures show CTPS5 RC1 plus the stage and actual error.
+The newest attempt begins "CTPS5 0.1.0-rc1 entry reached". Historical attempts
+remain because logs append. Send the newest section when reporting a problem.
+Primary app log: /data/eggoftime/eggoftime.log
+Fallbacks: /data/eggoftime-startup.log, /download0/eggoftime.log,
+/temp0/eggoftime.log. App and FTP filesystem visibility may differ.
+The kernel tag is [CTPS5 RC1]. No ROM or extracted game data is logged.
+
+New presentation defaults are applied once and recorded as:
+CTPS5 widescreen profile applied: 16:9, room-edge filling, proportional
+fixed-screen panels. A ctwide=1 entry in eggoftime.ini prevents later
+launches from resetting user choices. Crop/stretch are optional modes in
+Fixed-screen fit; Matching panels preserves the central picture's proportions.
+
+The retained scanout log identifies dimensions, 128x128 tiles, padded frame
+bytes and buffer stride. Memory preflight/usage, startup stages, ordinary
+failure details and fatal-signal diagnostics are retained. A failure before
+the application entry point still requires the independent ShadowMountPlus
+log at /data/shadowmount/debug.log (debug=1 on beta11).
+
+RC1 console verification is pending. Upstream/earlier investigation notes are
+preserved below for context; they describe earlier builds, not new tests.
+
+Egg of Time PS5 R9 diagnostics
+===============================
+R8 now runs on the user's PS5: its log passes ROM verification, audio setup,
+startup stage 100 and entry into the game thread; the user hears music. The
+photo shows repeated horizontal bands in the displayed game image. R9 repairs
+the software scanout tile geometry and buffer padding, keeps the R8 heap and
+logs the actual native scanout mode/stride at video initialization. R9 console
+execution and graphics output have not yet been verified.
+
+Log destinations, tried in order:
+  /data/eggoftime/eggoftime.log
+  /data/eggoftime-startup.log
+  /download0/eggoftime.log
+  /temp0/eggoftime.log
+
+The first writable destination is used. /download0 and /temp0 are paths inside
+this title's sandbox. They may appear under the title's sandbox mount through
+your FTP server; the host backing path depends on the loader. Once the C runtime
+is ready, an on-screen notification reports the selected path. If all opens fail,
+a notification says logging is unavailable and diagnostics are sent to stderr
+where available. Earlier failures may occur before notifications can be sent.
+
+Each attempt appends a new header:
+  stage=1 Egg of Time PS5 R9 diagnostics entry reached
+The log records each attempted destination's raw kernel open return value.
+This preserves why the primary path could not be opened when fallback works.
+
+Startup stages:
+   1: native entry reached, before reading loader process parameters
+  10: before _init_env (platform C-runtime initialization)
+  20: C runtime ready; fatal handlers attempted
+  21: before static constructors
+  22: before main
+  30: platform configuration and data directories
+  35: allocator preflight passed; direct-memory heap usage reported
+  40: SDL initialization
+  50: display initialization
+  60: controller initialization
+  70: ROM verification and static game binding
+  80: texture packs and audio initialization
+  90: creation of the game thread
+ 100: host startup complete; entering event loop
+
+Messages such as STARTUP FAILURE SDL_Init include the SDL error string.
+R9 also sends "Egg R9 SDL_Init: <actual error>" to PS5 notifications. Send a
+photo of that error if the log cannot be read. Native API errors now include
+the exact framebuffer API and hexadecimal return value where available.
+The startup-log notification explicitly labels its path as an app path; an
+FTP server may expose another filesystem namespace. A successful open does
+not establish which host directory exposes it, or that every write succeeded.
+ROM failures appear with their specific game-loader message. main returned
+status=... records orderly exits. SDL messages and stdout/stderr go to the log.
+
+For fatal SIGSEGV, SIGBUS, SIGILL, SIGFPE or SIGABRT after handlers are installed,
+the app attempts to write a FATAL record with signal, last_stage, fault_address,
+native_pc and native_sp. These are clues, not a guaranteed stack trace or a full
+explanation of the fault. The handler avoids stdio/heap/SDL and preserves the
+system's default fatal action. Main and game threads receive alternate signal
+stacks where supported; stack overflow or a crash in another thread may still
+prevent logging. Forced kill, power loss, or pre-entry rejection cannot be
+captured by these signal handlers. Signal/mount behavior has only been tested
+through host shims, not on the PS5.
+
+Send the current attempt's log if launch fails. The user's current error dialog
+has only OK; a More Info code is not available. If there is no current header,
+collect the mount-service or native loader/kernel log; the
+application cannot diagnose a rejection before it runs. A pre-existing log from
+an older build does not establish that this version started.
+
+The image_anchor address identifies egg_ps5_diag_early in the loaded image.
+validation/native-diagnostic-symbols.txt records its link address, letting a
+developer translate native_pc to a link-relative address despite ASLR. Keep the
+matching source/build report with the log. Do not use another build's offsets.
+
+Logs contain startup errors and native addresses, not the ROM or game assets.
+No prewritten crash result is supplied. The executable writes the real records
+when its entry point is reached and a destination is accessible.
+
+R5 kernel logging and stream capture
+------------------------------------
+Critical startup and initialization-failure messages also go to the console's
+kernel log tagged [EggOfTime R5]. When no log file can be opened, ordinary SDL
+log messages are mirrored there too. Capture the kernel log through your usual
+console debugging tool. This does not create a kernel log file inside the app
+folder and does not capture loader failures before our entry point.
+
+R5 redirects the C stdout/stderr streams through newly opened descriptors and
+fdopen. It does not depend on dup2, which the reference SDK documents being
+denied to native titles. Raw writes to descriptor 2 bypass that redirection.
+Fatal-signal records still use the file/descriptor path; they do not call the
+additional debug-text API from inside a signal handler.
+
+Stages 110 and 111 record an orderly shell-close request and its return code.
+The app then waits for asynchronous shell closure; a failed request may leave
+it waiting until the user closes it. This is distinct from a fatal-signal exit.
+
+R5 fixes a malformed RELRO segment in earlier builds. Read LOADER-FIX.txt.
+The absence of an app log in R4 did not prove a directory error. Reaching the
+new R5 header is still required to confirm that this executable entered _start.
+Use the matching R5 symbol offsets; the instruction layout must not be assumed
+identical merely because the executable file size matches R4.
+
+When the independent Boot Check also cannot start
+------------------------------------------------
+Boot Check has no SDL, game code, ROM, allocator or C-runtime initialization.
+The SDL error-return repair cannot explain that separate app's failure. A
+shared loading/launch problem or an earlier probe-specific failure remains
+possible; the generic dialog alone cannot establish whether _start ran.
+
+ShadowMountPlus 1.7beta11 provides its own log independently of our apps:
+  /data/shadowmount/debug.log
+Its tagged README and config.ini.example confirm logging defaults to debug=1.
+If disabled, edit the existing /data/shadowmount/config.ini to enable debug=1;
+keep the other settings. Do not replace it with the newer branch's v2 template.
+
+For a clean comparison, restart the PS5, enable the usual jailbreak/services,
+wait for ShadowMountPlus to finish discovery, and launch Egg Native Boot Check
+first, with no other title open. If it fails, save debug.log through FileZilla
+before another restart. Include the attempt time. The mount log may identify
+registration, selected source, runtime layers or launch-state failure; it is
+not a guaranteed kernel module-resolution trace.
+
+Upstream issue #194 reports an abandoned launch preparation on exactly
+1.7beta11/13.20, causing later launches to fail with EBUSY/0x80940033. That is
+a diagnostic possibility, not a finding about this console. Do not change
+kstuff, global fakelib or other games based on this report alone.
+
+Sources (verified 14 November 2026):
+https://github.com/drakmor/ShadowMountPlus/blob/1.7beta11/README.md
+https://github.com/drakmor/ShadowMountPlus/blob/1.7beta11/config.ini.example
+https://github.com/drakmor/ShadowMountPlus/issues/194
+
+R9 allocation repair candidate
+-------------------------------
+R6 and R7 both returned SDL_Init: Out of memory before ROM loading. R9 routes
+the application's allocator references, including SDL and the game, through
+the pinned public platform direct-memory heap. System library allocations
+remain internal; foreign pointers are returned to their original allocator.
+This is an evidence-based repair candidate, not a confirmed console fix.
+
+Before SDL calls, R9 verifies small malloc/calloc/realloc operations and logs
+heap base, reserved address range, mapped bytes, peak bytes, arenas, segments
+and libc fallback count. Reserved space is virtual address space, not a
+physical-RAM allocation. Segments are allocated on demand. The same snapshot
+is appended on ordinary startup failures. If initialization still fails, send
+the newest R9 section of the log or photograph the Egg R9 error notification.
+
+R9 scanout repair
+------------------
+The old uploader grouped 512x128 pixels and used width/512 rounded down for
+its row stride. Width 3840 therefore addressed only seven complete groups
+instead of the native 30 columns of 128x128/64KiB tiles, aliasing rows and
+repeating recognizable parts of the picture. Width 1920 also failed; 2560
+is a complete multiple of 512. R9 addresses 128x128 tiles, rounds both edges
+up for allocation, honors the SDL source pitch, and fills padded positions
+with zero. Sequential streaming stores and store fences make the upload
+visible before presentation. Partial worker creation reuses the same uploader
+synchronously after joining all started workers.
+
+The log includes a PS5 scanout: dimensions/128x128 tiles/frame bytes/buffer
+stride/streaming upload line. On 4K output the visible image remains 3840x2160
+and the padded tiled frame occupies 33423360 bytes. If the image is still
+wrong, send a photo and the newest R9 log section. No measured 60fps claim
+is made by this repair.

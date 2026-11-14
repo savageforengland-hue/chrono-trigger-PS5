@@ -1,0 +1,50 @@
+{
+  "project": "CTPS5",
+  "version": "0.1.0-rc1",
+  "upstream": "Egg of Time1.3.5",
+  "status": "release candidate; new presentation and controller UI require console verification",
+  "date": "2026-11-14",
+  "title": "PPSA90435",
+  "metadata_version": "01.004.000",
+  "console_verified": false,
+  "console_evidence": "prior R8 log reached game thread and music; later user reports narrow menus and gameplay areas",
+  "widescreen": "native wider rendering where supported; room-edge filling; proportional matching panels for fixed scenes; optional crop/stretch; System Settings remains proportional",
+  "settings_migration": "ctwide profile applied once; subsequent user preferences and unrelated settings retained",
+  "controller_UI": "binding-aware DualSense glyphs in runtime UI/help; native controller-only rebinding; original baked-in game button artwork not all replaced",
+  "normal_boot_notifications": "quiet; file logs and real error notifications retained",
+  "host_prompt_font_binding_tests": "pass",
+  "host_presentation_geometry_panel_tests": "pass",
+  "host_actual_settings_migration_tests": "pass",
+  "host_diagnostics_cases": 11,
+  "retained_scanout_evidence": "15 R9 host cases plus9video failures and3alloc profiles; SDL patch unchanged",
+  "retained_heap_evidence": "5 R8 host cases; native allocator routing checked for this candidate",
+  "native_imports": 186,
+  "signed_layout_mapping": "pass",
+  "package_regressions": "pass",
+  "native_and_payload_links": "pass",
+  "translated_game_coverage": {
+    "functions_compiled": 9022,
+    "original_codegen_unimplemented_markers": 1073,
+    "marker_context": "whole-module decoding includes code/data ambiguity; reachable coverage not established"
+  },
+  "stable_release_remaining": [
+    "console UI/presentation confirmation",
+    "normal save/load",
+    "battle/room transitions",
+    "extended gameplay",
+    "sustained performance measurements"
+  ],
+  "runtime_sha256": "e6ff45d16adf687855cc3b33b0c8a4132b6504360b221e0a34c7e99fb3ba0036",
+  "eboot_sha256": "0040188b7756b354c756e447ff580f590839165e81ffcef6eca23d71b75a97aa",
+  "icon": "user-requested clock/portal artwork retained",
+  "icon_sha256": "7962cd598fb0afeb91bff086a7e03c62af54aa87210958d5a5e01a04c1414ec6",
+  "icon_size": [
+    512,
+    512
+  ],
+  "ROM_included": false,
+  "extracted_game_assets_included": false,
+  "generated_game_C_in_source_archive": false,
+  "every_player_supplies_own_nds": true,
+  "sustained_4K60_measured": false
+}

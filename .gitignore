@@ -1,0 +1,37 @@
+# Game data and anything derived from it: never commit (see README).
+/rom/
+/extract/
+/asm/
+/ghidra/
+/build/
+/objdiff.json
+*.nds
+*.sav
+*.state
+**/mods/graphics/dump/
+
+# Third-party tools downloaded locally
+/tools/dsd/
+
+# Local / generated
+__pycache__/
+*.pyc
+eggoftime.ini
+
+# Local PS5 and private game output
+/.deps/
+/build-ps5/
+/gen/
+/game/
+/site/downloads/
+*.elf
+*.prx
+*.o
+*.a
+*.so
+*.dll
+*.exe
+eboot.bin
+controls.ini
+ps5-local.ini
+/site/docs/

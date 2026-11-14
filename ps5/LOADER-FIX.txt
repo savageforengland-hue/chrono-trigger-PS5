@@ -1,0 +1,67 @@
+R5 native loader correction
+============================
+The user-reported working reference is Parasitic Event Revisited v1.1.6 Build20.
+It contains a native PS5 FSELF executable and the identical clean-room runtime
+companion already shipped in our R2-R4 builds. Its actual ELF loader layout
+provided a comparison that exposed a specific converter defect in our build.
+No code or game assets from that package were copied into this release.
+
+Confirmed R4 defect:
+The converter used the .got file offset as the beginning of the entire RELRO
+mapping, although .data.rel.ro preceded the GOT by 0x3d0c8 bytes.
+R4 PT_LOAD #2: file offset 0x20850c8, virtual address 0x2044000,
+alignment 0x4000. These are not congruent modulo the required alignment.
+The mapped .data.rel.ro/GOT contents also did not correspond to the linked
+sections. This is a definite executable-layout bug, irrespective of whether
+it is the only problem in the user's loader environment.
+
+Correction:
+relro_file = got.file_offset - (got.address - relro_start)
+R5 PT_LOAD #2: file offset 0x2048000, virtual address 0x2044000,
+alignment 0x4000. The corrected mapping preserves all retained linked bytes.
+The converter now checks geometry and mapped section contents before signing.
+The independent Python validator checks load ranges/alignment/entry, and the
+link pipeline compares every retained allocated section to the LLVM input.
+These checks are additional to SELF integrity and SDK import validation.
+The earlier checks missed this defect; they did not establish loadability.
+
+Regression evidence:
+- The actual former R4 ELF is rejected by the new layout validator.
+- A recreated old GOT-base error is rejected independently.
+- The user-reported working reference passes the generic layout validator.
+- R5's .text, .eh_frame_hdr, .eh_frame, .rodata, .data.rel.ro, .got and .data
+  all match their linked input at the addresses the native loader maps.
+- R5 executable and companion pass integrity, layout and import checks.
+- Host logging tests still pass. R5 has not yet been launched on a PS5.
+
+Installation:
+Fully close the title. Copy the whole PPSA90435 folder's CONTENTS into the
+existing /data/homebrew/PPSA90435/ folder. Select OVERWRITE even for files with
+matching sizes/timestamps. R4 and R5 eboot.bin are BOTH 34,661,202 bytes, so an
+"overwrite only if size differs" setting can silently retain the broken R4.
+Keep /data/eggoftime/ and all ROM, save, mod and configuration files.
+Refresh/rescan ShadowMountPlus after copying. The title/version are
+Egg of Time (R5 Loader Fix), 01.003.009. No assets or ROM are supplied.
+Put your own CT.nds at /data/eggoftime/rom/CT.nds. A rom folder inside the app
+folder is not the configured ROM location for this build.
+
+R5 eboot.bin physical SHA256:
+3fedddd1d5e4acc5707ddbe993e45f388e3d10b4606b97b0caf7356968a654a9
+
+FTP size caveat:
+ps5-payload-dev/ftpsrv enables on-the-fly SELF-to-ELF mode by default. Its LIST,
+MLSD and SIZE implementations may report the embedded/decrypted ELF size.
+The user's screenshot total 34,948,935 matched R4's raw ELF (34,939,604) plus
+its README (9,331), which can be fully explained by that virtual view. It does
+not establish upload corruption. For physical SELF byte/hash checks disable
+SELF transfer mode on the same connection; its response must say disabled.
+The operation is connection-local. An ordinary download through another FTP
+connection may still return a decrypted ELF, which must not be reuploaded as
+an application executable.
+
+References examined read-only:
+- User-uploaded Parasitic-Event-Revisited-v1.1.6-Build20.zip
+- https://github.com/ps5-payload-dev/ftpsrv (cmd.c LIST/MLSD/SIZE/SELF)
+- Existing publicly sourced GPL native converter under ps5/native/
+No user ROM, extracted media, source-game scripts, artwork, keys or proprietary
+runtime implementation is redistributed by this repair.

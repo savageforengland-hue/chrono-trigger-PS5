@@ -1,0 +1,47 @@
+ApricotGS reference comparison and R4 changes
+==============================================
+Reference: user-supplied PS5-ApricotGS-00.040.007.tar.gz source archive.
+SHA256: 76608ea18056e9d657419804c20c86e4fdf316466afa46434205ca133d946749
+No executable package is present in this reference archive. Its successful
+launch on the user's console has not been confirmed. Its README calls the
+release experimental. Source comments and dependency notices are evidence of
+its design, not an independent hardware validation of our build.
+
+Relevant findings, with paths relative to the ApricotGS archive:
+- THIRD-PARTY-NOTICES.txt: same clean-room libc.prx digest as Egg of Time R2/R3,
+  e6ff45d16adf687855cc3b33b0c8a4132b6504360b221e0a34c7e99fb3ba0036.
+  This confirms the reference chooses that companion, not our overall boot.
+- platform/ps5/src/platform.c: catchReturnFromMain requests shell closure with
+  sceSystemServiceLoadExec("exit", NULL), then waits. Its comments identify
+  direct exit/return as liable to produce a crash report.
+- platform/ps5/tooling/native/app_crt.cpp: sets IEEE floating-point state before
+  initializing the C runtime. Its converter SDK pair and FSELF magic match ours.
+- platform/ps5/tools/platform-link.sh: routes refused native directory functions
+  to its platform layer, and adds direct-memory allocator/thread wrappers for
+  the Vulkan/Mesa workload. Our old app imported libc's directory functions.
+- That layer's exact pinned source is Mihawk-99/PS5_PayloadSDK at commit
+  b83202be73e930050e00de0f1b4d9ec46c0391bf. Its platform/src/klog.c and klog.h
+  document dup2 being denied to a native title. R3 used dup2 for stdio capture,
+  making those messages potentially unavailable despite an open log file.
+
+R4 adaptations:
+1. Newly opened descriptors + fdopen streams replace dup2 for stdout/stderr.
+2. Critical startup checkpoints and initialization failures also call
+   sceKernelDebugOutText with [EggOfTime R4], even if all file opens fail.
+   SDL messages are mirrored when no file exists. Fatal handlers remain limited
+   to fixed-buffer file/descriptor writes. Raw write(2,...) bypasses redirected
+   C streams and is not promised to be captured.
+3. Normal main returns request asynchronous shell closure, with the status and
+   request result logged. This does not suppress the fatal-signal path.
+4. The selected pinned GPL directory layer supplies opendir/readdir/closedir
+   and the compatible related directory-stream functions through getdents.
+   Bindings stay local, and the package audit rejects the old direct imports.
+5. Pinned ps5_fp_ieee establishes the reference's x87/SSE floating-point state.
+
+No ApricotGS artwork, assets, game code, or prepared game files are included.
+The selected public SDK source/header/test files, licenses and downstream
+modification notes are in the matching Egg of Time source under ps5/compat/.
+The Vulkan renderer/heap/thread implementation has not been transplanted.
+These changes do not establish that our unresolved pre-launch failure is fixed.
+Our game remains the Chrono Trigger DS USA YQUE static recompilation, with
+4K/60 as an unmeasured presentation target and the existing PNG mod system.
