@@ -4,6 +4,7 @@
 #include "config.h"
 #include "config_file.h"
 #include "../runtime/display.h"
+#include "../runtime/redraw.h"
 #include <dirent.h>
 #include <string.h>
 #include <stdlib.h>
@@ -35,15 +36,16 @@ void egg_ps5_mod_menu_refresh(void){
     qsort(packs+1,(size_t)(count-1),64,compare);
     for(int i=0;i<count;i++)if(!strcmp(packs[i],egg_ps5_config.active_pack))selected=i;
 }
-int egg_ps5_mod_menu_count(void){return 6;}
+int egg_ps5_mod_menu_count(void){return 7;}
 const char *egg_ps5_mod_menu_title(int row){
-    static const char*names[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","HD battle sprites"};return row>=0&&row<6?names[row]:"";
+    static const char*names[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","HD battle sprites","Detailed pose test"};return row>=0&&row<7?names[row]:"";
 }
 const char *egg_ps5_mod_menu_value(int row){
     if(row==0)return !ctps5_battle_hud_available()?"Unavailable":ctps5_battle_hud_enabled()?"On":"Off";
     if(row==1||row==2){static char value[16];snprintf(value,sizeof value,"%d%%",ctps5_battle_hud_scale(row==2));return value;}
     if(row==3)return display_setting_get(SET_MODS)?"On":"Off";
     if(row==5)return !sprites_installed?"Not installed":sprites_enabled?"On":"Off";
+    if(row==6)return ct_redraw_count()?"Open pilot":"Not installed";
     return row==4?packs[selected]:"";
 }
 const char *egg_ps5_mod_menu_description(int row){
@@ -53,6 +55,7 @@ const char *egg_ps5_mod_menu_description(int row){
     if(row==3)return textures_changed?"Restart CTPS5 to fully apply texture changes.":"Texture replacements. Restart after changes.";
     if(row==4)return pack_changed?"Pack saved. Restart CTPS5 to load it.":"Installed packs. Restart to load your choice.";
     if(row==5)return sprites_changed?"Saved. Restart CTPS5 to apply sprite changes.":"Own-ROM sprite detail. Texture mods On; restart.";
+    if(row==6)return "Original/detailed poses. Left/Right changes view.";
     return "";
 }
 void egg_ps5_mod_menu_change(int row,int direction){
@@ -66,6 +69,7 @@ void egg_ps5_mod_menu_change(int row,int direction){
         if(!ctps5_battle_hud_set_scale(commands,v))display_message("HUD size could not be saved.",3000);
     }else if(row==3){
         display_setting_set(SET_MODS,!display_setting_get(SET_MODS));textures_changed=1;
+        ct_redraw_set_visible(display_setting_get(SET_MODS));
     }else if(row==4&&count>0){
         int next=(selected+count+(direction<0?-1:1))%count;
         if(!egg_ps5_ini_set("/data/eggoftime/ps5.ini","active_pack",packs[next])){
@@ -77,5 +81,5 @@ void egg_ps5_mod_menu_change(int row,int direction){
             display_message("Sprite setting could not be saved.",3000);return;
         }
         sprites_enabled=!sprites_enabled;sprites_changed=1;
-    }
+    }else if(row==6){ct_redraw_viewer_open();}
 }

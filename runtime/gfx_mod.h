@@ -14,6 +14,11 @@ typedef struct GfxHdTile { int scale, indexed, bpp8; const void *px; int scope; 
  * requires a battle, sprite layer and matching player palette/character mask. */
 int gfxmod_add_sprite(const uint8_t tile[32],int scale,uint32_t *pixels,int character);
 void gfxmod_sprite_character(const uint8_t tile[32],int character);
+/* A frame-scoped tile has no native-byte key: only the matched whole-pose
+ * renderer may reference it. indexed=3 holds RGBA pilot pixels (alpha254 is
+ * an outline tag); redraw.c applies live outline/flat-palette effects.
+ * Takes ownership of pixels. */
+uint32_t gfxmod_add_direct(int scale,int indexed,void *pixels);
 
 /* The scale HD frames are drawn at: the largest of the HD tiles (0: none loaded). Any thread. */
 int gfxmod_hd_scale(void);

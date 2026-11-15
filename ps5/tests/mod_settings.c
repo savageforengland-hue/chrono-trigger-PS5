@@ -13,6 +13,9 @@
 #include "runtime/display.h"
 EggPs5Config egg_ps5_config={2160,60,3,"default"};
 static const char*root;static int hud,texture=1,scales[2]={100,70};
+int ct_redraw_count(void){return 4;}
+void ct_redraw_set_visible(int on){(void)on;}
+int ct_redraw_viewer_open(void){return 1;}
 static const char *path(const char*p,char out[2048]){
  if(!strncmp(p,"/data/eggoftime",15)){snprintf(out,2048,"%s%s",root,p+15);return out;}return p;
 }
@@ -38,7 +41,8 @@ int main(int argc,char**argv){
  assert(argc==2);root=argv[1];char b[4096];
  FILE*f=fopen("/data/eggoftime/ps5.ini","w");assert(f);fputs("# Keep comment\noutput_height=2160\nactive_pack=default\ntarget_fps=60\nunknown=keep\n",f);fclose(f);
  egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(4),"default"));
- assert(egg_ps5_mod_menu_count()==6&&!strcmp(egg_ps5_mod_menu_value(5),"Not installed"));
+ assert(egg_ps5_mod_menu_count()==7&&!strcmp(egg_ps5_mod_menu_value(5),"Not installed"));
+ assert(!strcmp(egg_ps5_mod_menu_value(6),"Open pilot"));
  char folder[2048];snprintf(folder,sizeof folder,"%s/mods/battle-sprites",root);assert(!mkdir(folder,0777));
  f=fopen("/data/eggoftime/mods/battle-sprites/sprites.ini","w");assert(f);fputs("# Keep detail\nenabled=1\nscale=4\nshading=65\n",f);fclose(f);
  egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(5),"On"));egg_ps5_mod_menu_change(5,1);

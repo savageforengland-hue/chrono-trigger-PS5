@@ -8,7 +8,12 @@
 #include "runtime/system_menu.c"
 #include "runtime/menu_chord.h"
 static Uint64 ticks;
-static int scene_place,mod_change,sets,capture;
+static int scene_place,mod_change,sets,capture,pilot_page,pilot_pose;
+int ct_redraw_viewer_active(void){return pilot_page;}
+int ct_redraw_viewer_open(void){pilot_page=1;pilot_pose=0;return 1;}
+void ct_redraw_viewer_close(void){pilot_page=0;}
+void ct_redraw_viewer_step(int d){pilot_pose+=d;}
+const char*ct_redraw_viewer_title(void){return "Marle cell 089 - art pilot";}
 volatile int rt_state_request;
 Uint64 SDL_GetTicks(void){return ticks;}
 int SDL_GetAtomicInt(SDL_AtomicInt*a){return a->value;}
@@ -48,11 +53,11 @@ int cheevos_list(const CheevosItem**i){*i=NULL;return 0;}
 const uint32_t *cheevos_badge(const char*u){(void)u;return NULL;}
 const char *ui_text(const char*s){return s;}
 void egg_ps5_mod_menu_refresh(void){}
-int egg_ps5_mod_menu_count(void){return 6;}
-const char *egg_ps5_mod_menu_title(int i){const char*n[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","HD battle sprites"};return n[i];}
+int egg_ps5_mod_menu_count(void){return 7;}
+const char *egg_ps5_mod_menu_title(int i){const char*n[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","HD battle sprites","Detailed pose test"};return n[i];}
 const char *egg_ps5_mod_menu_value(int i){return i==4?"default":i==1?"100%":i==2?"70%":"On";}
 const char *egg_ps5_mod_menu_description(int i){(void)i;return "Menu portraits and action icons. Applies now.";}
-void egg_ps5_mod_menu_change(int i,int d){mod_change=i+1;(void)d;}
+void egg_ps5_mod_menu_change(int i,int d){mod_change=i+1;if(i==6)ct_redraw_viewer_open();(void)d;}
 static void step(unsigned keys){ticks+=120;sysmenu_input(keys);}
 static void tap(unsigned keys){step(keys);step(0);}
 static void shot(const char*directory,const char*name){
@@ -69,6 +74,9 @@ int main(int argc,char**argv){
  step(0);assert(hub_page&&hub_cursor==0);shot(argc>1?argv[1]:NULL,"settings-hub");
  tap(KEY_DOWN);tap(KEY_A);assert(mods_page&&!hub_page);shot(argc>1?argv[1]:NULL,"mods-menu");
  tap(KEY_RIGHT);assert(mod_change==1);tap(KEY_DOWN);tap(KEY_A);assert(mod_change==2);
+ for(int i=0;i<5;i++)tap(KEY_DOWN);tap(KEY_A);assert(pilot_page&&sysmenu_pauses_game());
+ tap(KEY_RIGHT);assert(pilot_pose==1);tap(KEY_B);assert(!pilot_page&&mods_page);
+ for(int i=0;i<5;i++)tap(KEY_UP);
  tap(KEY_B);assert(hub_page);tap(KEY_UP);tap(KEY_A);assert(!hub_page&&!mods_page);tap(KEY_RIGHT);assert(sets==1);
  tap(KEY_B);assert(hub_page);tap(KEY_DOWN);tap(KEY_DOWN);tap(KEY_A);assert(controls_page);
  tap(KEY_A);assert(capture);sysmenu_host_toggle();step(KEY_A);assert(!sysmenu_is_open()&&!sysmenu_pauses_game()&&!capture);

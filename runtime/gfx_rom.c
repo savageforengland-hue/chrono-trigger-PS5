@@ -351,6 +351,18 @@ uint32_t gfx_cell_count(const GfxBlob *b) {
     return cells_header(b, &cells, &entry, &table, &mapping) ? cells : 0;
 }
 
+int gfx_cell_objects(const GfxBlob*b,uint32_t c,GfxObject*out,int capacity){
+    uint32_t cells,entry,table,mapping;
+    if(!cells_header(b,&cells,&entry,&table,&mapping)||c>=cells||mapping>=4)return 0;
+    const uint8_t*e=b->data+table+c*entry;uint32_t n=le16(e),at=table+cells*entry+le32(e+4);
+    if(!n||n>(uint32_t)capacity||at>b->size||n>(b->size-at)/6)return 0;
+    for(uint32_t k=0;k<n;k++){
+        const uint8_t*p=b->data+at+k*6;Obj o;
+        if((le16(p)&0x100)||!read_obj(p,&o)||o.bpp8)return 0;
+        out[k]=(GfxObject){o.x,o.y,o.w,o.h,o.hflip,o.vflip,o.row,((uint32_t)o.tile<<mapping)*32};
+    }return (int)n;
+}
+
 int gfx_cell_layout(const GfxBlob *b, uint32_t c, GfxLayout *l) {
     uint32_t cells, entry, table, mapping;
     if (!cells_header(b, &cells, &entry, &table, &mapping) || c >= cells) return 0;

@@ -45,6 +45,7 @@
 #endif
 #include "gfx_mod.h"
 #include "sprite_hd.h"
+#include "redraw.h"
 #include "minimap.h"
 #include "movie.h"
 #include "rt.h"
@@ -683,7 +684,13 @@ static void compose_rows(const HdJob *j) {
             for (int sy = 0; sy < k; sy++) {
                 int v = ty * es + (vflip ? es - 1 - col[sy] : col[sy]);
                 uint32_t *line = o + sy * ow;
-                if (t->indexed==2) {
+                if(t->indexed==3){
+                    const uint32_t*texels=(const uint32_t*)t->px+v*n+tx*es;
+                    for(int sx=0;sx<k;sx++){
+                        uint32_t c=ct_redraw_color(texels[hflip?es-1-col[sx]:col[sx]],pal);
+                        line[sx]=c?hd_mix(c,r->weight,add,j->lut):below;
+                    }
+                } else if (t->indexed==2) {
                     const uint32_t *texels=(const uint32_t*)t->px+v*n+tx*es;
                     for(int sx=0;sx<k;sx++){
                         uint32_t c=sprite_hd_color(texels[hflip?es-1-col[sx]:col[sx]],pal);
@@ -977,6 +984,7 @@ static void draw_screens(View *v) {
         SDL_RenderTexture(ren, v->battle_hud, NULL, &battle_layout.hud);
         if(battle_layout.commands.w>0)SDL_RenderTexture(ren,v->battle_commands,NULL,&battle_layout.commands);
     }
+    if(v==&primary&&sysmenu_is_open())ct_redraw_viewer_draw(ren,&dest);
 #endif
 }
 

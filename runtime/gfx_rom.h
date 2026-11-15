@@ -47,6 +47,10 @@ int gfx_tile_px(const GfxTiles *t, uint32_t off, int bpp8, int x, int y); /* 0 o
 int gfx_sheet_layout(const GfxTiles *t, GfxLayout *l);
 uint32_t gfx_cell_count(const GfxBlob *ncer);
 int gfx_cell_layout(const GfxBlob *ncer, uint32_t cell, GfxLayout *l);
+/* Original 1D, non-affine object records, in OAM order. Negative coordinates
+ * stay relative to the actor origin. Returns 0 for unsupported layouts. */
+typedef struct GfxObject {int x,y,w,h,hflip,vflip,row;uint32_t off;} GfxObject;
+int gfx_cell_objects(const GfxBlob *ncer,uint32_t cell,GfxObject *out,int capacity);
 int gfx_screen_layout(const GfxBlob *nsc, int bpp8, GfxLayout *l);
 /* The layout's pixels as palette indexes (w x h bytes, 0 transparent; row * 16 + index for 4 bits per pixel). */
 void gfx_draw(const GfxLayout *l, const GfxTiles *t, uint8_t *px);

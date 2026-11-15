@@ -7,6 +7,7 @@
 
 #include "gfx_mod.h"
 #include "sprite_hd.h"
+#include "redraw.h"
 #include "rt.h"
 #include "single_screen.h"
 #include "video.h"
@@ -528,6 +529,20 @@ static inline uint16_t oam16(const Engine *e, uint32_t off) {
     return v;
 }
 
+static int prepare_redraws(const Engine*e){
+    static RedrawObject live[128];memset(live,0,sizeof live);uint32_t dc=reg32(e,0);
+    if(ct_redraw_count()&&(dc&0x1000))for(int i=0;i<128;i++){
+        uint16_t a0=oam16(e,i*8),a1=oam16(e,i*8+2),a2=oam16(e,i*8+4);
+        if((a0&0x300)||(a0>>14)!=0||(a1>>14)!=1||(a0&0x2000)||((a0>>10)&3)>1)continue;
+        RedrawObject*p=live+i;*p=(RedrawObject){.valid=1,.x=a1&511,.y=a0&255,.flip=(a1>>12)&3,.palette=a2>>12,.priority=(a2>>10)&3,.mode=(a0>>10)&3,.above=a1&WS_OAM_ABOVE,.space=(a1&(WS_OAM_UI|WS_OAM_PLACED))|((int)e->follows[i]<<16)};
+        for(int ty=0;ty<2;ty++)for(int tx=0;tx<2;tx++){
+            uint32_t addr=(dc&0x10)?(a2&1023)*(32u<<((dc>>20)&3))+(ty*2+tx)*32u:(a2&1023)*32u+ty*1024u+tx*32u;
+            for(int b=0;b<32;b++)p->bytes[(ty*2+tx)*32+b]=vr8(e->obj,e->obj_mask,addr+b);
+        }
+    }
+    return ct_redraw_prepare(e->id,live,(const uint16_t*)(rt_palette+e->pal+0x200));
+}
+
 /* The map the panel shows: BG3's entries under it (the room's or era's picture), the same through a fade. */
 static uint32_t panel_map(const Engine *e, uint32_t dispcnt) {
     uint16_t cnt = reg16(e, 0x0E);
@@ -577,11 +592,14 @@ static void render_objs(const Engine *e, int y, uint32_t dispcnt, ObjLine *ol, i
     for (int i = 0; i < 128; i++) {
         if (skip_party && e->follows[i]) continue;
         uint16_t a0 = oam16(e, i * 8), a1 = oam16(e, i * 8 + 2), a2 = oam16(e, i * 8 + 4);
+        const RedrawBinding*redraw=ct_redraw_binding(e->id,i);
+        if(redraw&&redraw->action==1)continue;
+        if(redraw){a0=(uint16_t)((a0&~255u)|redraw->y);a1=(uint16_t)((a1&~(511u|0x3000u|WS_OAM_ABOVE))|redraw->x|redraw->above);}
         int affine = a0 & 0x100;
         if (!affine && (a0 & 0x200)) continue;
         int shape = a0 >> 14, size = a1 >> 14;
         if (shape == 3) continue;
-        int w = obj_w[shape][size], h = obj_h[shape][size];
+        int w = redraw?redraw->w:obj_w[shape][size], h = redraw?redraw->h:obj_h[shape][size];
         int bw = w, bh = h;
         if (affine && (a0 & 0x200)) { bw *= 2; bh *= 2; }
         int ui = e->rows && !affine && (a1 & WS_OAM_UI) ? (a1 & WS_OAM_PLACED ? 2 : 1) : 0;
@@ -626,7 +644,12 @@ static void render_objs(const Engine *e, int y, uint32_t dispcnt, ObjLine *ol, i
             uint8_t alpha = mode == 1 ? 0xFE : 0xFF;
             uint32_t src = 0;
             uint8_t spal = (uint8_t)(e->id << 4 | 0x20);
-            if (mode == 3) { /* bitmap sprite */
+            if(redraw){
+                uint32_t texel,tile_id=ct_redraw_sample(redraw->pose,tx,ty,&texel);if(!tile_id)continue;
+                uint32_t c=ct_redraw_color(texel,(const uint16_t*)(rt_palette+e->pal+0x200+pal*32));
+                color=(uint16_t)((c>>3&31)|((c>>11&31)<<5)|((c>>19&31)<<10));
+                src=hd_src(tile_id,(unsigned)tx&7,(unsigned)ty&7,0,0);spal|=(uint8_t)pal;
+            } else if (mode == 3) { /* bitmap sprite */
                 uint32_t addr;
                 if (dispcnt & 0x40) addr = tile * (128u << ((dispcnt >> 22) & 1)) + ((uint32_t)ty * w + tx) * 2;
                 else if (dispcnt & 0x20) addr = (tile & 0x1F) * 0x10 + (tile & 0x3E0) * 0x80 + ((uint32_t)ty * 256 + tx) * 2;
@@ -1771,7 +1794,8 @@ advance:
 void video_render_line(int line) {
     if (line == 0) {
         sprite_hd_battle_frame=gfxmod_hd_scale()>0&&sprite_hd_battle();
-        hd_on=gfxmod_hd_active(sprite_hd_battle_frame);
+        int redraws=ct_redraw_count()&&(prepare_redraws(engines)+prepare_redraws(engines+1));
+        hd_on=gfxmod_hd_active(sprite_hd_battle_frame)||redraws;
         if(gfxmod_hd_scale()>0)sprite_hd_begin_frame(rt_palette,sprite_hd_battle_frame);
     }
     for (int i = 0; i < 2; i++) {

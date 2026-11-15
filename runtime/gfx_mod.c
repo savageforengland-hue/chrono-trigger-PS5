@@ -31,15 +31,16 @@
 #include "gfx_rom.h"
 #include "rt.h"
 #include "sprite_hd.h"
+#include "redraw.h"
 
 #define SCALE_MAX 8
 
 /* ---- the HD tile table ---- */
 
-typedef struct Entry { GfxHdTile hd; uint8_t bytes[64]; int bpp8; uint64_t hash; } Entry;
+typedef struct Entry { GfxHdTile hd; uint8_t bytes[64]; int bpp8,direct; uint64_t hash; } Entry;
 static Entry *entries; /* [0] unused: tile number 0 is none */
 static uint32_t entry_count, entry_cap, *slots, slot_mask;
-static int hd_scale,general_hd_scale;
+static int hd_scale,general_hd_scale,generated_hd_scale;
 
 static uint64_t tile_hash(const uint8_t *t, int bpp8) {
     uint64_t h = 1469598103934665603ull ^ (uint64_t)bpp8;
@@ -64,6 +65,7 @@ static void rebuild_slots(void) {
     slots = calloc(size, sizeof *slots);
     slot_mask = size - 1;
     for (uint32_t n = 1; n < entry_count; n++) {
+        if(entries[n].direct)continue;
         uint32_t s = (uint32_t)entries[n].hash & slot_mask;
         while (slots[s]) s = (s + 1) & slot_mask;
         slots[s] = n;
@@ -85,7 +87,7 @@ static int add_hd(const uint8_t *t, int bpp8, int scale, int indexed, void *px) 
     }
     if (!entry_count) entry_count = 1; /* number 0: none */
     Entry *e = &entries[entry_count++];
-    *e = (Entry){{scale, indexed, bpp8, px, 0, 0}, {0}, bpp8, h};
+    *e = (Entry){{scale, indexed, bpp8, px, 0, 0}, {0}, bpp8, 0, h};
     memcpy(e->bytes, t, bpp8 ? 64 : 32);
     if (entry_count * 2 > slot_mask) rebuild_slots();
     else {
@@ -97,7 +99,7 @@ static int add_hd(const uint8_t *t, int bpp8, int scale, int indexed, void *px) 
 }
 
 int gfxmod_hd_scale(void) { return hd_scale; }
-int gfxmod_hd_active(int battle) { return general_hd_scale>0||(battle&&hd_scale>0); }
+int gfxmod_hd_active(int battle) { return general_hd_scale>0||(battle&&generated_hd_scale>0); }
 
 uint32_t gfxmod_find(const uint8_t *t, int bpp8) { return entry_count > 1 ? lookup(t, bpp8, tile_hash(t, bpp8)) : 0; }
 
@@ -108,11 +110,22 @@ int gfxmod_add_sprite(const uint8_t tile[32],int scale,uint32_t *px,int characte
     if(gfxmod_find(tile,0)){free(px);return 0;}
     int added=add_hd(tile,0,scale,2,px);uint32_t n=gfxmod_find(tile,0);
     if(n){entries[n].hd.scope=1;entries[n].hd.characters=1u<<character;}
-    hd_scale=SDL_max(hd_scale,scale);return added;
+    hd_scale=SDL_max(hd_scale,scale);generated_hd_scale=SDL_max(generated_hd_scale,scale);return added;
 }
 void gfxmod_sprite_character(const uint8_t tile[32],int character){
     if(character<0||character>=7)return;
     uint32_t n=gfxmod_find(tile,0);if(n&&entries[n].hd.scope==1)entries[n].hd.characters|=1u<<character;
+}
+
+uint32_t gfxmod_add_direct(int scale,int indexed,void*px){
+    if(!px||scale<2||scale>8){free(px);return 0;}
+    if(entry_count+1>=entry_cap){
+        uint32_t cap=entry_cap?entry_cap*2:1024;Entry*p=realloc(entries,(size_t)cap*sizeof *p);
+        if(!p){free(px);return 0;}entries=p;entry_cap=cap;
+    }
+    if(!entry_count)entry_count=1;
+    uint32_t n=entry_count++;entries[n]=(Entry){.hd={scale,indexed,0,px,0,0},.direct=1};
+    hd_scale=SDL_max(hd_scale,scale);return n;
 }
 
 /* ---- the images ---- */
@@ -598,6 +611,7 @@ void gfxmod_load(void) {
     if (!list.count) {
 #ifdef EGG_PS5_CORE
         sprite_hd_load();
+        ct_redraw_load();
 #endif
         return;
     }
@@ -664,5 +678,6 @@ void gfxmod_load(void) {
            images, same_tiles, colours, hd, hd_scale, glyphs, widths, (double)(SDL_GetTicks() - t0) / 1000, (double)t1 / 1000);
 #ifdef EGG_PS5_CORE
     sprite_hd_load();
+    ct_redraw_load();
 #endif
 }

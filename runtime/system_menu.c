@@ -44,6 +44,7 @@
 
 #ifdef EGG_PS5
 #include "../ps5/mod_menu.h"
+#include "redraw.h"
 #define HOST_MENU 100
 static int host_toggle,hub_page,hub_cursor,mods_page,mods_cursor;
 static SDL_AtomicInt host_paused;
@@ -247,6 +248,7 @@ static uint32_t input(uint32_t keys) {
             if(typing)typing_end();
             controls_capture_cancel();
             place=SS_MENU_NONE;blocked=keys;hub_page=mods_page=0;
+            ct_redraw_viewer_close();
         }else{
             place=HOST_MENU;hub_page=1;hub_cursor=0;mods_page=0;
             cursor=top=confirm=controls_page=cheevos_page=cheats_page=0;
@@ -294,6 +296,11 @@ static uint32_t input(uint32_t keys) {
         act = 0;
     }
 #ifdef EGG_PS5
+    if(ct_redraw_viewer_active()){
+        if(act&(KEY_B|KEY_SELECT))ct_redraw_viewer_close();
+        else if(act&(KEY_LEFT|KEY_RIGHT|KEY_L|KEY_R))ct_redraw_viewer_step(act&(KEY_LEFT|KEY_L)?-1:1);
+        return 0;
+    }
     if(hub_page){
         if(act&KEY_UP)hub_cursor=(hub_cursor+3)%4;
         if(act&KEY_DOWN)hub_cursor=(hub_cursor+1)%4;
@@ -786,7 +793,11 @@ void sysmenu_draw(uint32_t *s) {
     }
     panel(s, (Rect){0, 0, 256, 24}, &BAR);
 #ifdef EGG_PS5
-    if(hub_page){
+    if(ct_redraw_viewer_active()){
+        const char*t=ct_redraw_viewer_title();ui_draw_text(s,t,(SCREEN_W-ui_text_width(t))/2,8,WHITE);
+        ui_draw_text(s,"Original",38,35,WHITE);ui_draw_text(s,"Detailed",166,35,WHITE);
+        ui_draw_text(s,"Stored poses; not animation order",24,155,GREY);
+    }else if(hub_page){
         static const char*names[]={"Settings","Mods","Controls","Resume game"};
         ui_draw_text(s,"CTPS5",(SCREEN_W-ui_text_width("CTPS5"))/2,8,WHITE);
         for(int i=0;i<4;i++){
@@ -797,8 +808,9 @@ void sysmenu_draw(uint32_t *s) {
     }else if(mods_page){
         ui_draw_text(s,"Mods",(SCREEN_W-ui_text_width("Mods"))/2,8,WHITE);
         for(int i=0;i<egg_ps5_mod_menu_count();i++){
-            int step=egg_ps5_mod_menu_count()>5?22:25;
-            int y=28+i*step;Rect lr={6,y,112,20},vr={122,y,128,20};
+            int step=egg_ps5_mod_menu_count()>6?19:egg_ps5_mod_menu_count()>5?22:25;
+            int height=step<20?17:20;
+            int y=28+i*step;Rect lr={6,y,112,height},vr={122,y,128,height};
             panel(s,lr,i==mods_cursor?&BUTTON_LIT:&BUTTON);panel(s,vr,&BUTTON);
             if(i==mods_cursor)frame(s,vr,TEAL);
             centered(s,egg_ps5_mod_menu_title(i),(Rect){lr.x,lr.y+3,lr.w,lr.h},i==mods_cursor?YELLOW:WHITE);
@@ -862,7 +874,8 @@ void sysmenu_draw(uint32_t *s) {
 #endif
     else if (cheevos_page) footer = cheevos_footer();
 #ifdef EGG_PS5
-    if(hub_page)footer="Game paused. L3 + R3: close.";
+    if(ct_redraw_viewer_active())footer="Left/Right: pose. Back: return. Game paused.";
+    else if(hub_page)footer="Game paused. L3 + R3: close.";
     else if(mods_page)footer=egg_ps5_mod_menu_description(mods_cursor);
 #endif
     panel(s, (Rect){0, 166, 222, 26}, &BAR);
