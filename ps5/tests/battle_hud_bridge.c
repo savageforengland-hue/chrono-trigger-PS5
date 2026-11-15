@@ -18,6 +18,7 @@ FILE *__wrap_fopen(const char *p,const char *m){(void)p;(void)m;if(!mode)return 
 void rt_log(const char *fmt,...){(void)fmt;log_calls++;}
 int rt_overlay_resident(int id){(void)id;return overlays;}
 int ct_hud_load_faces(uint32_t p[7][48*48]){face_calls++;memset(p,0,7*48*48*4);return 1;}
+int ct_hud_load_window_skin(uint32_t p[80*32]){(void)p;return 0;}
 int ct_hud_load_command_icons(uint32_t p[3][32*32]){memset(p,0,3*32*32*4);return 1;}
 int egg_ps5_ini_set(const char*p,const char*k,const char*v){(void)p;(void)k;(void)v;return save_ok;}
 int SDL_GetAtomicInt(SDL_AtomicInt*a){return a->value;}

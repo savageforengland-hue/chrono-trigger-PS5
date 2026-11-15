@@ -44,3 +44,19 @@ int ct_hud_load_command_icons(uint32_t icons[3][32*32]){
         command_icon("micon",3,(1u<<1)|(1u<<7)|(1u<<8),1,icons[1])&& /* Tech lightning */
         command_icon("micon",2,(1u<<1)|(1u<<7)|(1u<<8)|(1u<<11)|(1u<<13),1,icons[2]); /* bag */
 }
+
+int ct_hud_load_window_skin(uint32_t skin[80*32]){
+    gfx_list_files();
+    GfxBlob tb=gfx_open(gfx_find("menu/obj/obj_win_btl.NCGR"));
+    GfxBlob cb=gfx_open(gfx_find("menu/obj/obj_win_btl.NCER"));
+    GfxTiles tiles;GfxPalette pal;GfxLayout l;int ok=0;
+    if(!gfx_read_tiles(&tb,&tiles)||!gfx_read_palette(gfx_find("menu/plt/win_1.NCLR"),&pal)||pal.colors<16||!gfx_cell_layout(&cb,0,&l))goto done;
+    if(l.w!=80||l.h!=32){free(l.tiles);goto done;}
+    uint8_t px[80*32]={0};gfx_draw(&l,&tiles,px);free(l.tiles);
+    for(int k=0;k<80*32;k++){
+        if(px[k]>=pal.colors)goto done;
+        SDL_Color c=pal.c[px[k]];
+        skin[k]=px[k]?0xff000000u|((uint32_t)c.b<<16)|((uint32_t)c.g<<8)|c.r:0;
+    }ok=1;
+done:gfx_close(&tb);gfx_close(&cb);return ok;
+}

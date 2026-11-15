@@ -20,7 +20,6 @@ for name in ['eboot.bin','sce_module/libc.prx','sce_sys/param.json','sce_sys/ico
 meta=json.loads((source/'sce_sys/param.json').read_text());old=meta['titleId']
 meta['titleId']=a.title_id;meta['conceptId']=a.title_id[4:]
 meta['contentId']=meta['contentId'].replace(old,a.title_id)
-meta['contentVersion']='01.006.003'
 for item in meta['localizedParameters'].values():
  if isinstance(item,dict) and 'titleName' in item:item['titleName']='CTPS5 Mods'
 out.mkdir(parents=True,exist_ok=True)

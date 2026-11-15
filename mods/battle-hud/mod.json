@@ -1,9 +1,9 @@
 {
   "id": "ctps5.portrait-battle-hud",
   "name": "Centred Portrait Battle HUD",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "schema": 1,
-  "requires": {"ctps5_mod_host": "01.006.003", "game": "USA/YQUE"},
+  "requires": {"ctps5_mod_host": "01.006.004", "game": "USA/YQUE"},
   "configuration": "hud.ini",
   "settings": {
     "enabled": {"type": "boolean", "default": true},

@@ -48,12 +48,12 @@ int main(void){
  uint32_t guarded[CT_HUD_W*CT_HUD_H+32],faces[7][48*48];
  for(unsigned i=0;i<sizeof guarded/4;i++)guarded[i]=0xdeadbeef;
  memset(faces,0,sizeof faces);for(int c=0;c<7;c++)for(int i=0;i<48*48;i++)faces[c][i]=0xff204080u+c;
- ct_hud_draw(guarded+16,&s,faces);
+ ct_hud_draw(guarded+16,&s,faces,NULL);
  for(int i=0;i<16;i++)assert(guarded[i]==0xdeadbeef&&guarded[16+CT_HUD_W*CT_HUD_H+i]==0xdeadbeef);
  uint32_t*p=guarded+16;
  assert(p[13*CT_HUD_W+6]==faces[0][0]);assert(p[13*CT_HUD_W+166]==faces[1][0]);assert(p[13*CT_HUD_W+326]==faces[2][0]);
- s.member[0].hp=0;ct_hud_draw(p,&s,faces);unsigned color=p[13*CT_HUD_W+6];assert((color&255)==((color>>8)&255)&&((color>>8)&255)==((color>>16)&255));
- s.member[0].present=0;ct_hud_draw(p,&s,faces);assert(p[13*CT_HUD_W+6]!=faces[0][0]);
+ s.member[0].hp=0;ct_hud_draw(p,&s,faces,NULL);unsigned color=p[13*CT_HUD_W+6];assert((color&255)==((color>>8)&255)&&((color>>8)&255)==((color>>16)&255));
+ s.member[0].present=0;ct_hud_draw(p,&s,faces,NULL);assert(p[13*CT_HUD_W+6]!=faces[0][0]);
  uint32_t commands[CT_CMD_W*CT_CMD_H+2],icons[3][32*32];
  commands[0]=commands[CT_CMD_W*CT_CMD_H+1]=0xdeadbeef;
  for(int c=0;c<3;c++)for(int i=0;i<32*32;i++)icons[c][i]=0xff112233u+c;
@@ -63,8 +63,22 @@ int main(void){
  assert(commands[1+3*CT_CMD_W+21]==0xff000000u); /* Bold black outer edge. */
  assert(commands[1+3*CT_CMD_W+23]!=0xff000000u); /* Light inner edge. */
  s.member[0].present=1;s.member[0].hp=s.member[0].max_hp=9999;s.member[0].mp=s.member[0].max_mp=999;
- ct_hud_draw(p,&s,faces);
+ ct_hud_draw(p,&s,faces,NULL);
  for(int y=3;y<CT_HUD_H-3;y++)assert(p[y*CT_HUD_W+159]!=faces[0][0]);
+ /* Authored skin: distinct corners/edges must survive resizing, while the
+  * central texture remains the background of every empty party card. */
+ uint32_t skin[CT_HUD_SKIN_W*CT_HUD_SKIN_H];memset(&s,0,sizeof s);
+ for(unsigned i=0;i<sizeof skin/sizeof *skin;i++)skin[i]=0xff403020u;
+ skin[0]=0xff010203u;skin[CT_HUD_SKIN_W-1]=0xff112233u;
+ skin[CT_HUD_SKIN_W*(CT_HUD_SKIN_H-1)]=0xff445566u;
+ skin[CT_HUD_SKIN_W*CT_HUD_SKIN_H-1]=0xff778899u;
+ ct_hud_draw(p,&s,faces,skin);
+ assert(p[0]==skin[0]&&p[CT_HUD_W-1]==skin[CT_HUD_SKIN_W-1]);
+ assert(p[CT_HUD_W*(CT_HUD_H-1)]==skin[CT_HUD_SKIN_W*(CT_HUD_SKIN_H-1)]);
+ assert(p[CT_HUD_W*CT_HUD_H-1]==skin[CT_HUD_SKIN_W*CT_HUD_SKIN_H-1]);
+ assert(p[40*CT_HUD_W+80]==skin[10*CT_HUD_SKIN_W+20]);
+ assert(p[40*CT_HUD_W+240]==p[40*CT_HUD_W+400]);
+ for(int i=0;i<16;i++)assert(guarded[i]==0xdeadbeef&&guarded[16+CT_HUD_W*CT_HUD_H+i]==0xdeadbeef);
  puts("PASS: live unaligned HP/MP, all seven party identities, ATB countdown/ready/KO, empty slots, invalid pointers/state, immutable RAM and renderer guards");
 }
 '''

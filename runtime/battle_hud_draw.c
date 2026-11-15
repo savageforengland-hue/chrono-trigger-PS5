@@ -26,24 +26,59 @@ static void text_impl(uint32_t*p,int x,int y,const char*s,uint32_t c,int scale,i
     }
 }
 static void text(uint32_t*p,int x,int y,const char*s,uint32_t c,int scale){text_impl(p,x,y,s,c,scale,0);}
-static void bar(uint32_t*p,int x,int y,int w,unsigned now,unsigned max,uint32_t c) {
-    rect(p,x,y,w,4,RGB(4,6,18));
-    if(max){unsigned n=now>max?max:now;int fill=(int)((uint64_t)n*(unsigned)(w-2)/max);
-        rect(p,x+1,y+1,fill,2,c);}
+static uint32_t shade(uint32_t c,int amount){
+    int r=(int)(c&255)+amount,g=(int)((c>>8)&255)+amount,b=(int)((c>>16)&255)+amount;
+    r=r<0?0:r>255?255:r;g=g<0?0:g>255?255:g;b=b<0?0:b>255?255:b;
+    return RGB(r,g,b);
 }
-void ct_hud_draw(uint32_t p[CT_HUD_W*CT_HUD_H],const CtHudState*s,const uint32_t faces[7][48*48]) {
-    for(int y=0;y<CT_HUD_H;y++)rect(p,0,y,CT_HUD_W,1,RGB(15+y/16,18+y/20,48+y/6));
-    frame(p,0,0,CT_HUD_W,CT_HUD_H,RGB(237,221,184));
-    frame(p,1,1,CT_HUD_W-2,CT_HUD_H-2,RGB(124,43,49));
+static uint32_t blend(uint32_t a,uint32_t b,int part){
+    unsigned r=((a&255)*(256-part)+(b&255)*part)/256;
+    unsigned g=(((a>>8)&255)*(256-part)+((b>>8)&255)*part)/256;
+    unsigned v=(((a>>16)&255)*(256-part)+((b>>16)&255)*part)/256;
+    return RGB(r,g,v);
+}
+static void window(uint32_t*p,const uint32_t*skin){
+    for(int y=0;y<CT_HUD_H;y++)for(int x=0;x<CT_HUD_W;x++){
+        uint32_t c;
+        if(skin){
+            /* Preserve the game's bevel/corners; repeat its grain horizontally
+             * and stretch only the middle vertically. All art stays ROM-owned. */
+            int sx=x<16?x/2:x>=CT_HUD_W-16?80-(CT_HUD_W-x+1)/2:8+(x-16)/2%64;
+            int sy=y<16?y/2:y>=CT_HUD_H-16?32-(CT_HUD_H-y+1)/2:8+(y-16)*16/(CT_HUD_H-32);
+            c=skin[sy*80+sx];if(!(c>>24))c=RGB(20,26,31);
+        }else{
+            unsigned h=(unsigned)x*374761393u+(unsigned)y*668265263u;h=(h^(h>>13))*1274126177u;
+            int grain=(int)((h^(h>>16))%11)-5;
+            int v=62-y*22/CT_HUD_H+grain;c=RGB(v,v+7,v+14);
+            int edge=x<y?x:y;if(CT_HUD_W-1-x<edge)edge=CT_HUD_W-1-x;if(CT_HUD_H-1-y<edge)edge=CT_HUD_H-1-y;
+            if(edge==0)c=RGB(35,43,50);
+            else if(edge==1)c=x<CT_HUD_W/2&&y<CT_HUD_H/2?RGB(156,164,172):RGB(53,61,69);
+        }
+        p[y*CT_HUD_W+x]=c;
+    }
+}
+static void bar(uint32_t*p,int x,int y,int w,unsigned now,unsigned max,uint32_t c){
+    rect(p,x,y,w,4,RGB(24,30,36));rect(p,x,y+3,w,1,RGB(100,108,116));
+    rect(p,x+1,y+1,w-2,2,RGB(46,53,60));
+    if(max){unsigned n=now>max?max:now;int fill=(int)((uint64_t)n*(unsigned)(w-2)/max);
+        rect(p,x+1,y+1,fill,1,shade(c,17));rect(p,x+1,y+2,fill,1,c);}
+}
+void ct_hud_draw(uint32_t p[CT_HUD_W*CT_HUD_H],const CtHudState*s,const uint32_t faces[7][48*48],const uint32_t*skin) {
+    window(p,skin);
     for(int i=0;i<3;i++){
         int x=160*i;const CtHudMember*m=&s->member[i];
-        if(i)rect(p,x,3,1,CT_HUD_H-6,RGB(113,104,126));
+        if(i)for(int y=12;y<CT_HUD_H-12;y++){
+            p[y*CT_HUD_W+x]=blend(p[y*CT_HUD_W+x],RGB(22,30,37),88);
+            p[y*CT_HUD_W+x+1]=blend(p[y*CT_HUD_W+x+1],RGB(160,169,178),40);
+        }
         if(!m->present||m->character<0||m->character>6)continue;
-        uint32_t edge=m->hp?RGB(238,223,187):RGB(131,127,144);
-        if(s->selected==i&&m->hp)frame(p,x+2,2,156,CT_HUD_H-4,RGB(238,195,91));
-        text(p,x+60,6,m->name,edge,3);
-        frame(p,x+5,12,50,50,edge);
-        rect(p,x+6,13,48,48,RGB(7,12,28));
+        uint32_t edge=m->hp?RGB(239,242,245):RGB(143,151,159);
+        if(s->selected==i&&m->hp)text(p,x+57,6,">",edge,2);
+        text(p,x+66,6,m->name,edge,3);
+        frame(p,x+5,12,50,50,RGB(28,35,42));
+        rect(p,x+5,12,50,1,s->selected==i?RGB(196,204,212):RGB(137,146,155));
+        rect(p,x+5,12,1,50,RGB(129,139,149));
+        rect(p,x+6,13,48,48,RGB(22,29,35));
         for(int y=0;y<48;y++)for(int k=0;k<48;k++){
             uint32_t c=faces[m->character][y*48+k];
             if(!(c>>24))continue;
@@ -51,16 +86,16 @@ void ct_hud_draw(uint32_t p[CT_HUD_W*CT_HUD_H],const CtHudState*s,const uint32_t
             p[(y+13)*CT_HUD_W+x+6+k]=c;
         }
         char value[32];snprintf(value,sizeof value,"%u/%u",m->hp,m->max_hp);
-        uint32_t hp=m->max_hp&&(uint64_t)m->hp*4<=m->max_hp?RGB(255,187,102):RGB(242,232,208);
-        text(p,x+60,25,"HP",RGB(210,205,228),2);
+        uint32_t hp=m->max_hp&&(uint64_t)m->hp*4<=m->max_hp?RGB(255,187,102):RGB(237,241,245);
+        text(p,x+60,25,"HP",RGB(195,206,216),2);
         text(p,x+80,25,value,hp,2);
-        bar(p,x+60,35,92,m->hp,m->max_hp,RGB(104,205,130));
+        bar(p,x+60,35,92,m->hp,m->max_hp,RGB(105,164,119));
         snprintf(value,sizeof value,"%u/%u",m->mp,m->max_mp);
-        text(p,x+60,45,"MP",RGB(210,205,228),2);
-        text(p,x+80,45,value,RGB(242,232,208),2);
-        bar(p,x+60,55,92,m->mp,m->max_mp,RGB(111,157,231));
-        text(p,x+6,68,"ATB",RGB(210,205,228),2);
-        bar(p,x+34,69,118,m->atb,m->atb_max,m->atb_max&&m->atb>=m->atb_max?RGB(238,195,91):RGB(206,67,83));
+        text(p,x+60,45,"MP",RGB(195,206,216),2);
+        text(p,x+80,45,value,RGB(237,241,245),2);
+        bar(p,x+60,55,92,m->mp,m->max_mp,RGB(115,151,181));
+        text(p,x+6,66,"ATB",RGB(195,206,216),2);
+        bar(p,x+34,68,118,m->atb,m->atb_max,m->atb_max&&m->atb>=m->atb_max?RGB(209,224,231):RGB(139,165,181));
     }
 }
 void ct_hud_draw_commands(uint32_t p[CT_CMD_W*CT_CMD_H],int command,const uint32_t icons[3][32*32]){

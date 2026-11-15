@@ -37,7 +37,8 @@ void ctps5_battle_hud_cell(uint32_t entry,int ds_column,int ds_row){
 }
 static SDL_Mutex *lock;
 static CtHudState published;
-static uint32_t portraits[7][48*48],icons[3][32*32];
+static uint32_t portraits[7][48*48],icons[3][32*32],window_skin[80*32];
+static int has_window_skin;
 static int requested(void){
     FILE*f=fopen("/data/eggoftime/mods/battle-hud/hud.ini","r");if(!f)return 0;
     char line[192];int on=0;while(fgets(line,sizeof line,f)){
@@ -58,6 +59,8 @@ void ctps5_battle_hud_init(void){
     if(!ct_hud_load_faces(portraits)||!ct_hud_load_command_icons(icons)){
         rt_log("portrait HUD: unavailable, original menu art could not be decoded");return;
     }
+    has_window_skin=ct_hud_load_window_skin(window_skin);
+    rt_log("portrait HUD: %s window styling",has_window_skin?"original battle":"soft fallback");
     lock=SDL_CreateMutex();if(!lock)return;
     available=1;SDL_SetAtomicInt(&enabled,requested());
     rt_log("portrait HUD: %s (centered, original menu icons, live HP/MP/ATB)",on()?"enabled":"off");
@@ -117,7 +120,7 @@ int ctps5_battle_hud_prepare(SDL_Renderer*ren,SDL_Texture**texture,SDL_Texture**
     if(!on()||!available)return 0;
     CtHudState s;SDL_LockMutex(lock);int show=visible,y=published_row;s=published;SDL_UnlockMutex(lock);
     if(!show||game->w<=0||game->h<=0||columns<256||rows<192)return 0;
-    uint32_t pixels[CT_HUD_W*CT_HUD_H];ct_hud_draw(pixels,&s,portraits);
+    uint32_t pixels[CT_HUD_W*CT_HUD_H];ct_hud_draw(pixels,&s,portraits,has_window_skin?window_skin:NULL);
     if(!upload(ren,texture,CT_HUD_W,CT_HUD_H,pixels))return 0;
     if(s.command>=0){
         uint32_t p[CT_CMD_W*CT_CMD_H];ct_hud_draw_commands(p,s.command,icons);
@@ -126,7 +129,7 @@ int ctps5_battle_hud_prepare(SDL_Renderer*ren,SDL_Texture**texture,SDL_Texture**
     float ui_scale=zoom_ui==1?(float)rows/192:1;
     float top=zoom_ui==1?y*ui_scale:y+(zoom_ui==2&&y>=96?rows-192:0);
     /* Erase only the original DS panel, not the wide side margins. The
-     * replacement texture supplies its own bounded blue fill and frame. */
+     * replacement texture supplies its own bounded window skin and bevel. */
     float old_width=256*ui_scale*game->w/columns;
     if(old_width>game->w)old_width=game->w;
     layout->cover=(SDL_FRect){game->x+(game->w-old_width)/2,game->y+top*game->h/rows,

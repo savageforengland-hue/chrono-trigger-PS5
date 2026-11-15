@@ -21,7 +21,8 @@ int main(int argc,char**argv){
     if(!ct_hud_load_faces(faces)){free(rt_rom.data);return 4;}
     CtHudState s={.member={{1,0,742,850,52,75,1000,1000,"Crono"},
         {1,1,516,640,81,95,610,1000,"Marle"},{1,2,398,610,47,90,280,1000,"Lucca"}},.selected=0,.command=1};
-    uint32_t p[CT_HUD_W*CT_HUD_H];ct_hud_draw(p,&s,faces);
+    uint32_t skin[80*32];int has_skin=ct_hud_load_window_skin(skin);
+    uint32_t p[CT_HUD_W*CT_HUD_H];ct_hud_draw(p,&s,faces,has_skin?skin:NULL);
     f=fopen(argv[2],"wb");if(!f){free(rt_rom.data);return 5;}
     fprintf(f,"P6\n%d %d\n255\n",CT_HUD_W,CT_HUD_H);
     for(int k=0;k<CT_HUD_W*CT_HUD_H;k++){

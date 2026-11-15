@@ -6,7 +6,7 @@ Native PS5 homebrew port of **Chrono Trigger for Nintendo DS (USA)**, based on *
 
 **[Project website](https://savageforengland-hue.github.io/chrono-trigger-PS5/) · [Build](docs/BUILDING.md) · [Install](docs/INSTALLING.md) · [Controls](docs/CONTROLS.md) · [Credits](docs/CREDITS.md)**
 
-> **Feature branch:** optional [centred portrait HUD v0.3.0](docs/PORTRAIT-HUD.md), transparent game action symbols and an L3+R3 settings/mods menu. Separate mod configuration and a side-by-side CTPS5 Mods host keep the base app installed. New-host PS5 validation is pending.
+> **Feature branch:** optional [centred portrait HUD v0.3.1](docs/PORTRAIT-HUD.md), original game window styling, transparent action symbols and an L3+R3 settings/mods menu. Separate mod configuration and a side-by-side CTPS5 Mods host keep the base app installed. The previous HUD has user-confirmed PS5 operation; this restyle awaits a console visual check.
 
 ## Release status
 
