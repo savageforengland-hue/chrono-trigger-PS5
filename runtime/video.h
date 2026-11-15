@@ -2,6 +2,9 @@
 #pragma once
 
 #include <stdint.h>
+#ifdef EGG_PS5
+#include "../ps5/battle_hud.h"
+#endif
 
 #define SCREEN_W 256
 #define SCREEN_H 192
@@ -28,7 +31,11 @@ typedef struct VideoHd {
     uint16_t below;    /* BGR555 under it: shown where the HD art is transparent */
 } VideoHd;
 /* The shown screens' sources (as video_copy_frame's buffers) and the palette RAM of the frame. */
-typedef struct VideoHdFrame { VideoHd *top, *bottom, *main, *party, *still; uint16_t *palette; int on; } VideoHdFrame;
+typedef struct VideoHdFrame { VideoHd *top, *bottom, *main, *party, *still; uint16_t *palette; int on;
+#ifdef EGG_PS5
+    CtHudSnapshot hud;
+#endif
+} VideoHdFrame;
 
 /* VRAM as seen by the CPU (0x06000000-0x06FFFFFF); NULL where no bank is mapped. */
 uint8_t *video_vram_ptr(uint32_t addr);

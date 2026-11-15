@@ -18,7 +18,7 @@ typedef struct Pose {
     SDL_Texture *old_texture,*new_texture;
 } Pose;
 static Pose poses[POSES];static int count,viewer,selected;
-static uint16_t canonical[16];static SDL_AtomicInt visible;
+static uint16_t canonical[16];static SDL_AtomicInt visible,gameplay;
 static RedrawBinding bindings[2][128];
 static uint32_t rgb(SDL_Color c){return c.r|((uint32_t)c.g<<8)|((uint32_t)c.b<<16);}
 static uint32_t bgr(uint16_t c){
@@ -94,22 +94,27 @@ void ct_redraw_load(void){
     if(!gfx_read_tiles(&tb,&t)||t.bpp8||!gfx_read_palette(gfx_find("Chara/ObjPlt_0001.NCLR"),&pal)||pal.colors<16)goto done;
     for(int i=0;i<16;i++)canonical[i]=(pal.c[i].r>>3)|((pal.c[i].g>>3)<<5)|((pal.c[i].b>>3)<<10);
     static const int ids[]={89,90,91,211};for(int k=0;k<POSES;k++)load_pose(ids[k],&cb,&t,&pal);
-    SDL_SetAtomicInt(&visible,count>0);
-    rt_log("redraw pilot: %d authored poses available; all other poses use original art",count);
+    SDL_SetAtomicInt(&visible,count>0);SDL_SetAtomicInt(&gameplay,1);
+    f=fopen(path,"r");if(f){while(fgets(line,sizeof line,f)){int v;char extra;if(sscanf(line," gameplay = %d %c",&v,&extra)==1)SDL_SetAtomicInt(&gameplay,v==1);}fclose(f);}
+    rt_log("redraw pilot: %d comparison poses loaded; cell 211 review only, original waiting/hit art retained",count);
 done:gfx_close(&tb);gfx_close(&cb);
 }
 int ct_redraw_count(void){return count;}
+int ct_redraw_enabled(void){return SDL_GetAtomicInt(&gameplay);}
+void ct_redraw_set_enabled(int on){SDL_SetAtomicInt(&gameplay,on!=0);}
 void ct_redraw_set_visible(int on){SDL_SetAtomicInt(&visible,on&&count);}
 static int palette_ok(const uint16_t*p){
     int same=1,flat=1;for(int k=2;k<=11;k++){same&=(p[k]&0x7fff)==canonical[k];flat&=(p[k]&0x7fff)==(p[2]&0x7fff);}
     return same||flat;
 }
 int ct_redraw_prepare(int e,const RedrawObject live[128],const uint16_t palette[256]){
-    memset(bindings[e],0,sizeof bindings[e]);if(!SDL_GetAtomicInt(&visible))return 0;
+    memset(bindings[e],0,sizeof bindings[e]);if(!SDL_GetAtomicInt(&visible)||!SDL_GetAtomicInt(&gameplay))return 0;
     int groups=0;
     for(int p=0;p<count;p++)for(int a=0;a<128;a++){
         if(bindings[e][a].action||!live[a].valid||live[a].palette<0||live[a].palette>15||!palette_ok(palette+live[a].palette*16))continue;
-        int slots[REDRAW_OBJECTS];Pose*f=poses+p;if(!redraw_match(&f->ref,live,a,slots))continue;
+        int slots[REDRAW_OBJECTS];Pose*f=poses+p;
+        if(f->cell==211)continue; /* Reported waiting/hit mismatch: comparison only until redrawn. */
+        if(!redraw_match(&f->ref,live,a,slots))continue;
         int used=0,draw=slots[0];for(int k=0;k<f->ref.count;k++){used|=bindings[e][slots[k]].action;if(slots[k]<draw)draw=slots[k];}
         if(used)continue;
         for(int k=0;k<f->ref.count;k++)bindings[e][slots[k]].action=1;

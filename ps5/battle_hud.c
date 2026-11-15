@@ -19,6 +19,17 @@ static int slot(uint32_t entry){
     if(secondary<0x02000008||secondary>0x023f0000||entry<base||entry>=base+41*0x9c)return -1;
     return (entry-base)%0x9c?-1:(int)((entry-base)/0x9c);
 }
+int ctps5_battle_hud_stock_entry(uint32_t entry,uint16_t a0,uint16_t a1,uint16_t a2){
+    if(!available||strcmp(rt_rom.code,"YQUE"))return 0;
+    int id=slot(entry);
+    /* Window pieces live in separate UI lists, not the 41-widget list. */
+    if(id>=0&&id<=21)return 1;
+    if(id==22)return cursor_column>=0;
+    /* The two original window lists use square 64px objects in UI banks
+     * 4/6. Other UI-list actors must retain their world coordinate space. */
+    return entry>=0x02000000&&entry<=0x023fff64 && !(a0&0xff00) &&
+        (a1&0xc000)==0xc000 && ((a2>>12)==4||(a2>>12)==6);
+}
 void ctps5_battle_hud_entry(uint32_t entry){
     if(!on())return;
     int id=slot(entry);
@@ -95,6 +106,10 @@ void ctps5_battle_hud_frame(void){
     }
     SDL_LockMutex(lock);published=s;published_row=panel_row;visible=show;SDL_UnlockMutex(lock);
 }
+void ctps5_battle_hud_capture(CtHudSnapshot *s){
+    memset(s,0,sizeof *s);if(!available)return;
+    SDL_LockMutex(lock);s->state=published;s->row=published_row;s->active=visible;SDL_UnlockMutex(lock);
+}
 uint32_t ctps5_battle_hud_input(uint32_t keys){
     if(!on()||!available)return keys;
     SDL_LockMutex(lock);int active=visible&&published.command>=0;SDL_UnlockMutex(lock);
@@ -116,9 +131,10 @@ static int upload(SDL_Renderer*ren,SDL_Texture**tex,int w,int h,const uint32_t*p
     return SDL_UpdateTexture(*tex,NULL,p,w*4);
 }
 int ctps5_battle_hud_prepare(SDL_Renderer*ren,SDL_Texture**texture,SDL_Texture**commands,
-    const SDL_FRect*game,int columns,int rows,int zoom_ui,CtHudLayout*layout){
+    const SDL_FRect*game,int columns,int rows,int zoom_ui,CtHudLayout*layout,const CtHudSnapshot *snapshot){
     if(!on()||!available)return 0;
-    CtHudState s;SDL_LockMutex(lock);int show=visible,y=published_row;s=published;SDL_UnlockMutex(lock);
+    if(!snapshot)return 0;
+    CtHudState s=snapshot->state;int show=snapshot->active,y=snapshot->row;
     if(!show||game->w<=0||game->h<=0||columns<256||rows<192)return 0;
     uint32_t pixels[CT_HUD_W*CT_HUD_H];ct_hud_draw(pixels,&s,portraits,has_window_skin?window_skin:NULL);
     if(!upload(ren,texture,CT_HUD_W,CT_HUD_H,pixels))return 0;
@@ -128,25 +144,19 @@ int ctps5_battle_hud_prepare(SDL_Renderer*ren,SDL_Texture**texture,SDL_Texture**
     }
     float ui_scale=zoom_ui==1?(float)rows/192:1;
     float top=zoom_ui==1?y*ui_scale:y+(zoom_ui==2&&y>=96?rows-192:0);
-    /* Erase only the original DS panel, not the wide side margins. The
-     * replacement texture supplies its own bounded window skin and bevel. */
-    float old_width=256*ui_scale*game->w/columns;
-    if(old_width>game->w)old_width=game->w;
-    layout->cover=(SDL_FRect){game->x+(game->w-old_width)/2,game->y+top*game->h/rows,
-        old_width,46*ui_scale*game->h/rows};
-    /* The stock panel occupies 46 rows. Keep a two-row bottom margin under
-     * the 44-row card area, erasing the old box's final border as well. */
+    /* Stock UI is removed before composition, leaving real scenery around
+     * the resized card. No opaque cover or previous-frame patch is drawn. */
+    float panel_top=game->y+top*game->h/rows;
     float card_height=44*ui_scale*game->h/rows;
     float k=card_height/CT_HUD_H*ctps5_battle_hud_scale(0)/100;
     if(k>game->w*.94f/CT_HUD_W)k=game->w*.94f/CT_HUD_W;
-    float bottom=layout->cover.y+layout->cover.h,hud_y=layout->cover.y+card_height-CT_HUD_H*k;
+    float hud_y=panel_top+card_height-CT_HUD_H*k;
     if(hud_y<game->y)hud_y=game->y;
+    if(hud_y+CT_HUD_H*k>game->y+game->h)hud_y=game->y+game->h-CT_HUD_H*k;
     layout->hud=(SDL_FRect){game->x+(game->w-CT_HUD_W*k)/2,hud_y,CT_HUD_W*k,CT_HUD_H*k};
-    if(hud_y<layout->cover.y){layout->cover.h+=layout->cover.y-hud_y;layout->cover.y=hud_y;}
-    if(hud_y+CT_HUD_H*k>bottom)layout->cover.h=hud_y+CT_HUD_H*k-layout->cover.y;
     float command_scale=k*ctps5_battle_hud_scale(1)/100;
-    float cmd_y=layout->cover.y-CT_CMD_H*command_scale-2*k;
-    if(cmd_y<game->y)cmd_y=layout->cover.y+layout->cover.h+2*k;
+    float cmd_y=hud_y-CT_CMD_H*command_scale-2*k;
+    if(cmd_y<game->y)cmd_y=hud_y+layout->hud.h+2*k;
     layout->commands=(SDL_FRect){game->x+(game->w-CT_CMD_W*command_scale)/2,cmd_y,
         s.command>=0?CT_CMD_W*command_scale:0,s.command>=0?CT_CMD_H*command_scale:0};
     return 1;

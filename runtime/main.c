@@ -477,7 +477,11 @@ int main(int argc, char **argv) {
             shown_t = frame_t;
             frame_t = beat(&frame_beat, frame_t, game_period);
             main_w = video_copy_frame(top_px, bottom_px, main_px, &main_h, party_px, &party_on, still_px, &still_on, ui_px, &ui_on,
+#ifdef EGG_PS5
+                                      &hd);
+#else
                                       gfxmod_hd_scale() ? &hd : NULL);
+#endif
             if (cam_cut || !display_camera_smoothing()) {
                 glide_x = glide_y = (Glide){0};
             } else {
@@ -503,7 +507,11 @@ int main(int argc, char **argv) {
             new_frame = 1;
         }
         display_frame(screens, party_on ? party_px : NULL, still_on ? still_px : NULL, ui_on ? ui_px : NULL, main_w, main_h, new_frame, lag_x, lag_y,
+#ifdef EGG_PS5
+                      !sysmenu_is_open() ? &hd : NULL);
+#else
                       hd.on && !sysmenu_is_open() ? &hd : NULL);
+#endif
         presented++;
         if (log_fps && SDL_GetTicks() >= fps_at) {
             rt_log("fps: window %d, game %llu", presented, (unsigned long long)(rt_frame_count - game_frames));

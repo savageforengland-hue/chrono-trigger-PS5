@@ -668,7 +668,11 @@ void rt_ws_draw_ui_entry(CPU *cpu) { /* main 0x020345dc (r0 = the entry) */
     ctps5_battle_hud_entry(portrait_entry);
 #endif
     int was = drawing_world;
+#ifdef EGG_PS5
+    drawing_world = entry_in_world_slot(R[0]); /* Also protect damage text at original 4:3. */
+#else
     drawing_world = (next_x || next_y) && entry_in_world_slot(R[0]);
+#endif
     rt_call_wrapped(cpu, "main", GAME_ADDR(0x020345dcu, 0x020345e8u));
     drawing_world = was;
 #ifdef EGG_PS5
@@ -820,7 +824,15 @@ void rt_ws_draw_cell(CPU *cpu) {
     cell_known = cell_world = 0;
 }
 
-static void game_enter_oam(CPU *cpu) { rt_call_wrapped(cpu, "main", GAME_ADDR(0x02048098u, 0x020480c8u)); } /* the original */
+static void game_enter_oam(CPU *cpu) {
+#ifdef EGG_PS5
+    /* Tag stock battle widgets even without zoom/camera smoothing. Filtering
+     * at composition keeps the original game draw/update calls intact. */
+    if(!cpu->resume_pc&&portrait_entry&&!drawing_world&&ctps5_battle_hud_stock_entry(portrait_entry,rt_r16(R[0]),rt_r16(R[0]+2),rt_r16(R[0]+4))&&!(rt_r16(R[0])&0x100))
+        rt_w16(R[0]+2,rt_r16(R[0]+2)|WS_OAM_UI);
+#endif
+    rt_call_wrapped(cpu, "main", GAME_ADDR(0x02048098u, 0x020480c8u));
+}
 void rt_ws_enter_oam(CPU *cpu) {
     uint32_t e0 = rt_r16(R[0]), e1 = rt_r16(R[0] + 2);
     if (drawn_drift && !cpu->resume_pc && !(e0 & 0x100)) { /* its place on the DS screen, without the drift */

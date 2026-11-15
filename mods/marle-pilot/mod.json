@@ -2,15 +2,30 @@
   "schema": 1,
   "id": "ctps5.marle-redraw-pilot",
   "name": "Marle Detailed Redraw Pilot",
-  "version": "0.1.0-test",
-  "requires": {"ctps5_mod_host": "01.006.006", "game": "USA/YQUE"},
+  "version": "0.1.1-test",
+  "requires": {
+    "ctps5_mod_host": "01.006.007",
+    "game": "USA/YQUE"
+  },
   "configuration": "pilot.ini",
   "character": "Marle",
-  "source_cells": [89, 90, 91, 211],
-  "art_files": ["marle-089.png", "marle-090.png", "marle-091.png", "marle-211.png"],
+  "source_cells": [
+    89,
+    90,
+    91
+  ],
+  "art_files": [
+    "marle-089.png",
+    "marle-090.png",
+    "marle-091.png",
+    "marle-211.png"
+  ],
   "scale": 4,
-  "scope": "Only exact original pose-object groups; unlisted poses keep their original art",
+  "scope": "Fear poses only in gameplay; reported crossbow/waiting/hit mismatch uses original art. Cell 211 remains comparison-only.",
   "test_page": "L3+R3 > Mods > Detailed pose test",
   "assets": "Authored artwork distributed separately; original geometry/palette decoded from each player's CT.nds",
-  "upstream": "Egg of Time v1.3.5 by Power Pudu"
+  "upstream": "Egg of Time v1.3.5 by Power Pudu",
+  "comparison_only_cells": [
+    211
+  ]
 }

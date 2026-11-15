@@ -2,8 +2,12 @@
 #pragma once
 #include <SDL3/SDL.h>
 #include <stdint.h>
+#include "../runtime/battle_hud_draw.h"
+typedef struct CtHudSnapshot { CtHudState state; int active,row; } CtHudSnapshot;
+void ctps5_battle_hud_capture(CtHudSnapshot *snapshot);
 void ctps5_battle_hud_init(void);
 void ctps5_battle_hud_entry(uint32_t entry);
+int ctps5_battle_hud_stock_entry(uint32_t entry,uint16_t a0,uint16_t a1,uint16_t a2);
 void ctps5_battle_hud_cell(uint32_t entry,int ds_column,int ds_row);
 void ctps5_battle_hud_frame(void); /* game thread */
 int ctps5_battle_hud_enabled(void);
@@ -14,8 +18,8 @@ int ctps5_battle_hud_set_enabled(int on); /* host: apply and persist */
 /* Only the normal icon-command state: Left/Right select action, L1/R1 party.
  * Tech/Item/target selection gets the original input unchanged. */
 uint32_t ctps5_battle_hud_input(uint32_t keys);
-typedef struct CtHudLayout { SDL_FRect cover,hud,commands; } CtHudLayout;
-/* Host: full old normal panel cover, centered portraits and real command icons.
+typedef struct CtHudLayout { SDL_FRect hud,commands; } CtHudLayout;
+/* Host: centered portraits and command icons over the restored scene.
  * The gameplay rectangle is immutable. zoom_ui: 0 original, 1 large UI, 2 small. */
 int ctps5_battle_hud_prepare(SDL_Renderer *ren,SDL_Texture **hud,SDL_Texture **commands,
-    const SDL_FRect *game,int columns,int rows,int zoom_ui,CtHudLayout *layout);
+    const SDL_FRect *game,int columns,int rows,int zoom_ui,CtHudLayout *layout,const CtHudSnapshot *snapshot);

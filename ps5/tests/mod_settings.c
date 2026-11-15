@@ -12,6 +12,10 @@
 #include "ps5/mod_menu.h"
 #include "runtime/display.h"
 EggPs5Config egg_ps5_config={2160,60,3,"default"};
+static int redraw=1,loaded=1;
+int sprite_hd_loaded(void){return loaded;}
+int ct_redraw_enabled(void){return redraw;}
+void ct_redraw_set_enabled(int on){redraw=on;}
 static const char*root;static int hud,texture=1,scales[2]={100,70};
 int ct_redraw_count(void){return 4;}
 void ct_redraw_set_visible(int on){(void)on;}
@@ -41,21 +45,31 @@ int main(int argc,char**argv){
  assert(argc==2);root=argv[1];char b[4096];
  FILE*f=fopen("/data/eggoftime/ps5.ini","w");assert(f);fputs("# Keep comment\noutput_height=2160\nactive_pack=default\ntarget_fps=60\nunknown=keep\n",f);fclose(f);
  egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(4),"default"));
- assert(egg_ps5_mod_menu_count()==7&&!strcmp(egg_ps5_mod_menu_value(5),"Not installed"));
- assert(!strcmp(egg_ps5_mod_menu_value(6),"Open pilot"));
+ assert(egg_ps5_mod_menu_count()==8&&!strcmp(egg_ps5_mod_menu_value(5),"Not installed"));
+ assert(!strcmp(egg_ps5_mod_menu_value(7),"Open pilot"));
+ assert(!strcmp(egg_ps5_mod_menu_title(5),"Sprite smoothing"));
+ assert(!strcmp(egg_ps5_mod_menu_value(6),"On (fear poses)"));
  char folder[2048];snprintf(folder,sizeof folder,"%s/mods/battle-sprites",root);assert(!mkdir(folder,0777));
  f=fopen("/data/eggoftime/mods/battle-sprites/sprites.ini","w");assert(f);fputs("# Keep detail\nenabled=1\nscale=4\nshading=65\n",f);fclose(f);
- egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(5),"On"));egg_ps5_mod_menu_change(5,1);
- assert(!strcmp(egg_ps5_mod_menu_value(5),"Off"));egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(5),"Off"));
+ egg_ps5_mod_menu_refresh();loaded=0;assert(!strcmp(egg_ps5_mod_menu_value(5),"Not loaded"));loaded=1;
+ assert(!strcmp(egg_ps5_mod_menu_value(5),"On"));egg_ps5_mod_menu_change(5,1);
+ assert(!strcmp(egg_ps5_mod_menu_value(5),"Off; restart"));egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(5),"Off; restart"));
  f=fopen("/data/eggoftime/mods/battle-sprites/sprites.ini","r");assert(f);size_t bytes=fread(b,1,sizeof b-1,f);b[bytes]=0;fclose(f);
  assert(strstr(b,"scale=4\n")&&strstr(b,"shading=65\n")&&strstr(b,"# Keep detail\n"));
+ snprintf(folder,sizeof folder,"%s/mods/marle-pilot",root);assert(!mkdir(folder,0777));
+ f=fopen("/data/eggoftime/mods/marle-pilot/pilot.ini","w");assert(f);fputs("# Keep art\nenabled=1\ngameplay=1\n",f);fclose(f);
+ egg_ps5_mod_menu_change(6,1);assert(!redraw&&!strcmp(egg_ps5_mod_menu_value(6),"Off"));
+ egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(6),"Off"));
+ f=fopen("/data/eggoftime/mods/marle-pilot/pilot.ini","r");assert(f);bytes=fread(b,1,sizeof b-1,f);b[bytes]=0;fclose(f);
+ assert(strstr(b,"# Keep art\n")&&strstr(b,"enabled=1\n")&&strstr(b,"gameplay=0\n"));
+ egg_ps5_mod_menu_change(6,1);assert(redraw);
  egg_ps5_mod_menu_change(4,1);assert(!strcmp(egg_ps5_mod_menu_value(4),"a-pack"));
  read_ini(b);assert(strstr(b,"active_pack=a-pack\n")&&strstr(b,"# Keep comment\n")&&strstr(b,"output_height=2160\n")&&strstr(b,"unknown=keep\n"));
  egg_ps5_mod_menu_change(4,1);assert(!strcmp(egg_ps5_mod_menu_value(4),"z-pack"));
  egg_ps5_mod_menu_change(4,1);assert(!strcmp(egg_ps5_mod_menu_value(4),"default"));
  egg_ps5_mod_menu_change(4,-1);assert(!strcmp(egg_ps5_mod_menu_value(4),"z-pack"));
  egg_ps5_mod_menu_change(0,1);assert(hud);egg_ps5_mod_menu_change(0,-1);assert(!hud);
- egg_ps5_mod_menu_change(3,1);assert(!texture);
+ egg_ps5_mod_menu_change(3,1);assert(!texture);assert(!strcmp(egg_ps5_mod_menu_value(6),"Textures Off"));
  egg_ps5_mod_menu_change(1,1);assert(scales[0]==105);egg_ps5_mod_menu_change(2,-1);assert(scales[1]==60);
  assert(!egg_ps5_ini_set("/data/eggoftime/ps5.ini","active_pack","bad\nother=value"));
  read_ini(b);assert(strstr(b,"active_pack=z-pack\n"));

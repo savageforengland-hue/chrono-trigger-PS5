@@ -194,6 +194,9 @@ static uint8_t ui_stays[VIDEO_LINE_MAX * SCREEN_H]; /* the UI pixel is a number 
 static int present_ui_on, present_ui_h;
 static SDL_AtomicInt ui_edges; /* video_set_ui_edges */
 static SDL_Mutex *present_lock;
+#ifdef EGG_PS5
+static CtHudSnapshot frame_hud,present_hud;
+#endif
 static uint64_t present_serial, present_time;
 static int present_dx, present_dy, present_cut; /* camera motion into the published frame; a cut (no motion known) */
 static int camera_known, camera_x, camera_y; /* the field camera at the last frame */
@@ -602,6 +605,13 @@ static void render_objs(const Engine *e, int y, uint32_t dispcnt, ObjLine *ol, i
         int w = redraw?redraw->w:obj_w[shape][size], h = redraw?redraw->h:obj_h[shape][size];
         int bw = w, bh = h;
         if (affine && (a0 & 0x200)) { bw *= 2; bh *= 2; }
+#ifdef EGG_PS5
+        /* Screen-space widgets in the replaced stock panel only. Damage and
+         * target brackets remain in the world; Tech/Item use stock panels. */
+        if(frame_hud.active && e->id==((io_get16(0x304)>>15)&1?0:1) &&
+           y>=frame_hud.row && y<frame_hud.row+46 && !affine &&
+           (a1&WS_OAM_UI) && !(a1&WS_OAM_PLACED))continue;
+#endif
         int ui = e->rows && !affine && (a1 & WS_OAM_UI) ? (a1 & WS_OAM_PLACED ? 2 : 1) : 0;
         if (ui && skip_ui) continue;
         int ly = (y - (a0 & 0xFF)) & 0xFF;
@@ -1793,6 +1803,9 @@ advance:
 
 void video_render_line(int line) {
     if (line == 0) {
+#ifdef EGG_PS5
+        ctps5_battle_hud_frame();ctps5_battle_hud_capture(&frame_hud);
+#endif
         sprite_hd_battle_frame=gfxmod_hd_scale()>0&&sprite_hd_battle();
         int redraws=ct_redraw_count()&&(prepare_redraws(engines)+prepare_redraws(engines+1));
         hd_on=gfxmod_hd_active(sprite_hd_battle_frame)||redraws;
@@ -1856,9 +1869,6 @@ static void ui_to_edges(int w, int rows, int shown) {
 }
 
 void video_end_frame(void) {
-#ifdef EGG_PS5
-    ctps5_battle_hud_frame();
-#endif
     /* POWCNT1 bit 15: engine A on the top screen. */
     int a_top = (io_get16(0x304) >> 15) & 1;
     const uint32_t *ft = frame[a_top ? 0 : 1], *fb = frame[a_top ? 1 : 0];
@@ -1867,6 +1877,9 @@ void video_end_frame(void) {
     int m = et->margin, mb = eb->margin, w = SCREEN_W + 2 * m;
     int rows = et->rows, h = SCREEN_H + 2 * rows; /* the top screen's picture, with the zoom out's rows */
     SDL_LockMutex(present_lock);
+#ifdef EGG_PS5
+    present_hud=frame_hud;
+#endif
     for (int y = 0; y < SCREEN_H; y++) {
         memcpy(&present[0][y * SCREEN_W], &ft[(y + rows) * VIDEO_LINE_MAX + m], SCREEN_W * 4);
         memcpy(&present[1][y * SCREEN_W], &fb[y * VIDEO_LINE_MAX + mb], SCREEN_W * 4);
@@ -1953,6 +1966,9 @@ int video_copy_frame(uint32_t *top, uint32_t *bottom, uint32_t *main, int *main_
     if (present_party_on) memcpy(party, present_party, (size_t)w * h * 4);
     *still_on = present_still_on;
     if (present_still_on) memcpy(still, present_still, (size_t)w * h * 4);
+#ifdef EGG_PS5
+    if(hd)hd->hud=present_hud;
+#endif
     if (hd && (hd->on = present_hd_on)) {
         memcpy(hd->top, present_hd[0], sizeof present_hd[0]);
         memcpy(hd->bottom, present_hd[1], sizeof present_hd[1]);

@@ -904,6 +904,9 @@ static void draw_ui(const View *v, int x, int y, int n, int cw, int ch) {
 
 /* Draws the view's shown screens into its internal target, then the target into its window (through the shader
  * if one is chosen: then the target is the native size). */
+#ifdef EGG_PS5
+static CtHudSnapshot shown_hud;
+#endif
 static void draw_screens(View *v) {
     SDL_Renderer *ren = v->ren;
     SDL_Texture **native = v->native, **smooth = v->smooth, **hd_tex = v->hd_tex;
@@ -974,13 +977,11 @@ static void draw_screens(View *v) {
     CtHudLayout battle_layout;
     int portrait_hud = v == &primary && main_shown(v) && !sysmenu_is_open() &&
         ctps5_battle_hud_prepare(ren, &v->battle_hud, &v->battle_commands, &dest, cw, ch,
-            SETTING(SET_ZOOM)?(SETTING(SET_ZOOM_UI)?1:2):0, &battle_layout);
+            SETTING(SET_ZOOM)?(SETTING(SET_ZOOM_UI)?1:2):0, &battle_layout, &shown_hud);
 #endif
     SDL_RenderTexture(ren, internal, NULL, &dest);
 #ifdef EGG_PS5
     if (portrait_hud) {
-        SDL_SetRenderDrawColor(ren,0,0,0,255);
-        SDL_RenderFillRect(ren,&battle_layout.cover);
         SDL_RenderTexture(ren, v->battle_hud, NULL, &battle_layout.hud);
         if(battle_layout.commands.w>0)SDL_RenderTexture(ren,v->battle_commands,NULL,&battle_layout.commands);
     }
@@ -1179,6 +1180,9 @@ void display_frame(const uint32_t *const screens[3], const uint32_t *party, cons
     party_on = main_guard && party;
     still_on = main_guard && still;
     if (new_frame || reupload) {
+#ifdef EGG_PS5
+        shown_hud=hd?hd->hud:(CtHudSnapshot){0};
+#endif
         hd_frame = hd;
         int shown[3] = {0};
         View *at[3] = {&primary, &primary, &primary}; /* the window each screen is uploaded to */

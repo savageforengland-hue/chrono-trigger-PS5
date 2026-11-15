@@ -23,7 +23,7 @@ int sprite_hd_classify_palette(const uint16_t pal[16]){
     }return -1;
 }
 void sprite_hd_begin_frame(const uint8_t*pal,int battle){
-    if(!battle){memset(palette_owner,-1,sizeof palette_owner);logged_owners=0;return;}
+    if(!battle||!palettes_loaded){memset(palette_owner,-1,sizeof palette_owner);logged_owners=0;return;}
     unsigned owners=0;
     for(int e=0;e<2;e++)for(int r=0;r<16;r++){
         uint16_t p[16];memcpy(p,pal+e*0x400+0x200+r*32,sizeof p);
@@ -94,6 +94,7 @@ int sprite_hd_battle(void){
     uint32_t scene=rt_r32(0x0207088c);
     return scene>=0x02000000&&scene<=0x023ffffc&&rt_r32(scene)==0x02115558;
 }
+int sprite_hd_loaded(void){return palettes_loaded&&valid_palettes;}
 void sprite_hd_load(void){
     char path[1024];snprintf(path,sizeof path,"%smods/battle-sprites/sprites.ini",rt_data_dir());
     FILE*f=fopen(path,"r");if(!f)return;

@@ -23,7 +23,7 @@ This PS5 core profile disables the PC shader, FFmpeg media replacement, online R
 ## Battle sprite enhancement prototype
 
 The separate [Marle detailed-redraw pilot](MARLE-PILOT.md) tests four
-illustrated replacements with mod host 01.006.006. Its files live under
+illustrated replacements with mod host 01.006.007. Its files live under
 `mods/marle-pilot/`. Open **L3+R3 → Mods → Detailed pose test** to inspect
 them before expanding the artwork. This is separate from the cleanup filter.
 
@@ -47,3 +47,5 @@ The mod-only ZIP contains no executable, ROM or extracted artwork. Its
 Artwork is decoded from the player's own USA NDS. The compatible host supplies
 the renderer, observation and input hooks; the pack is not a binary plugin for
 older builds.
+
+Host 01.006.007 lists **Sprite smoothing** and **Marle redraw** separately. The latter toggles the illustrated fear poses live; the reported crossbow pose is comparison-only. See [HUD fixes](HUD-FIXES-007.md).

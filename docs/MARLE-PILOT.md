@@ -1,4 +1,11 @@
-# Marle detailed redraw — four-pose test pilot
+# Marle detailed redraw — focused test pilot
+
+**Host 01.006.007 correction:** only fear cells 89/90/91 can replace gameplay
+art. Cell 211 is comparison-only after a reported waiting/hit mismatch; its
+original gameplay art is restored. The crossbow redraw is not pose-approved.
+See [HUD/status fixes](HUD-FIXES-007.md). This correction supersedes the original
+four-pose gameplay scope described by the first pilot.
+
 
 This pilot loads **new illustrated artwork** for Marle's stored cells
 **89, 90, 91 and 211**. It is intended to test the integration before drawing
@@ -15,7 +22,7 @@ personal native executable are distributed separately from public GitHub.
 
 ## Install the focused test
 
-The **01.006.006 mod host** is required. Close CTPS5 Mods, update matching app
+The **01.006.007 mod host** is required. Close CTPS5 Mods, update matching app
 files under `/data/homebrew/PPSA90436/`, and refresh ShadowMountPlus. Retain
 all your settings, saves and portrait HUD configuration. PPSA90435 is the
 separate base app; both apps share `/data/eggoftime/` user data.
@@ -43,14 +50,16 @@ existing pause/clock-rebase behavior. The page renders the original and
 registered artwork side by side at their original actor origins. It is a
 static comparison of stored poses, not a fabricated animation sequence.
 
-During ordinary play, the pilot also replaces those four poses when the
-incoming original objects match. You do not need to replay a rare story
+During ordinary play, the pilot replaces the three fear poses when the
+incoming original objects match. Cell 211 stays original. You do not need to replay a rare story
 reaction just to inspect the fear drawings. Other stored poses retain their
 original art (or any independently enabled existing graphics mod).
 
-Set `enabled=0` in `pilot.ini` and fully restart to disable just this pilot,
+Use **Mods → Marle redraw** to toggle gameplay art live. Its persisted
+`gameplay` switch is independent from the comparison page. Set `enabled=0`
+in `pilot.ini` and fully restart to unload this pilot entirely,
 or remove its directory and restart. Existing graphics/HUD settings are
-separate. The previous 01.006.005 mod host can be retained as a rollback.
+separate. The previous 01.006.006 mod host can be retained as a rollback.
 
 ## What the renderer matches
 
@@ -87,11 +96,12 @@ immutable inputs and unrelated-pose fallback. The private own-ROM/art test
 loads all four registered PNGs, checks original actor origins and canvases,
 direct-tile isolation, missing-art fallback, live outline/weapon palette
 changes, white/black effects, module disabling and unchanged ROM memory.
-Existing HUD and host-menu tests cover the combined seven-row menu,
+Existing HUD and host-menu tests cover the combined eight-row menu,
 comparison-page navigation, pause state and input release guards.
 
-A full-host desktop run loaded all four authored poses, matched cell 211
-in ordinary battle rendering and displayed the comparison page through its
+The initial 01.006.006 desktop run loaded all four authored poses and matched cell 211
+in ordinary battle rendering. The 01.006.007 host quarantines that reported
+pose mismatch, retaining the original in gameplay. It displays the comparison page through its
 normal menu/input path. Its Linux adapter maps filesystem/platform services,
 supplies controller-like keyboard input and captures SDL output; it does
 not inject pose-match observations or substitute a preview for gameplay.
@@ -123,6 +133,6 @@ cc -std=c11 -O2 -I /path/to/SDL3/include -I runtime \
 
 Keep generated artwork/captures, ROM, game-derived test states, generated
 game C and the personal native executable out of the public repository.
-Startup identifies **CTPS5 Marle redraw pilot 1 (01.006.006)**. Usual log:
+Startup identifies **CTPS5 HUD and sprite fixes 7 (01.006.007)**. Usual log:
 `/data/eggoftime/eggoftime.log`. It lists loaded cells, errors with the image
 path/SDL reason, and the first successful renderer match of each pose.

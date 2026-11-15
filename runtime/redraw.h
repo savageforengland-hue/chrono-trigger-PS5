@@ -5,6 +5,8 @@
 typedef struct RedrawBinding {int action,pose,x,y,w,h,above;} RedrawBinding;
 void ct_redraw_load(void);
 int ct_redraw_count(void);
+int ct_redraw_enabled(void);
+void ct_redraw_set_enabled(int on);
 void ct_redraw_set_visible(int on);
 int ct_redraw_prepare(int engine,const RedrawObject live[128],const uint16_t palette[256]);
 const RedrawBinding *ct_redraw_binding(int engine,int slot);

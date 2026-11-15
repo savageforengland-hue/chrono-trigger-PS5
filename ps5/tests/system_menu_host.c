@@ -53,11 +53,11 @@ int cheevos_list(const CheevosItem**i){*i=NULL;return 0;}
 const uint32_t *cheevos_badge(const char*u){(void)u;return NULL;}
 const char *ui_text(const char*s){return s;}
 void egg_ps5_mod_menu_refresh(void){}
-int egg_ps5_mod_menu_count(void){return 7;}
-const char *egg_ps5_mod_menu_title(int i){const char*n[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","HD battle sprites","Detailed pose test"};return n[i];}
+int egg_ps5_mod_menu_count(void){return 8;}
+const char *egg_ps5_mod_menu_title(int i){const char*n[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","Sprite smoothing","Marle redraw","Detailed pose test"};return n[i];}
 const char *egg_ps5_mod_menu_value(int i){return i==4?"default":i==1?"100%":i==2?"70%":"On";}
 const char *egg_ps5_mod_menu_description(int i){(void)i;return "Menu portraits and action icons. Applies now.";}
-void egg_ps5_mod_menu_change(int i,int d){mod_change=i+1;if(i==6)ct_redraw_viewer_open();(void)d;}
+void egg_ps5_mod_menu_change(int i,int d){mod_change=i+1;if(i==7)ct_redraw_viewer_open();(void)d;}
 static void step(unsigned keys){ticks+=120;sysmenu_input(keys);}
 static void tap(unsigned keys){step(keys);step(0);}
 static void shot(const char*directory,const char*name){
@@ -74,7 +74,7 @@ int main(int argc,char**argv){
  step(0);assert(hub_page&&hub_cursor==0);shot(argc>1?argv[1]:NULL,"settings-hub");
  tap(KEY_DOWN);tap(KEY_A);assert(mods_page&&!hub_page);shot(argc>1?argv[1]:NULL,"mods-menu");
  tap(KEY_RIGHT);assert(mod_change==1);tap(KEY_DOWN);tap(KEY_A);assert(mod_change==2);
- for(int i=0;i<5;i++)tap(KEY_DOWN);tap(KEY_A);assert(pilot_page&&sysmenu_pauses_game());
+ for(int i=0;i<6;i++)tap(KEY_DOWN);tap(KEY_A);assert(pilot_page&&sysmenu_pauses_game());
  tap(KEY_RIGHT);assert(pilot_pose==1);tap(KEY_B);assert(!pilot_page&&mods_page);
  for(int i=0;i<5;i++)tap(KEY_UP);
  tap(KEY_B);assert(hub_page);tap(KEY_UP);tap(KEY_A);assert(!hub_page&&!mods_page);tap(KEY_RIGHT);assert(sets==1);

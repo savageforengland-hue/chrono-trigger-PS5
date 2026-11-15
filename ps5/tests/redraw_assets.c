@@ -34,7 +34,7 @@ int main(int argc,char**argv){
     int ids[]={89,90,91,211};
     for(int q=0;q<4;q++){
         RedrawObject live[128],copy[128];int x0,y0,n=fixture(ids[q],live,&cb,&tiles,&x0,&y0);memcpy(copy,live,sizeof live);
-        if(missing&&q==0){assert(!ct_redraw_prepare(0,live,palette));continue;}
+        if((missing&&q==0)||ids[q]==211){assert(!ct_redraw_prepare(0,live,palette));assert(!ct_redraw_binding(0,3));continue;}
         assert(ct_redraw_prepare(0,live,palette)==1&&!memcmp(copy,live,sizeof live));
         const RedrawBinding*b=ct_redraw_binding(0,3);assert(b&&b->action==2&&b->x==((120+x0)&511)&&b->y==((144+y0)&255));
         for(int k=1;k<n;k++){const RedrawBinding*s=ct_redraw_binding(0,3+k*17);assert(s&&s->action==1);}
@@ -59,6 +59,7 @@ int main(int argc,char**argv){
         uint16_t foreign[256];memcpy(foreign,palette,sizeof foreign);for(int i=0;i<16;i++)foreign[32+i]=(uint16_t)(i*37);
         assert(!ct_redraw_prepare(0,live,foreign));
         ct_redraw_set_visible(0);assert(!ct_redraw_prepare(0,live,palette));ct_redraw_set_visible(1);
+        ct_redraw_set_enabled(0);assert(!ct_redraw_enabled()&&!ct_redraw_prepare(0,live,palette));ct_redraw_set_enabled(1);assert(ct_redraw_enabled());
     }
     for(unsigned off=0;off+32<=tiles.size;off+=32)assert(!gfxmod_find(tiles.data+off,0)); /* No tile-hash contamination. */
     RedrawObject ordinary[128];int x0,y0;fixture(0,ordinary,&cb,&tiles,&x0,&y0);assert(!ct_redraw_prepare(0,ordinary,palette));

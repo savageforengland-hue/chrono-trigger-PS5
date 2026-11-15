@@ -15,7 +15,7 @@ Native PS5 homebrew port of **Chrono Trigger for Nintendo DS (USA)**, based on *
 
 > **Authored-art pilot:** [Marle detailed redraw test](docs/MARLE-PILOT.md)
 > loads four illustrated poses through whole-object matching and adds an
-> in-game comparison page. Mod host 01.006.006 is required. This is a focused
+> in-game comparison page. The reported crossbow mismatch now stays original in gameplay. Mod host 01.006.007 is required. This is a focused
 > test build; the rest of the detailed redraw is unfinished.
 
 ## Release status
@@ -56,3 +56,5 @@ The pristine upstream archive preserves the original PC README, source and notic
 The combined PS5 distribution includes GPL-3.0-or-later components; see [LICENSE](LICENSE), [LICENSING.md](LICENSING.md) and component notices. Power Pudu's original code remains MIT licensed, with its notice preserved verbatim. SDL is under the zlib license; other component licenses remain in their source directories.
 
 Unofficial fan project, not affiliated with or endorsed by Square Enix, Nintendo or Sony. Chrono Trigger and the associated game content belong to their respective owners.
+
+The [01.006.007 HUD fixes](docs/HUD-FIXES-007.md) remove the fixed black cover and stock battle widgets when the portrait HUD is active, and synchronize its state with the displayed frame.

@@ -41,7 +41,8 @@ static void observe(int row,int on){
 }
 int main(void){
  SDL_FRect rect={0,0,3840,2160},before=rect;CtHudLayout layout;SDL_Texture*texture=NULL,*commands=NULL;
- #define PREP(c,r,z) ctps5_battle_hud_prepare(NULL,&texture,&commands,&rect,c,r,z,&layout)
+ #define PREP(c,r,z) (ctps5_battle_hud_capture(&snapshot),ctps5_battle_hud_prepare(NULL,&texture,&commands,&rect,c,r,z,&layout,&snapshot))
+ CtHudSnapshot snapshot;
  for(mode=0;mode<=3;mode++){
   if(mode==1)continue;ctps5_battle_hud_init();ctps5_battle_hud_frame();
   assert(!PREP(340,192,0));assert(!memcmp(&rect,&before,sizeof rect));assert(!face_calls);
@@ -51,22 +52,26 @@ int main(void){
  w32(0x207088c,0x2200000);w32(0x2200000,0x2115558);w32(0x20728fc,0x2200100);w32(0x2118c0c,0x2210000);
  w8(0x2200101,0x80);w8(0x2200102,0x80);w16(0x2210003,50);w16(0x2210005,70);w16(0x2210007,3);w16(0x2210009,8);w8(0x2211545,1);
  ctps5_battle_hud_frame();assert(!PREP(340,192,0)); /* battle alone is insufficient */
- observe(146,1);fail_texture=1;assert(!PREP(340,192,0));assert(!memcmp(&rect,&before,sizeof rect));
+ observe(146,1);
+ assert(ctps5_battle_hud_stock_entry(0x225cdf0,0x92,0xc02a,0x4130)); /* Window list is separate from digit list. */
+ assert(!ctps5_battle_hud_stock_entry(0x225cdf0,0x92,0x402a,0x4130)); /* A 16px actor is not a window. */
+ assert(!ctps5_battle_hud_stock_entry(0x225cdf0,0x92,0xc02a,0x2130)); /* Foreign palette is not a window. */
+ assert(!ctps5_battle_hud_stock_entry(0x1ffffff,0x92,0xc02a,0x4130));
+ ctps5_battle_hud_cell(0x2200000+0xaf64+22*0x9c,-1,147);
+ assert(!ctps5_battle_hud_stock_entry(0x2200000+0xaf64+22*0x9c,0,0,0));
+ observe(146,1);assert(ctps5_battle_hud_stock_entry(0x2200000+0xaf64+22*0x9c,0,0,0));
+ fail_texture=1;assert(!PREP(340,192,0));assert(!memcmp(&rect,&before,sizeof rect));
  fail_texture=0;fail_upload=1;assert(!PREP(340,192,0));assert(!memcmp(&rect,&before,sizeof rect));
  fail_upload=0;
  for(int zoom=0;zoom<3;zoom++)for(int top=0;top<2;top++){
   int row=top?2:146,rows=zoom?240:192;observe(row,1);assert(PREP(340,rows,zoom));
   assert(!memcmp(&rect,&before,sizeof rect));
-  SDL_FRect cover=layout.cover,hud=layout.hud,bar=layout.commands;
-  float old_ui=256*(zoom==1?(float)rows/192:1)*rect.w/340;
-  assert(fabs(cover.x+cover.w/2-1920)<.001&&fabs(cover.w-old_ui)<.001);
-  assert(cover.y>=0&&cover.y+cover.h<=2160.001);
-  assert(cover.y+cover.h>=hud.y+hud.h); /* Erase the old panel's final border. */
+  SDL_FRect hud=layout.hud,bar=layout.commands;
   assert(fabs(hud.x+hud.w/2-1920)<.001);assert(fabs(bar.x+bar.w/2-1920)<.001);
   assert(hud.x>=rect.x&&hud.x+hud.w<=rect.x+rect.w&&hud.y>=0&&hud.y+hud.h<=2160.001);
   assert(fabs(hud.w/hud.h-(float)CT_HUD_W/CT_HUD_H)<.001);
   assert(bar.y>=0&&bar.y+bar.h<=2160.001);
-  assert(bar.y+bar.h<=cover.y||bar.y>=cover.y+cover.h);
+  assert(bar.y+bar.h<=hud.y||bar.y>=hud.y+hud.h);
   assert(ctps5_battle_hud_input(KEY_LEFT|KEY_A)==(KEY_UP|KEY_A));
   assert(ctps5_battle_hud_input(KEY_RIGHT|KEY_B)==(KEY_DOWN|KEY_B));
   assert(ctps5_battle_hud_input(KEY_L)==KEY_LEFT&&ctps5_battle_hud_input(KEY_R)==KEY_RIGHT);
@@ -74,6 +79,10 @@ int main(void){
  observe(146,1);ctps5_battle_hud_cell(0x2200000+0xaf64+22*0x9c,-1,147);ctps5_battle_hud_frame();
  assert(PREP(340,192,0)&&layout.commands.w==0);assert(ctps5_battle_hud_input(KEY_RIGHT|KEY_R)==(KEY_RIGHT|KEY_R));
  observe(146,0);assert(!PREP(340,192,0));assert(ctps5_battle_hud_input(KEY_LEFT|KEY_L)==(KEY_LEFT|KEY_L)); /* Tech/Item use their original panels */
+ observe(146,1);ctps5_battle_hud_capture(&snapshot);CtHudSnapshot old=snapshot;
+ observe(146,0); /* Future game state must not alter a copied frame's HUD. */
+ assert(ctps5_battle_hud_prepare(NULL,&texture,&commands,&rect,340,192,0,&layout,&old));
+ assert(!PREP(340,192,0));
  observe(146,1);rt_frame_count+=3;ctps5_battle_hud_frame();assert(!PREP(340,192,0));
  observe(146,1);overlays=0;ctps5_battle_hud_frame();assert(!PREP(340,192,0));
  assert(!memcmp(&rect,&before,sizeof rect));
@@ -86,5 +95,5 @@ int main(void){
  assert(ctps5_battle_hud_set_enabled(0)&&!ctps5_battle_hud_enabled());
  save_ok=0;assert(!ctps5_battle_hud_set_enabled(1)&&!ctps5_battle_hud_enabled());
  save_ok=1;assert(ctps5_battle_hud_set_enabled(1)&&ctps5_battle_hud_enabled());
- puts("PASS: switch/ROM guards, actual stock-header/digit visibility, Tech/Item yield, stale-frame/battle-exit cleanup, texture fallbacks, immutable game view, full old-panel cover, centered portrait/action row, command/party remapping, live/persisted HUD toggle, top/bottom/zoom/4K geometry and portrait proportions");
+ puts("PASS: switch/ROM guards, actual stock-header/digit visibility, Tech/Item yield, stale-frame/battle-exit cleanup, texture fallbacks, immutable game view, no opaque cover, immutable frame snapshot, centered portrait/action row, command/party remapping, live/persisted HUD toggle, top/bottom/zoom/4K geometry and portrait proportions");
 }
