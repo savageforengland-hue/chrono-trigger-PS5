@@ -20,6 +20,14 @@ Texture pack format v1 targets USA YQUE, with 2x–8x replacement scales. Keep p
 
 This PS5 core profile disables the PC shader, FFmpeg media replacement, online RetroAchievements and translation patch integrations. Do not assume a desktop mod depending on those modules works on PS5. Test a pack with the unmodified game first, and include its ID and version when reporting a problem.
 
+## Battle sprite enhancement prototype
+
+[Faithful HD battle sprites](BATTLE-SPRITES.md) has a separate configuration
+under `mods/battle-sprites/`, supported by host 01.006.005. It refines original
+sprites at 2×/4× while retaining live palettes and animation data. This is an
+enhancement prototype rather than the illustrated redraw from the concept.
+Use the additional **HD battle sprites** switch and restart. No art is shipped.
+
 ## Portrait battle HUD module
 
 The [centred portrait HUD](PORTRAIT-HUD.md) is a separate configuration pack

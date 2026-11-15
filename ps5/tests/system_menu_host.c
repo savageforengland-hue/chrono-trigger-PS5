@@ -48,8 +48,8 @@ int cheevos_list(const CheevosItem**i){*i=NULL;return 0;}
 const uint32_t *cheevos_badge(const char*u){(void)u;return NULL;}
 const char *ui_text(const char*s){return s;}
 void egg_ps5_mod_menu_refresh(void){}
-int egg_ps5_mod_menu_count(void){return 5;}
-const char *egg_ps5_mod_menu_title(int i){const char*n[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack"};return n[i];}
+int egg_ps5_mod_menu_count(void){return 6;}
+const char *egg_ps5_mod_menu_title(int i){const char*n[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","HD battle sprites"};return n[i];}
 const char *egg_ps5_mod_menu_value(int i){return i==4?"default":i==1?"100%":i==2?"70%":"On";}
 const char *egg_ps5_mod_menu_description(int i){(void)i;return "Menu portraits and action icons. Applies now.";}
 void egg_ps5_mod_menu_change(int i,int d){mod_change=i+1;(void)d;}

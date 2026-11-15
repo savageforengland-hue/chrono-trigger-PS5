@@ -797,7 +797,8 @@ void sysmenu_draw(uint32_t *s) {
     }else if(mods_page){
         ui_draw_text(s,"Mods",(SCREEN_W-ui_text_width("Mods"))/2,8,WHITE);
         for(int i=0;i<egg_ps5_mod_menu_count();i++){
-            int y=30+i*25;Rect lr={6,y,112,22},vr={122,y,128,22};
+            int step=egg_ps5_mod_menu_count()>5?22:25;
+            int y=28+i*step;Rect lr={6,y,112,20},vr={122,y,128,20};
             panel(s,lr,i==mods_cursor?&BUTTON_LIT:&BUTTON);panel(s,vr,&BUTTON);
             if(i==mods_cursor)frame(s,vr,TEAL);
             centered(s,egg_ps5_mod_menu_title(i),(Rect){lr.x,lr.y+3,lr.w,lr.h},i==mods_cursor?YELLOW:WHITE);

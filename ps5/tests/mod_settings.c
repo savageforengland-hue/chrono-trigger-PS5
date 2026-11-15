@@ -38,6 +38,13 @@ int main(int argc,char**argv){
  assert(argc==2);root=argv[1];char b[4096];
  FILE*f=fopen("/data/eggoftime/ps5.ini","w");assert(f);fputs("# Keep comment\noutput_height=2160\nactive_pack=default\ntarget_fps=60\nunknown=keep\n",f);fclose(f);
  egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(4),"default"));
+ assert(egg_ps5_mod_menu_count()==6&&!strcmp(egg_ps5_mod_menu_value(5),"Not installed"));
+ char folder[2048];snprintf(folder,sizeof folder,"%s/mods/battle-sprites",root);assert(!mkdir(folder,0777));
+ f=fopen("/data/eggoftime/mods/battle-sprites/sprites.ini","w");assert(f);fputs("# Keep detail\nenabled=1\nscale=4\nshading=65\n",f);fclose(f);
+ egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(5),"On"));egg_ps5_mod_menu_change(5,1);
+ assert(!strcmp(egg_ps5_mod_menu_value(5),"Off"));egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(5),"Off"));
+ f=fopen("/data/eggoftime/mods/battle-sprites/sprites.ini","r");assert(f);size_t bytes=fread(b,1,sizeof b-1,f);b[bytes]=0;fclose(f);
+ assert(strstr(b,"scale=4\n")&&strstr(b,"shading=65\n")&&strstr(b,"# Keep detail\n"));
  egg_ps5_mod_menu_change(4,1);assert(!strcmp(egg_ps5_mod_menu_value(4),"a-pack"));
  read_ini(b);assert(strstr(b,"active_pack=a-pack\n")&&strstr(b,"# Keep comment\n")&&strstr(b,"output_height=2160\n")&&strstr(b,"unknown=keep\n"));
  egg_ps5_mod_menu_change(4,1);assert(!strcmp(egg_ps5_mod_menu_value(4),"z-pack"));

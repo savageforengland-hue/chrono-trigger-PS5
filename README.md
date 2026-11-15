@@ -8,6 +8,11 @@ Native PS5 homebrew port of **Chrono Trigger for Nintendo DS (USA)**, based on *
 
 > **Feature branch:** optional [centred portrait HUD v0.3.1](docs/PORTRAIT-HUD.md), original game window styling, transparent action symbols and an L3+R3 settings/mods menu. Separate mod configuration and a side-by-side CTPS5 Mods host keep the base app installed. The previous HUD has user-confirmed PS5 operation; this restyle awaits a console visual check.
 
+> **Sprite prototype:** [Faithful HD battle sprites](docs/BATTLE-SPRITES.md) adds
+> a separate 2×/4× enhancement module for the seven main character sheets.
+> It preserves animation data and live palettes. This is a conservative
+> enhancement, **not the unfinished illustrated redraw from the concept art**.
+
 ## Release status
 
 **0.1.0-rc3 — release candidate, 14 November 2026.** Earlier PS5 builds reached gameplay and audio on the target console. The candidate includes native scanout fixes, a direct-memory heap, DualSense prompts and adaptive widescreen presentation. RC2 restored room-boundary clipping and removed blurred scene-edge side copies after an RC1 regression report. RC3 adds PS5 replacements for identified game-owned button sprites and instructions, using each player’s NDS data in memory. Fully relaunch after changing bindings to refresh in-game art. Console save/load, extended gameplay, the latest presentation changes and sustained 4K60 still need hardware validation. This is not a stable release.

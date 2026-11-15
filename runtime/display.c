@@ -44,6 +44,7 @@
 #include "../ps5/presentation.h"
 #endif
 #include "gfx_mod.h"
+#include "sprite_hd.h"
 #include "minimap.h"
 #include "movie.h"
 #include "rt.h"
@@ -682,7 +683,13 @@ static void compose_rows(const HdJob *j) {
             for (int sy = 0; sy < k; sy++) {
                 int v = ty * es + (vflip ? es - 1 - col[sy] : col[sy]);
                 uint32_t *line = o + sy * ow;
-                if (t->indexed) {
+                if (t->indexed==2) {
+                    const uint32_t *texels=(const uint32_t*)t->px+v*n+tx*es;
+                    for(int sx=0;sx<k;sx++){
+                        uint32_t c=sprite_hd_color(texels[hflip?es-1-col[sx]:col[sx]],pal);
+                        line[sx]=c?hd_mix(c,r->weight,add,j->lut):below;
+                    }
+                } else if (t->indexed) {
                     const uint8_t *texels = (const uint8_t *)t->px + v * n + tx * es;
                     for (int sx = 0; sx < k; sx++) {
                         uint8_t i = texels[hflip ? es - 1 - col[sx] : col[sx]];

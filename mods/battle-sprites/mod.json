@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "id": "ctps5.faithful-hd-battle-sprites",
+  "name": "Faithful HD Battle Sprites",
+  "version": "0.1.0",
+  "requires": {"ctps5_mod_host": "01.006.005", "game": "USA/YQUE"},
+  "configuration": "sprites.ini",
+  "characters": ["Crono", "Marle", "Lucca", "Robo", "Frog", "Ayla", "Magus"],
+  "scope": "battle sprite layer, original player tile and matching character palette; unknown palettes retain original rendering",
+  "assets": "Generated in memory from the player's own CT.nds; no artwork included",
+  "renderer": "runtime/sprite_hd.c",
+  "settings": {"enabled": [0, 1], "scale": [2, 4], "shading": {"min": 0, "max": 100}},
+  "upstream": "Egg of Time v1.3.5 by Power Pudu"
+}

@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 
 #include "gfx_mod.h"
+#include "sprite_hd.h"
 #include "rt.h"
 #include "single_screen.h"
 #include "video.h"
@@ -218,7 +219,7 @@ static int present_still_on;
  * layers and sprites, bitmaps, extended palettes and the margins' copies of the frame's first layers have none. */
 typedef struct HdLine { uint32_t src[VIDEO_LINE_MAX]; uint8_t pal[VIDEO_LINE_MAX]; } HdLine;
 typedef struct HdCache { uint32_t *stamp, *val; } HdCache;
-static int hd_on;                 /* this frame records sources */
+static int hd_on,sprite_hd_battle_frame; /* this frame records sources */
 static uint32_t hd_stamp = 1;     /* the frame, for hd_cache */
 static HdCache hd_cache[2][2][2]; /* by engine, sprite, 8 bits per pixel: VRAM address / 32 -> gfxmod tile */
 static VideoHd hd_frame[2][VIDEO_LINE_MAX * VIDEO_ROWS_MAX], hd_party[VIDEO_LINE_MAX * VIDEO_ROWS_MAX], hd_still[VIDEO_LINE_MAX * VIDEO_ROWS_MAX];
@@ -254,7 +255,7 @@ static inline uint32_t reg32(const Engine *e, uint32_t off) { return io_get32(e-
 void video_affine_ref_written(int engine, int bg) { engines[engine].ref_reload[bg] = 1; }
 
 /* The gfxmod tile for the tile at `addr` in the engine's BG or sprite VRAM (0: none). */
-static uint32_t hd_tile(const Engine *e, int obj, uint32_t addr, int bpp8) {
+static uint32_t hd_tile(const Engine *e, int obj, uint32_t addr, int bpp8,int palette) {
     uint8_t **t = obj ? e->obj : e->bg;
     uint32_t mask = obj ? e->obj_mask : e->bg_mask;
     addr &= mask & ~31u;
@@ -271,7 +272,9 @@ static uint32_t hd_tile(const Engine *e, int obj, uint32_t addr, int bpp8) {
         c->val[i] = p && in + (bpp8 ? 64 : 32) <= PAGE ? gfxmod_find(p + in, bpp8 != 0) : 0;
         c->stamp[i] = hd_stamp;
     }
-    return c->val[i];
+    uint32_t found=c->val[i];const GfxHdTile*tile=gfxmod_tile(found);
+    if(!gfxmod_allowed(tile,obj,sprite_hd_battle_frame,obj?sprite_hd_palette(e->id,palette):-1))return 0;
+    return found;
 }
 
 /* A layer pixel's source: gfxmod tile, texel (in the tile, flips applied) and flips. */
@@ -358,7 +361,7 @@ static void bg_text_cols(const Engine *e, int bg, int y, uint32_t dispcnt, uint1
             if (idx) out[x + m] = pal16(e->pal + pal * 32 + idx * 2) | OPAQUE;
         }
         if (hd && idx) {
-            hd->src[x + m] = ext ? 0 : hd_src(hd_tile(e, 0, chr + tile * (bpp8 ? 64 : 32), bpp8), px, py, ent & 0x400, ent & 0x800);
+            hd->src[x + m] = ext ? 0 : hd_src(hd_tile(e, 0, chr + tile * (bpp8 ? 64 : 32), bpp8,pal), px, py, ent & 0x400, ent & 0x800);
             hd->pal[x + m] = (uint8_t)((bpp8 ? 0 : pal) | e->id << 4);
         }
     }
@@ -650,7 +653,7 @@ static void render_objs(const Engine *e, int y, uint32_t dispcnt, ObjLine *ol, i
                 if (bpp8) color = (dispcnt & (1u << 31)) ? ext16(*e->obj_ext, pal * 256 + idx) : pal16(e->pal + 0x200 + idx * 2);
                 else color = pal16(e->pal + 0x200 + pal * 32 + idx * 2);
                 if (hd_on && !affine && !(bpp8 && (dispcnt & (1u << 31)))) {
-                    src = hd_src(hd_tile(e, 1, addr, bpp8), tx & 7, ty & 7, a1 & 0x1000, a1 & 0x2000);
+                    src = hd_src(hd_tile(e, 1, addr, bpp8,pal), tx & 7, ty & 7, a1 & 0x1000, a1 & 0x2000);
                     spal |= (uint8_t)(bpp8 ? 0 : pal);
                 }
             }
@@ -1766,7 +1769,11 @@ advance:
 }
 
 void video_render_line(int line) {
-    if (line == 0) hd_on = gfxmod_hd_scale() > 0;
+    if (line == 0) {
+        sprite_hd_battle_frame=gfxmod_hd_scale()>0&&sprite_hd_battle();
+        hd_on=gfxmod_hd_active(sprite_hd_battle_frame);
+        if(gfxmod_hd_scale()>0)sprite_hd_begin_frame(rt_palette,sprite_hd_battle_frame);
+    }
     for (int i = 0; i < 2; i++) {
         Engine *e = &engines[i];
         if (line == 0) engine_frame_start(e);
