@@ -48,7 +48,7 @@ bool egg_ps5_init(void) {
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "ps5");
     SDL_SetHint(SDL_HINT_AUDIO_DRIVER, "ps5");
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
-    SDL_Log("CTPS5 graphics dump write check (01.006.009): native PS5 build; Egg of Time 1.3.5 (USA/YQUE)");
+    SDL_Log("CTPS5 kernel graphics export (01.006.010): native PS5 build; Egg of Time 1.3.5 (USA/YQUE)");
     SDL_Log("output: %sx%s at 60 Hz; frame target: %d; internal scale: %d",
             width_text, height_text, egg_ps5_config.target_fps, egg_ps5_config.render_scale);
     return true;

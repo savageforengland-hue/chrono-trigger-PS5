@@ -59,4 +59,4 @@ Unofficial fan project, not affiliated with or endorsed by Square Enix, Nintendo
 
 The [01.006.007 HUD fixes](docs/HUD-FIXES-007.md) remove the fixed black cover and stock battle widgets when the portrait HUD is active, and synchronize its state with the displayed frame.
 
-The [01.006.009 graphics dumper update](docs/GRAPHICS-DUMP.md) checks a real sprite at startup, exports to `graphics-export/`, and logs requests and failures in `eggoftime.log`. Sprite integration work is paused.
+The [01.006.010 graphics dumper update](docs/GRAPHICS-DUMP.md) uses explicit PS5 kernel paths for exports and reports, checks a real sprite at startup, and logs requests and failures in `eggoftime.log`. Sprite integration work is paused.

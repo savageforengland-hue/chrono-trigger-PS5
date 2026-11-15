@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #pragma once
 #include <stddef.h>
+#include <stdio.h>
+#include <SDL3/SDL_surface.h>
 #include <stdint.h>
 #include <SDL3/SDL_pixels.h>
 
@@ -11,3 +13,8 @@ int gfxdump_mkdirs(const char *path,char *error,size_t capacity);
 int gfxdump_write_png(const char *path,int w,int h,const uint8_t *pixels,
                      int bpp8,const SDL_Color colors[256],char *error,size_t capacity);
 int gfxdump_verify_png(const char *path,int w,int h,char *error,size_t capacity);
+
+/* Dump-only paths, including reports and metadata. */
+FILE *gfxdump_fopen(const char *path,const char *mode);
+int gfxdump_chmod(const char *path,unsigned mode);
+SDL_Surface *gfxdump_load_png(const char *path);

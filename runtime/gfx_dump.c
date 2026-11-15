@@ -59,8 +59,8 @@ static int output_path(const char*kind,const char*name,const char*end,char*path,
 }
 static FILE *create(const char*kind,const char*name,const char*end,char*path,size_t capacity,const char*mode){
     if(!output_path(kind,name,end,path,capacity))return NULL;
-    FILE*f=fopen(path,mode);if(!f){char message[1200];snprintf(message,sizeof message,"Cannot open %s: %s",path,strerror(errno));failed(message);}
-    else if(chmod(path,0644)!=0){char message[1200];snprintf(message,sizeof message,"File permissions %s: %s",path,strerror(errno));fclose(f);f=NULL;failed(message);}
+    FILE*f=gfxdump_fopen(path,mode);if(!f){char message[1200];snprintf(message,sizeof message,"Cannot open %s: %s",path,strerror(errno));failed(message);}
+    else if(gfxdump_chmod(path,0644)!=0){char message[1200];snprintf(message,sizeof message,"File permissions %s: %s",path,strerror(errno));fclose(f);f=NULL;failed(message);}
     return f;
 }
 static void save_png(const char*kind,const char*name,int w,int h,uint8_t*px,int bpp8,const GfxPalette*p,const char*from){
@@ -185,7 +185,7 @@ static int unit_bytes(const GfxFile *f) {
 static void repair_tree(const char*path,int depth){
     char error[1200];
     if(depth>32){failed("Dump directory nesting exceeds the repair limit");return;}
-    if(chmod(path,0755)!=0){snprintf(error,sizeof error,"Directory permissions %s: %s",path,strerror(errno));failed(error);return;}
+    if(gfxdump_chmod(path,0755)!=0){snprintf(error,sizeof error,"Directory permissions %s: %s",path,strerror(errno));failed(error);return;}
     DIR*d=opendir(path);if(!d){snprintf(error,sizeof error,"Open directory %s: %s",path,strerror(errno));failed(error);return;}
     struct dirent*entry;
     for(;;){
@@ -200,7 +200,7 @@ static void repair_tree(const char*path,int depth){
         struct stat st;if(lstat(child,&st)!=0){snprintf(error,sizeof error,"Inspect %s: %s",child,strerror(errno));failed(error);continue;}
         if(S_ISDIR(st.st_mode))repair_tree(child,depth+1);
         else if(S_ISREG(st.st_mode)){
-            if(chmod(child,0644)!=0){snprintf(error,sizeof error,"File permissions %s: %s",child,strerror(errno));failed(error);continue;}
+            if(gfxdump_chmod(child,0644)!=0){snprintf(error,sizeof error,"File permissions %s: %s",child,strerror(errno));failed(error);continue;}
             if(gfx_ends_with(child,".png")){
                 if(gfxdump_verify_png(child,0,0,error,sizeof error))SDL_AddAtomicInt(&image_count,1);
                 else failed(error);
@@ -228,7 +228,7 @@ static void write_check(void){
             save_png("frames","Chara/Chara_0000/199",layout.w,layout.h,pixels,layout.bpp8,&palette,cf->path);
             if(!abort_dump){
                 char path[1200];snprintf(path,sizeof path,"%sframes/Chara/Chara_0000/199.png",out_root);
-                SDL_Surface*loaded=SDL_LoadPNG(path);
+                SDL_Surface*loaded=gfxdump_load_png(path);
                 SDL_Surface*rgba=loaded?SDL_ConvertSurface(loaded,SDL_PIXELFORMAT_RGBA32):NULL;
                 int okay=rgba&&rgba->w==layout.w&&rgba->h==layout.h;
                 for(int y=0;okay&&y<layout.h;y++)for(int x=0;x<layout.w;x++){
@@ -253,19 +253,20 @@ static int worker(void *arg) {
     Uint64 t0 = SDL_GetTicks();
     char log_path[1100],error[640];
     snprintf(log_path,sizeof log_path,"%sgraphics-dump.log",rt_data_dir());
-    dump_log=fopen(log_path,"w");
+    dump_log=gfxdump_fopen(log_path,"w");
     if(!dump_log)rt_log("gfxdump: cannot open report %s: %s; diagnostics continue in eggoftime.log",log_path,strerror(errno));
-    else if(chmod(log_path,0644)!=0)rt_log("gfxdump: report permissions: %s",strerror(errno));
+    else if(gfxdump_chmod(log_path,0644)!=0)rt_log("gfxdump: report permissions: %s",strerror(errno));
     const char*action=operation==REPAIR?"repair existing permissions; no re-export":operation==WRITE_CHECK?"single-sprite write check":"export";
+    rt_log("gfxdump: filesystem route: explicit sceKernel APIs on PS5; encoder uses memory");
     rt_log("gfxdump: worker entered: %s; output %s; report %s",action,out_root,log_path);
-    if(dump_log){fprintf(dump_log,"CTPS5 graphics dump 01.006.009\nOutput: %s\nAction: %s\nState: running\n",out_root,action);fflush(dump_log);}
+    if(dump_log){fprintf(dump_log,"CTPS5 graphics dump 01.006.010\nOutput: %s\nAction: %s\nState: running\n",out_root,action);fflush(dump_log);}
     if(operation==REPAIR){repair_tree(out_root,0);goto finished_dump;}
     if(!gfxdump_mkdirs(out_root,error,sizeof error)){failed(error);goto finished_dump;}
     if(operation==WRITE_CHECK){write_check();goto finished_dump;}
     snprintf(log_path,sizeof log_path,"%spalettes.txt",out_root);
-    palette_log=fopen(log_path,"w");
+    palette_log=gfxdump_fopen(log_path,"w");
     if(!palette_log){failed("Cannot open dump/palettes.txt");goto finished_dump;}
-    if(chmod(log_path,0644)!=0){failed("Cannot set palettes.txt permissions");goto finished_dump;}
+    if(gfxdump_chmod(log_path,0644)!=0){failed("Cannot set palettes.txt permissions");goto finished_dump;}
     fprintf(palette_log,"# image\tROM file\tpalette (- : grey, none found)\n");
     int files = gfx_list_files(), total = 0, bytes = 0;
     for (int i = 0; i < files; i++) {
@@ -296,7 +297,7 @@ finished_dump:
 }
 
 static void start(int mode) {
-    rt_log("gfxdump: requested %s (01.006.009)",mode==WRITE_CHECK?"startup single-sprite write check":mode==REPAIR?"legacy access repair":"full export");
+    rt_log("gfxdump: requested %s (01.006.010)",mode==WRITE_CHECK?"startup single-sprite write check":mode==REPAIR?"legacy access repair":"full export");
     if (!SDL_CompareAndSwapAtomicInt(&running, 0, 1)){rt_log("gfxdump: request ignored: another operation is running");return;}
     SDL_SetAtomicInt(&finished,0);SDL_SetAtomicInt(&error_count,0);first_error[0]=0;last_directory[0]=0;abort_dump=0;operation=mode;
     snprintf(out_root,sizeof out_root,"%s%s",rt_data_dir(),mode==REPAIR?"mods/graphics/dump/":"graphics-export/");

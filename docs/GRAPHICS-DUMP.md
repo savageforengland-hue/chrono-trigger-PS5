@@ -1,14 +1,23 @@
-# Graphics dumper — host 01.006.009
+# Graphics dumper — host 01.006.010
 
-The latest console log confirms that 01.006.008 booted, but contains no
-start or result from its dumper worker. The older 30,577-image entry is
-from a previous session. The missing report therefore does not prove that
-a new export ran. The previous startup repair could silently skip its
-worker if the old dump directory could not be inspected.
+The 01.006.009 console log confirms that the one-sprite check wrote,
+reopened and decoded its PNG, yet the user could not find the export folder
+over FTP. In-app readback alone therefore does not establish that another
+process sees the output. The diagnostic log itself remains FTP-readable.
 
-This update removes that startup dependency. Before the game thread starts,
-it writes **one real sprite from the player's ROM**, reopens the PNG,
-decodes it and compares every pixel with the source. It uses a fresh root:
+This update routes dump directories, PNGs, reports and metadata through
+explicit **sceKernel** pathname APIs, matching the persistent diagnostic
+log's `sceKernelOpen` route. PNG encoding happens in memory with
+`SDL_SavePNG_IO`; SDL never opens the output pathname. Encoded bytes are
+written through a kernel-opened descriptor, flushed, synced, closed and
+reopened for a complete byte comparison before publication. The startup
+PNG is also decoded through bytes from that same adapter. Ordinary libc
+pathname calls and `SDL_SavePNG(path)` / `SDL_LoadPNG(path)` are excluded
+from this export path. These changes are confined to the dumper; saves,
+settings and installed mod loading keep their existing implementations.
+
+Before the game thread starts, the dumper writes **one real sprite from the player's ROM**, reopens the PNG,
+decodes it and compares every pixel with the source. It uses this export root:
 
 ```
 /data/eggoftime/graphics-export/frames/Chara/Chara_0000/199.png
@@ -47,9 +56,10 @@ PNGs, and the result. If the dedicated
 `/data/eggoftime/graphics-dump.log` cannot be opened, the usual log records
 its path and error and continues logging there. The dedicated report is
 replaced by each operation; the usual log also distinguishes startup checks
-from full exports. Startup identifies **CTPS5 graphics dump write check
-(01.006.009)**.
+from full exports. Startup identifies **CTPS5 kernel graphics export
+(01.006.010)**.
 
+The main log identifies the explicit kernel filesystem route.
 New directories use 0755 and output files 0644. PNGs are published through
 checked temporary files and reopened before the count increases. The
 original indexed encoder, palette indexes and transparency are retained.
@@ -59,7 +69,13 @@ confirmed on the console.
 
 ## Verification and limits
 
-Desktop tests cover the real-ROM single-sprite encode/decode comparison,
+The PS5-adapter routing test replaces kernel functions with checked host
+providers while deliberately denying ordinary pathname APIs. It writes,
+reads and decodes the PNG and report, verifies file modes, normalizes native
+error codes, and checks that a sync failure preserves the prior valid PNG.
+This is an API-routing test, not an emulation of the PS5 filesystem.
+
+Desktop tests also cover the real-ROM single-sprite encode/decode comparison,
 a full export with every PNG chunk CRC and decompressed stream checked,
 exact palette indexes/colours/transparency, blocked output, write/close/
 rename failures, corrupt PNGs, preservation of a prior valid file, and

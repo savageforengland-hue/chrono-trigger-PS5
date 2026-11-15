@@ -47,6 +47,11 @@ with tempfile.TemporaryDirectory() as tmp:
             assert chunks[b'PLTE'][i*3:i*3+3]==bytes([i,255-i,i^0x55])
             assert chunks[b'tRNS'][i]==(0 if (i==0 if bpp8 else i%16==0) else 255)
     print('PASS: PNG CRCs, zlib streams, exact palette indexes/colours/transparency and unchanged valid file after injected failures')
+    kernel=d/'kernel-writer'
+    subprocess.run([*flags,'-DEGG_PS5',str(root/'ps5/tests/gfx_dump_kernel.c'),str(root/'runtime/gfx_dump_io.c'),*[f'-Wl,--wrap={name}' for name in ['fopen','mkdir','chmod','rename','unlink']],str(a.sdl_library),'-lm','-ldl','-pthread','-o',str(kernel)],check=True)
+    subprocess.run([str(kernel),str(d)],check=True,timeout=20)
+    kw,kh,kchunks,kpixels=png(d/'kernel/frames/sprite.png');assert (kw,kh)==(7,5) and kpixels==bytes(i%17 for i in range(35))
+
     if a.rom:
         if not (a.sdl_library and a.output):p.error('--rom needs --sdl-library and --output')
         a.output.mkdir(parents=True,exist_ok=True);exe=d/'rom'

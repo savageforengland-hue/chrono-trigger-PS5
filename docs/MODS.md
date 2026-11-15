@@ -50,4 +50,4 @@ older builds.
 
 Host 01.006.007 lists **Sprite smoothing** and **Marle redraw** separately. The latter toggles the illustrated fear poses live; the reported crossbow pose is comparison-only. See [HUD fixes](HUD-FIXES-007.md).
 
-For extracted PNGs and FTP access, see the [graphics dumper guide](GRAPHICS-DUMP.md). Host 01.006.009 writes and decodes one real sprite at startup and uses `graphics-export/` for full exports.
+For extracted PNGs and FTP access, see the [graphics dumper guide](GRAPHICS-DUMP.md). Host 01.006.010 uses explicit PS5 kernel paths for dump output and reports, writes and decodes one real sprite at startup, and uses `graphics-export/` for full exports.
