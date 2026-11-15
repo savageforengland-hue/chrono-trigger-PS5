@@ -20,6 +20,14 @@ Texture pack format v1 targets USA YQUE, with 2x–8x replacement scales. Keep p
 
 This PS5 core profile disables the PC shader, FFmpeg media replacement, online RetroAchievements and translation patch integrations. Do not assume a desktop mod depending on those modules works on PS5. Test a pack with the unmodified game first, and include its ID and version when reporting a problem.
 
+## Illustrated Crono test
+
+The separate [eight-pose Crono HD-2D test](CRONO-POSE-TEST.md) uses mod host
+01.006.011 and an operative JSON manifest under `mods/crono-hd/`. Its PNGs
+retain the dump filenames. The full 248-cell redraw is unfinished; this
+small pack tests registration and rendering first. Crono and Marle have
+independent live controls.
+
 ## Battle sprite enhancement prototype
 
 The separate [Marle detailed-redraw pilot](MARLE-PILOT.md) tests four

@@ -11,8 +11,12 @@
 #include "ps5/config_file.h"
 #include "ps5/mod_menu.h"
 #include "runtime/display.h"
+#include "runtime/redraw.h"
 EggPs5Config egg_ps5_config={2160,60,3,"default"};
-static int redraw=1,loaded=1;
+static int redraw=1,loaded=1,crono=1;
+int ct_redraw_module_count(int m){return m==CT_REDRAW_MARLE?4:m==CT_REDRAW_CRONO?13:0;}
+int ct_redraw_module_enabled(int m){return m==CT_REDRAW_MARLE?redraw:crono;}
+void ct_redraw_module_set_enabled(int m,int on){if(m==CT_REDRAW_MARLE)redraw=on;else crono=on;}
 int sprite_hd_loaded(void){return loaded;}
 int ct_redraw_enabled(void){return redraw;}
 void ct_redraw_set_enabled(int on){redraw=on;}
@@ -45,7 +49,7 @@ int main(int argc,char**argv){
  assert(argc==2);root=argv[1];char b[4096];
  FILE*f=fopen("/data/eggoftime/ps5.ini","w");assert(f);fputs("# Keep comment\noutput_height=2160\nactive_pack=default\ntarget_fps=60\nunknown=keep\n",f);fclose(f);
  egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(4),"default"));
- assert(egg_ps5_mod_menu_count()==8&&!strcmp(egg_ps5_mod_menu_value(5),"Not installed"));
+ assert(egg_ps5_mod_menu_count()==9&&!strcmp(egg_ps5_mod_menu_value(5),"Not installed"));
  assert(!strcmp(egg_ps5_mod_menu_value(7),"Open pilot"));
  assert(!strcmp(egg_ps5_mod_menu_title(5),"Sprite smoothing"));
  assert(!strcmp(egg_ps5_mod_menu_value(6),"On (fear poses)"));
@@ -63,6 +67,9 @@ int main(int argc,char**argv){
  f=fopen("/data/eggoftime/mods/marle-pilot/pilot.ini","r");assert(f);bytes=fread(b,1,sizeof b-1,f);b[bytes]=0;fclose(f);
  assert(strstr(b,"# Keep art\n")&&strstr(b,"enabled=1\n")&&strstr(b,"gameplay=0\n"));
  egg_ps5_mod_menu_change(6,1);assert(redraw);
+ snprintf(folder,sizeof folder,"%s/mods/crono-hd",root);assert(!mkdir(folder,0777));
+ f=fopen("/data/eggoftime/mods/crono-hd/pack.ini","w");assert(f);fputs("# Keep Crono\ngameplay=1\n",f);fclose(f);
+ assert(!strcmp(egg_ps5_mod_menu_value(8),"On (13 poses)"));egg_ps5_mod_menu_change(8,1);assert(!crono&&!strcmp(egg_ps5_mod_menu_value(8),"Off"));egg_ps5_mod_menu_change(8,1);assert(crono&&redraw);
  egg_ps5_mod_menu_change(4,1);assert(!strcmp(egg_ps5_mod_menu_value(4),"a-pack"));
  read_ini(b);assert(strstr(b,"active_pack=a-pack\n")&&strstr(b,"# Keep comment\n")&&strstr(b,"output_height=2160\n")&&strstr(b,"unknown=keep\n"));
  egg_ps5_mod_menu_change(4,1);assert(!strcmp(egg_ps5_mod_menu_value(4),"z-pack"));

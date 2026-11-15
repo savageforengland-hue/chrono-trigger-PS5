@@ -1,0 +1,64 @@
+{
+  "schema": 2,
+  "id": "ctps5.crono-hd-pose-test",
+  "name": "Crono HD-2D Pose Test",
+  "version": "0.1.0-test",
+  "character": 0,
+  "scale": 4,
+  "enabled": true,
+  "requires": {
+    "ctps5_mod_host": "01.006.011",
+    "game": "USA/YQUE"
+  },
+  "configuration": "pack.ini",
+  "scope": "Eight-pose hardware test; other 240 cells use original art. Artwork and stride phases still need review.",
+  "upstream": "Egg of Time v1.3.5 by Power Pudu",
+  "frames": [
+    {
+      "cell": 0,
+      "file": "frames/Chara/Chara_0000/000.png",
+      "enabled": true
+    },
+    {
+      "cell": 1,
+      "file": "frames/Chara/Chara_0000/001.png",
+      "enabled": true
+    },
+    {
+      "cell": 2,
+      "file": "frames/Chara/Chara_0000/002.png",
+      "enabled": true
+    },
+    {
+      "cell": 3,
+      "file": "frames/Chara/Chara_0000/003.png",
+      "enabled": true
+    },
+    {
+      "cell": 5,
+      "file": "frames/Chara/Chara_0000/005.png",
+      "enabled": true
+    },
+    {
+      "cell": 6,
+      "file": "frames/Chara/Chara_0000/006.png",
+      "enabled": true
+    },
+    {
+      "cell": 11,
+      "file": "frames/Chara/Chara_0000/011.png",
+      "enabled": true
+    },
+    {
+      "cell": 56,
+      "file": "frames/Chara/Chara_0000/056.png",
+      "enabled": true
+    }
+  ],
+  "pose_notes": {
+    "011": "User explicitly requested side profile running left.",
+    "056": "Rear stance with boot heels facing viewer; reviewed as much better."
+  },
+  "fallback": "Unlisted, missing, invalid, disabled or unmatched poses retain original rendering. Game still selects and times poses.",
+  "assets": "External authored artwork supplied separately; public source includes no sprite PNGs."
+}

@@ -2,6 +2,7 @@
  * Small authored-art pilot. Exact whole-object groups identify the pose;
  * frame tiles are deliberately excluded from the global native-tile hash. */
 #include "redraw.h"
+#include "redraw_manifest.h"
 #include "gfx_rom.h"
 #include "gfx_mod.h"
 #include "sprite_hd.h"
@@ -9,16 +10,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define POSES 4
+#define POSES 516
 typedef struct Pose {
-    int cell,w,h,x0,y0,scale,cols,top,seen;
+    int cell,character,module,w,h,x0,y0,scale,cols,top,seen;
     RedrawReference ref;
     uint32_t *original,*preview,*tile;
     uint32_t *representative;
     SDL_Texture *old_texture,*new_texture;
 } Pose;
 static Pose poses[POSES];static int count,viewer,selected;
-static uint16_t canonical[16];static SDL_AtomicInt visible,gameplay;
+static uint16_t canonical[2][16];static SDL_AtomicInt visible,gameplay[CT_REDRAW_MODULES];
 static RedrawBinding bindings[2][128];
 static uint32_t rgb(SDL_Color c){return c.r|((uint32_t)c.g<<8)|((uint32_t)c.b<<16);}
 static uint32_t bgr(uint16_t c){
@@ -31,15 +32,16 @@ uint32_t ct_redraw_color(uint32_t texel,const uint16_t*p){
     if(flat)return bgr(p[2]);
     /* Character outline entries and weapon slots are runtime-controlled.
      * Keep the illustration's RGB body colours; transfer a changed outline. */
-    if((texel>>24)==254&&(p[1]&0x7fff)!=canonical[1])return bgr(p[1]);
+    unsigned tag=texel>>24;int character=tag==253?0:1;
+    if((tag==253||tag==254)&&(p[1]&0x7fff)!=canonical[character][1])return bgr(p[1]);
     return texel|0xff000000u;
 }
-static int load_pose(int cell,const GfxBlob*cb,const GfxTiles*t,const GfxPalette*pal){
-    Pose p={.cell=cell,.x0=999,.y0=999};GfxObject obj[REDRAW_OBJECTS];GfxLayout layout;
+static int load_pose(int module,int character,const char*folder,const char*file,int cell,int expected_scale,const GfxBlob*cb,const GfxTiles*t,const GfxPalette*pal){
+    Pose p={.cell=cell,.character=character,.module=module,.x0=999,.y0=999};GfxObject obj[REDRAW_OBJECTS];GfxLayout layout;
     int n=gfx_cell_objects(cb,(uint32_t)cell,obj,REDRAW_OBJECTS);
     if(!n||!gfx_cell_layout(cb,(uint32_t)cell,&layout))return 0;
     p.w=layout.w;p.h=layout.h;
-    if(p.w<1||p.h<1||p.w>64||p.h>64){free(layout.tiles);return 0;}
+    if(p.w<1||p.h<1||p.w>96||p.h>96){free(layout.tiles);return 0;}
     for(int k=0;k<n;k++){
         if(obj[k].w!=16||obj[k].h!=16||obj[k].off+128>t->size){free(layout.tiles);return 0;}
         if(obj[k].x<p.x0)p.x0=obj[k].x;
@@ -52,29 +54,31 @@ static int load_pose(int cell,const GfxBlob*cb,const GfxTiles*t,const GfxPalette
         if(obj[k].y<p.ref.object[p.top].y)p.top=at;
     }
     if(!p.ref.count){free(layout.tiles);return 0;}
-    char path[1024];snprintf(path,sizeof path,"%smods/marle-pilot/marle-%03d.png",rt_data_dir(),cell);
+    char path[1024];snprintf(path,sizeof path,"%smods/%s/%s",rt_data_dir(),folder,file);
     SDL_Surface*raw=SDL_LoadPNG(path);if(!raw){free(layout.tiles);rt_log("redraw pilot: %s: %s",path,SDL_GetError());return 0;}
     p.scale=raw->w/p.w;
-    if((p.scale!=2&&p.scale!=4&&p.scale!=8)||raw->w!=p.w*p.scale||raw->h!=p.h*p.scale){SDL_DestroySurface(raw);free(layout.tiles);rt_log("redraw pilot: cell %d has wrong canvas; original retained",cell);return 0;}
+    if((expected_scale&&p.scale!=expected_scale)||(p.scale!=2&&p.scale!=4&&p.scale!=8)||raw->w!=p.w*p.scale||raw->h!=p.h*p.scale){SDL_DestroySurface(raw);free(layout.tiles);rt_log("redraw pilot: cell %d has wrong canvas; original retained",cell);return 0;}
     SDL_Surface*s=SDL_ConvertSurface(raw,SDL_PIXELFORMAT_ABGR8888);SDL_DestroySurface(raw);
     if(!s){free(layout.tiles);return 0;}
     size_t pixels=(size_t)s->w*s->h;
     uint32_t*words=calloc(pixels,4);p.preview=calloc(pixels,4);p.original=calloc((size_t)p.w*p.h,4);p.representative=calloc((size_t)p.w*p.h,4);
     p.cols=(p.w+7)/8;int rows=(p.h+7)/8;p.tile=calloc((size_t)p.cols*rows,4);
     if(!words||!p.preview||!p.original||!p.representative||!p.tile){free(words);free(p.preview);free(p.original);free(p.representative);free(p.tile);SDL_DestroySurface(s);free(layout.tiles);return 0;}
-    uint8_t original[64*64]={0};gfx_draw(&layout,t,original);free(layout.tiles);
+    uint8_t original[96*96]={0};gfx_draw(&layout,t,original);free(layout.tiles);
     for(int k=0;k<p.w*p.h;k++)if(original[k])p.original[k]=0xff000000u|rgb(pal->c[original[k]]);
+    unsigned opaque_pixels=0;
     for(int y=0;y<s->h;y++)for(int x=0;x<s->w;x++){
         uint32_t c=((uint32_t*)((uint8_t*)s->pixels+y*s->pitch))[x];
-        if((c>>24)<128)continue;
+        if((c>>24)<128)continue;opaque_pixels++;
         int edge=0;
         if((c&255)+((c>>8)&255)+((c>>16)&255)<288)for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){
             int xx=x+dx,yy=y+dy;
             if(xx<0||yy<0||xx>=s->w||yy>=s->h||(((uint32_t*)((uint8_t*)s->pixels+yy*s->pitch))[xx]>>24)<128)edge=1;
         }
-        size_t i=(size_t)y*s->w+x;words[i]=(c&0xffffffu)|((edge?254u:255u)<<24);p.preview[i]=c|0xff000000u;
+        size_t i=(size_t)y*s->w+x;words[i]=(c&0xffffffu)|((edge?(character==0?253u:254u):255u)<<24);p.preview[i]=c|0xff000000u;
         p.representative[(y/p.scale)*p.w+x/p.scale]=words[i];
     }
+    if(!opaque_pixels){rt_log("redraw: %s is empty; original retained",path);free(words);free(p.preview);free(p.original);free(p.representative);free(p.tile);SDL_DestroySurface(s);return 0;}
     for(int ty=0;ty<rows;ty++)for(int tx=0;tx<p.cols;tx++){
         int dim=8*p.scale;uint32_t*px=calloc((size_t)dim*dim,4);if(!px)continue;
         for(int y=0;y<dim;y++)for(int x=0;x<dim;x++){
@@ -84,42 +88,86 @@ static int load_pose(int cell,const GfxBlob*cb,const GfxTiles*t,const GfxPalette
     }
     free(words);SDL_DestroySurface(s);
     for(int i=0;i<p.cols*rows;i++)if(!p.tile[i]){free(p.preview);free(p.original);free(p.representative);free(p.tile);return 0;}
-    poses[count++]=p;rt_log("redraw pilot: loaded Marle cell %d, %dx%d at %dx, %d nonblank original objects",cell,p.w,p.h,p.scale,p.ref.count);return 1;
+    poses[count++]=p;rt_log("redraw: loaded %s cell %d, %dx%d at %dx, %d nonblank original objects",character?"Marle":"Crono",cell,p.w,p.h,p.scale,p.ref.count);return 1;
 }
-void ct_redraw_load(void){
-    char path[1024];snprintf(path,sizeof path,"%smods/marle-pilot/pilot.ini",rt_data_dir());FILE*f=fopen(path,"r");if(!f)return;
-    char line[128];int enabled=0;while(fgets(line,sizeof line,f)){int v;char extra;if(sscanf(line," enabled = %d %c",&v,&extra)==1)enabled=v==1;}fclose(f);
-    if(!enabled||strcmp(rt_rom.code,"YQUE")||!gfx_list_files())return;
-    GfxBlob tb=gfx_open(gfx_find("Chara/Chara_0001.NCGR")),cb=gfx_open(gfx_find("Chara/Chara_0001.NCER"));GfxTiles t;GfxPalette pal;
-    if(!gfx_read_tiles(&tb,&t)||t.bpp8||!gfx_read_palette(gfx_find("Chara/ObjPlt_0001.NCLR"),&pal)||pal.colors<16)goto done;
-    for(int i=0;i<16;i++)canonical[i]=(pal.c[i].r>>3)|((pal.c[i].g>>3)<<5)|((pal.c[i].b>>3)<<10);
-    static const int ids[]={89,90,91,211};for(int k=0;k<POSES;k++)load_pose(ids[k],&cb,&t,&pal);
-    SDL_SetAtomicInt(&visible,count>0);SDL_SetAtomicInt(&gameplay,1);
-    f=fopen(path,"r");if(f){while(fgets(line,sizeof line,f)){int v;char extra;if(sscanf(line," gameplay = %d %c",&v,&extra)==1)SDL_SetAtomicInt(&gameplay,v==1);}fclose(f);}
-    rt_log("redraw pilot: %d comparison poses loaded; cell 211 review only, original waiting/hit art retained",count);
+static void load_module(int module,int character,const char*folder,const char*ini,const char*prefix,const int*ids,int n){
+    char path[1024];snprintf(path,sizeof path,"%smods/%s/%s",rt_data_dir(),folder,ini);
+    FILE*f=fopen(path,"r");if(!f)return;
+    char line[128];int enabled=0,live=1;
+    while(fgets(line,sizeof line,f)){int v;char extra;
+        if(sscanf(line," enabled = %d %c",&v,&extra)==1)enabled=v==1;
+        else if(sscanf(line," gameplay = %d %c",&v,&extra)==1)live=v==1;
+    }fclose(f);if(!enabled)return;
+    char name[128];snprintf(name,sizeof name,"Chara/Chara_%04d.NCGR",character);GfxBlob tb=gfx_open(gfx_find(name));
+    snprintf(name,sizeof name,"Chara/Chara_%04d.NCER",character);GfxBlob cb=gfx_open(gfx_find(name));
+    GfxTiles t;GfxPalette pal;snprintf(name,sizeof name,"Chara/ObjPlt_%04d.NCLR",character);
+    if(!gfx_read_tiles(&tb,&t)||t.bpp8||!gfx_read_palette(gfx_find(name),&pal)||pal.colors<16)goto done;
+    for(int i=0;i<16;i++)canonical[character][i]=(pal.c[i].r>>3)|((pal.c[i].g>>3)<<5)|((pal.c[i].b>>3)<<10);
+    for(int k=0;k<n&&count<POSES;k++){char file[64];snprintf(file,sizeof file,"%s-%03d.png",prefix,ids[k]);load_pose(module,character,folder,file,ids[k],0,&cb,&t,&pal);}
+    SDL_SetAtomicInt(&gameplay[module],live);
+    rt_log("redraw: %s module: %d loaded cells, gameplay %s",prefix,ct_redraw_module_count(module),live?"on":"off");
 done:gfx_close(&tb);gfx_close(&cb);
 }
+/* JSON entries actively select PNGs; names remain identical to the dump. */
+static void load_crono_manifest(void){
+    char path[1024],error[192];snprintf(path,sizeof path,"%smods/crono-hd/mod.json",rt_data_dir());
+    FILE*f=fopen(path,"rb");if(!f)return;
+    if(fseek(f,0,SEEK_END)!=0){fclose(f);rt_log("redraw: cannot seek Crono manifest");return;}
+    long length=ftell(f);if(length<=0||length>512*1024||fseek(f,0,SEEK_SET)!=0){fclose(f);rt_log("redraw: Crono manifest is empty or oversized");return;}
+    char*json=malloc((size_t)length);RedrawManifest*m=malloc(sizeof *m);
+    int okay=json&&m&&fread(json,1,(size_t)length,f)==(size_t)length;if(fclose(f))okay=0;
+    if(!okay){free(json);free(m);rt_log("redraw: cannot read Crono manifest");return;}
+    okay=redraw_manifest_parse(json,(size_t)length,m,error,sizeof error);free(json);
+    if(!okay){rt_log("redraw: Crono manifest rejected: %s",error);free(m);return;}
+    if(!m->enabled){free(m);return;}
+    GfxBlob tb=gfx_open(gfx_find("Chara/Chara_0000.NCGR")),cb=gfx_open(gfx_find("Chara/Chara_0000.NCER"));GfxTiles t;GfxPalette pal;
+    if(!gfx_read_tiles(&tb,&t)||t.bpp8||!gfx_read_palette(gfx_find("Chara/ObjPlt_0000.NCLR"),&pal)||pal.colors<16)goto done;
+    for(int i=0;i<16;i++)canonical[0][i]=(pal.c[i].r>>3)|((pal.c[i].g>>3)<<5)|((pal.c[i].b>>3)<<10);
+    for(int k=0;k<m->count&&count<POSES;k++){
+        const RedrawFrameSpec*entry=m->frames+k;if(!entry->enabled)continue;
+        if((unsigned)entry->cell>=gfx_cell_count(&cb)){rt_log("redraw: Crono cell %d is outside the ROM; original retained",entry->cell);continue;}
+        load_pose(CT_REDRAW_CRONO,0,"crono-hd",entry->file,entry->cell,m->scale,&cb,&t,&pal);
+    }
+    int live=1;snprintf(path,sizeof path,"%smods/crono-hd/pack.ini",rt_data_dir());f=fopen(path,"r");
+    if(f){char line[128];while(fgets(line,sizeof line,f)){int v;char extra;if(sscanf(line," gameplay = %d %c",&v,&extra)==1)live=v==1;}fclose(f);}
+    SDL_SetAtomicInt(&gameplay[CT_REDRAW_CRONO],live);
+    rt_log("redraw: Crono JSON registered %d/%d entries; gameplay %s; unlisted cells remain original",ct_redraw_module_count(CT_REDRAW_CRONO),m->count,live?"on":"off");
+done:gfx_close(&tb);gfx_close(&cb);free(m);
+}
+void ct_redraw_load(void){
+    if(strcmp(rt_rom.code,"YQUE")||!gfx_list_files())return;
+    static const int marle[]={89,90,91,211};
+    load_module(CT_REDRAW_MARLE,1,"marle-pilot","pilot.ini","marle",marle,4);
+    load_crono_manifest();
+    SDL_SetAtomicInt(&visible,count>0);
+    rt_log("redraw: original game selects and times cells; Marle 211 remains comparison-only");
+}
 int ct_redraw_count(void){return count;}
-int ct_redraw_enabled(void){return SDL_GetAtomicInt(&gameplay);}
-void ct_redraw_set_enabled(int on){SDL_SetAtomicInt(&gameplay,on!=0);}
+int ct_redraw_pose_cell(int p){return p>=0&&p<count?poses[p].cell:-1;}
+int ct_redraw_module_count(int m){if(m<0||m>=CT_REDRAW_MODULES)return 0;int n=0;for(int p=0;p<count;p++)n+=poses[p].module==m;return n;}
+int ct_redraw_module_enabled(int m){return m>=0&&m<CT_REDRAW_MODULES&&SDL_GetAtomicInt(&gameplay[m]);}
+void ct_redraw_module_set_enabled(int m,int on){if(m>=0&&m<CT_REDRAW_MODULES)SDL_SetAtomicInt(&gameplay[m],on!=0);}
+int ct_redraw_enabled(void){return ct_redraw_module_enabled(CT_REDRAW_MARLE);}
+void ct_redraw_set_enabled(int on){ct_redraw_module_set_enabled(CT_REDRAW_MARLE,on);}
 void ct_redraw_set_visible(int on){SDL_SetAtomicInt(&visible,on&&count);}
-static int palette_ok(const uint16_t*p){
-    int same=1,flat=1;for(int k=2;k<=11;k++){same&=(p[k]&0x7fff)==canonical[k];flat&=(p[k]&0x7fff)==(p[2]&0x7fff);}
+static int palette_ok(int character,const uint16_t*p){
+    int same=1,flat=1;for(int k=2;k<=11;k++){same&=(p[k]&0x7fff)==canonical[character][k];flat&=(p[k]&0x7fff)==(p[2]&0x7fff);}
     return same||flat;
 }
 int ct_redraw_prepare(int e,const RedrawObject live[128],const uint16_t palette[256]){
-    memset(bindings[e],0,sizeof bindings[e]);if(!SDL_GetAtomicInt(&visible)||!SDL_GetAtomicInt(&gameplay))return 0;
+    if(e<0||e>=2)return 0;memset(bindings[e],0,sizeof bindings[e]);if(!SDL_GetAtomicInt(&visible))return 0;
     int groups=0;
     for(int p=0;p<count;p++)for(int a=0;a<128;a++){
-        if(bindings[e][a].action||!live[a].valid||live[a].palette<0||live[a].palette>15||!palette_ok(palette+live[a].palette*16))continue;
-        int slots[REDRAW_OBJECTS];Pose*f=poses+p;
-        if(f->cell==211)continue; /* Reported waiting/hit mismatch: comparison only until redrawn. */
+        Pose*f=poses+p;
+        if(!ct_redraw_module_enabled(f->module)||bindings[e][a].action||!live[a].valid||live[a].palette<0||live[a].palette>15||!palette_ok(f->character,palette+live[a].palette*16))continue;
+        int slots[REDRAW_OBJECTS];
+        if(f->character==1&&f->cell==211)continue; /* Reported waiting/hit mismatch: comparison only until redrawn. */
         if(!redraw_match(&f->ref,live,a,slots))continue;
         int used=0,draw=slots[0];for(int k=0;k<f->ref.count;k++){used|=bindings[e][slots[k]].action;if(slots[k]<draw)draw=slots[k];}
         if(used)continue;
         for(int k=0;k<f->ref.count;k++)bindings[e][slots[k]].action=1;
         bindings[e][draw]=(RedrawBinding){2,p,(live[a].x-f->ref.object[0].x+f->x0)&511,(live[a].y-f->ref.object[0].y+f->y0)&255,f->w,f->h,live[slots[f->top]].above};groups++;
-        if(!f->seen){f->seen=1;rt_log("redraw pilot: matched authored Marle cell %d in engine %d",f->cell,e);}
+        if(!f->seen){f->seen=1;rt_log("redraw: matched authored %s cell %d in engine %d",f->character?"Marle":"Crono",f->cell,e);}
     }return groups;
 }
 const RedrawBinding*ct_redraw_binding(int e,int slot){return e>=0&&e<2&&slot>=0&&slot<128&&bindings[e][slot].action?&bindings[e][slot]:NULL;}
@@ -132,7 +180,7 @@ int ct_redraw_viewer_open(void){if(!count)return 0;viewer=1;selected=0;return 1;
 int ct_redraw_viewer_active(void){return viewer;}
 void ct_redraw_viewer_close(void){viewer=0;}
 void ct_redraw_viewer_step(int d){if(count)selected=(selected+count+(d<0?-1:1))%count;}
-const char*ct_redraw_viewer_title(void){static char title[64];snprintf(title,sizeof title,"Marle cell %03d - art pilot",count?poses[selected].cell:0);return title;}
+const char*ct_redraw_viewer_title(void){static char title[64];snprintf(title,sizeof title,"%s cell %03d - art pilot",count&&poses[selected].character==0?"Crono":"Marle",count?poses[selected].cell:0);return title;}
 void ct_redraw_viewer_draw(SDL_Renderer*ren,const SDL_FRect*v){
     if(!viewer||!count)return;
     Pose*f=poses+selected;

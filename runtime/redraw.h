@@ -2,9 +2,14 @@
 #pragma once
 #include <SDL3/SDL.h>
 #include "redraw_match.h"
+enum {CT_REDRAW_MARLE,CT_REDRAW_CRONO,CT_REDRAW_MODULES};
+int ct_redraw_module_count(int module);
+int ct_redraw_module_enabled(int module);
+void ct_redraw_module_set_enabled(int module,int on);
 typedef struct RedrawBinding {int action,pose,x,y,w,h,above;} RedrawBinding;
 void ct_redraw_load(void);
 int ct_redraw_count(void);
+int ct_redraw_pose_cell(int pose);
 int ct_redraw_enabled(void);
 void ct_redraw_set_enabled(int on);
 void ct_redraw_set_visible(int on);

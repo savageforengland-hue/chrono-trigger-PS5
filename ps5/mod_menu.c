@@ -37,9 +37,9 @@ void egg_ps5_mod_menu_refresh(void){
     qsort(packs+1,(size_t)(count-1),64,compare);
     for(int i=0;i<count;i++)if(!strcmp(packs[i],egg_ps5_config.active_pack))selected=i;
 }
-int egg_ps5_mod_menu_count(void){return 8;}
+int egg_ps5_mod_menu_count(void){return 9;}
 const char *egg_ps5_mod_menu_title(int row){
-    static const char*names[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","Sprite smoothing","Marle redraw","Detailed pose test"};return row>=0&&row<8?names[row]:"";
+    static const char*names[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","Sprite smoothing","Marle redraw","Detailed pose test","Crono redraw"};return row>=0&&row<9?names[row]:"";
 }
 const char *egg_ps5_mod_menu_value(int row){
     if(row==0)return !ctps5_battle_hud_available()?"Unavailable":ctps5_battle_hud_enabled()?"On":"Off";
@@ -51,8 +51,9 @@ const char *egg_ps5_mod_menu_value(int row){
         if(sprites_changed)return sprites_enabled?"On; restart":"Off; restart";
         return sprite_hd_loaded()?"On":sprites_enabled?"Not loaded":"Off";
     }
-    if(row==6)return !ct_redraw_count()?"Not installed":!display_setting_get(SET_MODS)?"Textures Off":ct_redraw_enabled()?"On (fear poses)":"Off";
+    if(row==6)return !ct_redraw_module_count(CT_REDRAW_MARLE)?"Not installed":!display_setting_get(SET_MODS)?"Textures Off":ct_redraw_enabled()?"On (fear poses)":"Off";
     if(row==7)return ct_redraw_count()?"Open pilot":"Not installed";
+    if(row==8){static char value[32];int n=ct_redraw_module_count(CT_REDRAW_CRONO);if(!n)return "Not installed";if(!display_setting_get(SET_MODS))return "Textures Off";if(!ct_redraw_module_enabled(CT_REDRAW_CRONO))return "Off";snprintf(value,sizeof value,"On (%d poses)",n);return value;}
     return row==4?packs[selected]:"";
 }
 const char *egg_ps5_mod_menu_description(int row){
@@ -64,6 +65,7 @@ const char *egg_ps5_mod_menu_description(int row){
     if(row==5)return sprites_changed?"Saved. Restart CTPS5 to apply sprite changes.":"Smoothing module only; separate from Marle art.";
     if(row==6)return "Live fear art. Waiting/hit use original poses.";
     if(row==7)return "Original/detailed poses; crossbow review only.";
+    if(row==8)return "Crono JSON art test. Applies now; other poses original.";
     return "";
 }
 void egg_ps5_mod_menu_change(int row,int direction){
@@ -89,10 +91,15 @@ void egg_ps5_mod_menu_change(int row,int direction){
             display_message("Sprite setting could not be saved.",3000);return;
         }
         sprites_enabled=!sprites_enabled;sprites_changed=1;
-    }else if(row==6&&ct_redraw_count()){
+    }else if(row==6&&ct_redraw_module_count(CT_REDRAW_MARLE)){
         int next=!ct_redraw_enabled();
         if(!egg_ps5_ini_set("/data/eggoftime/mods/marle-pilot/pilot.ini","gameplay",next?"1":"0")){
             display_message("Redraw setting could not be saved.",3000);return;
         }ct_redraw_set_enabled(next);
     }else if(row==7){ct_redraw_viewer_open();}
+    else if(row==8&&ct_redraw_module_count(CT_REDRAW_CRONO)){
+        int next=!ct_redraw_module_enabled(CT_REDRAW_CRONO);
+        if(!egg_ps5_ini_set("/data/eggoftime/mods/crono-hd/pack.ini","gameplay",next?"1":"0")){display_message("Crono setting could not be saved.",3000);return;}
+        ct_redraw_module_set_enabled(CT_REDRAW_CRONO,next);
+    }
 }
