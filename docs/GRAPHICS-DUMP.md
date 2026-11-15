@@ -1,73 +1,73 @@
-# Graphics dump and FTP access — host 01.006.008
+# Graphics dumper — host 01.006.009
 
-The reported FTP window said **Permission denied** while listing the dump.
-The supplied game log recorded **30,577 images from 3,648 files**, after
-2,377.6 seconds, under `/data/eggoftime/mods/graphics/dump/`. That count
-established that the encoder reported success; it did not establish that a
-separate FTP service could list or read the output. The previous SDL folder
-creation path used mode `0770`, which can exclude that service.
+The latest console log confirms that 01.006.008 booted, but contains no
+start or result from its dumper worker. The older 30,577-image entry is
+from a previous session. The missing report therefore does not prove that
+a new export ran. The previous startup repair could silently skip its
+worker if the old dump directory could not be inspected.
 
-This host uses **0755 for dump directories** and **0644 for exported files**.
-It checks directory failures, publishes complete indexed PNGs through a
-checked temporary file, reopens the final file to validate its header and
-end marker, and reports the full output path. The original indexed PNG
-encoder, palette indexes and transparency rules are retained. Failed or
-partial output is reported as incomplete, with the first error recorded.
-
-At PS5 startup it also repairs permissions on an **existing dump**, on a
-background thread. This traverses only the dump subtree, skips symbolic
-links, and leaves image contents unchanged. It verifies the existing PNGs
-and announces **FTP access repaired** when successful. It does not repeat
-the full export. No dump repair runs when that directory is absent.
-
-## Install and find the files
-
-Fully close CTPS5 Mods. Merge the included `PPSA90436` folder into
-`/data/homebrew/`, replacing its matching executable, runtime and `sce_sys`
-files. Avoid an extra nested `PPSA90436/PPSA90436` directory. Refresh
-ShadowMountPlus, then launch **CTPS5 Mods** and allow the access repair to
-finish. Refresh the FTP listing or reconnect afterward.
-
-Keep `/data/eggoftime/` intact. There is no need to delete an existing dump,
-replace settings or supply the NDS again. Both the mod host and base app use
-that shared data folder. The separate base `PPSA90435` app is not changed.
-
-The dump root holds subdirectories; PNGs are nested, for example:
+This update removes that startup dependency. Before the game thread starts,
+it writes **one real sprite from the player's ROM**, reopens the PNG,
+decodes it and compares every pixel with the source. It uses a fresh root:
 
 ```
-/data/eggoftime/mods/graphics/dump/
-  frames/Chara/Chara_0000/199.png
-  sheets/Chara/Chara_0000.NCGR.png
-  screens/...
-  fonts/...
-  palettes.txt
+/data/eggoftime/graphics-export/frames/Chara/Chara_0000/199.png
 ```
 
-The dedicated report is **`/data/eggoftime/graphics-dump.log`**, with the
-operation, output path, verified PNG count, errors and elapsed time. The
-usual `eggoftime.log` also receives the result. Startup identifies
-**CTPS5 graphics dumper fix 1 (01.006.008)**.
+The startup notification explicitly says **Write check passed (not a full
+dump)**. This is a small filesystem/encoder check, not a claim that all
+graphics were exported. There is no background thread to wait for during
+this check. A failure includes the first error in the notification.
 
-For a new export, use **L3+R3 → Settings → Dump graphics**, then confirm.
-The game may keep running while it works. This reads each player's supported
-USA/YQUE NDS; no game dump or extracted images are distributed with the fix.
+## Install and check
+
+1. Fully close CTPS5 Mods and keep the old host folder for rollback.
+2. Merge the supplied `PPSA90436` into `/data/homebrew/`, replacing the
+   executable, matching runtime and `sce_sys` together. The executable is
+   `/data/homebrew/PPSA90436/eboot.bin`; avoid nested PPSA90436 folders.
+3. Refresh ShadowMountPlus and launch **CTPS5 Mods**.
+4. Refresh FTP and check the exact PNG path above. It should exist after
+   the startup write check; no full export is needed for this first check.
+
+Keep `/data/eggoftime/` intact. Settings, saves, ROM, installed mods and the
+old `mods/graphics/dump/` directory are retained. The separate base app
+`PPSA90435` is unchanged. No new sprite artwork is included.
+
+## Full export and diagnostics
+
+Use **L3+R3 → Settings → Dump graphics → Yes**. The full export runs on a
+background thread and uses the **new** `graphics-export/` root. It holds
+`frames/`, `sheets/`, `screens/`, `fonts/` and `palettes.txt`. Paths below
+those subdirectories retain the graphics-mod naming scheme.
+
+The reliable diagnostic destination is the existing
+**`/data/eggoftime/eggoftime.log`**. It records the request before worker
+creation, worker entry, the first saved/reopened PNG, progress every 128
+PNGs, and the result. If the dedicated
+`/data/eggoftime/graphics-dump.log` cannot be opened, the usual log records
+its path and error and continues logging there. The dedicated report is
+replaced by each operation; the usual log also distinguishes startup checks
+from full exports. Startup identifies **CTPS5 graphics dump write check
+(01.006.009)**.
+
+New directories use 0755 and output files 0644. PNGs are published through
+checked temporary files and reopened before the count increases. The
+original indexed encoder, palette indexes and transparency are retained.
+Zero output or partial failure is reported as failure. A saved count means
+files reopened successfully inside the app; FTP visibility must still be
+confirmed on the console.
 
 ## Verification and limits
 
-The desktop own-ROM test wrote and decoded **30,577 indexed PNGs**, checked
-every PNG chunk CRC and decompressed pixel stream, and matched the on-disk
-count to the completion report. Tests cover exact indexes/palettes/alpha,
-large images, denied directories, incomplete/corrupt PNGs, write/close/rename
-failures, preservation of a prior valid file, and menu completion messages.
-A repair test changed the dump to restricted permissions, restored every
-folder to 0755 and PNG to 0644, checked unchanged image bytes and an untouched
-external symlink target, and verified that the ROM memory stayed unchanged.
+Desktop tests cover the real-ROM single-sprite encode/decode comparison,
+a full export with every PNG chunk CRC and decompressed stream checked,
+exact palette indexes/colours/transparency, blocked output, write/close/
+rename failures, corrupt PNGs, preservation of a prior valid file, and
+completion messages. The explicit legacy permission-repair test verifies
+unchanged image bytes and skips external symbolic links. ROM memory stays
+unchanged. Native container/runtime/import validation is separate from
+**PS5 hardware and FTP validation, which remain pending**.
 
-Native container/runtime and import checks are distinct from hardware
-validation. **PS5 FTP confirmation of this new build remains pending.**
-Desktop durations do not predict console export or repair time.
-
-This update is limited to the dumper/access repair on the 01.006.007 host.
-The unfinished Crono sprite work is paused and excluded. Original PC source
-and notices remain under `upstream/`: **Egg of Time v1.3.5 by Power Pudu**.
-See [credits](CREDITS.md).
+Original PC source and notices remain under `upstream/`: **Egg of Time
+v1.3.5 by Power Pudu**. See [credits](CREDITS.md). Players supply their own
+supported USA/YQUE NDS; no ROM or extracted PNGs are distributed.

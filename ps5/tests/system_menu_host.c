@@ -9,7 +9,7 @@
 #include "runtime/menu_chord.h"
 static Uint64 ticks;
 static int scene_place,mod_change,sets,capture,pilot_page,pilot_pose;
-static int dump_notice,dump_images,dump_errors,dump_repair;static char last_message[256];
+static int dump_notice,dump_images,dump_errors,dump_repair,dump_check;static char last_message[256];
 const char*rt_data_dir(void){return "/data/eggoftime/";}
 int ct_redraw_viewer_active(void){return pilot_page;}
 int ct_redraw_viewer_open(void){pilot_page=1;pilot_pose=0;return 1;}
@@ -44,6 +44,8 @@ void controls_reset(void){}
 const char *controls_name(int i){(void)i;return "Confirm";}
 const char *controls_pad_label(int i){(void)i;return i==CTL_B?"\xC3\x97":"\xE2\x97\x8B";}
 int gfxdump_repairing(void){return dump_repair;}
+int gfxdump_checking(void){return dump_check;}
+const char*gfxdump_output_path(void){return dump_repair?"/data/eggoftime/mods/graphics/dump/":"/data/eggoftime/graphics-export/";}
 int gfxdump_errors(void){return dump_errors;}
 const char*gfxdump_error(void){return "";}
 int gfxdump_finished(int*i){if(!dump_notice)return 0;dump_notice=0;*i=dump_images;return 1;}
@@ -88,6 +90,8 @@ int main(int argc,char**argv){
  assert(sysmenu_input(KEY_A)==0);step(0);assert(sysmenu_input(KEY_A)==KEY_A); /* closing input cannot leak */
  scene_place=SS_MENU_PAUSE;tap(KEY_SELECT);assert(sysmenu_is_open()&&!sysmenu_pauses_game());tap(KEY_B);assert(!sysmenu_is_open());
  dump_notice=1;dump_images=30577;dump_repair=1;sysmenu_input(0);assert(strstr(last_message,"FTP access repaired")&&strstr(last_message,"30577")&&strstr(last_message,"/data/eggoftime/mods/graphics/dump/"));
- dump_notice=1;dump_images=0;dump_errors=1;dump_repair=0;sysmenu_input(0);assert(strstr(last_message,"incomplete")&&strstr(last_message,"graphics-dump.log"));
+ dump_notice=1;dump_images=0;dump_errors=1;dump_repair=0;sysmenu_input(0);assert(strstr(last_message,"failed")&&strstr(last_message,"eggoftime.log"));
+ dump_notice=1;dump_images=1;dump_errors=0;dump_check=1;sysmenu_input(0);assert(strstr(last_message,"not a full dump")&&strstr(last_message,"graphics-export/"));
+ dump_notice=1;dump_images=30577;dump_check=0;sysmenu_input(0);assert(strstr(last_message,"Graphics saved")&&strstr(last_message,"graphics-export/"));
  puts("PASS: L3+R3 one-shot/release latch, open from active gameplay, host pause state, settings/mods/controls navigation, live mod actions, capture cancellation, close/release input guard, legacy Select menu");
 }

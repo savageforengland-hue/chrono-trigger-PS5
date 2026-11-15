@@ -1,5 +1,5 @@
 /* Graphics dump (gfx_dump.c): every sprite sheet, sprite frame and background of the ROM as PNG files in
- * mods/graphics/dump, written by a thread of its own while the game runs. */
+ * graphics-export, written by a thread of its own while the game runs. */
 #pragma once
 
 void gfxdump_start(void); /* does nothing while a dump runs */
@@ -14,6 +14,11 @@ int gfxdump_finished(int *images);
 int gfxdump_errors(void);
 const char *gfxdump_error(void);
 
-/* Startup: repair FTP access to an existing dump without re-exporting it. */
+/* Explicit legacy repair, never silently skipped. */
 void gfxdump_repair_start(void);
 int gfxdump_repairing(void);
+
+/* Startup: synchronous one-sprite encode/decode check, before the game thread. */
+void gfxdump_check_start(void);
+int gfxdump_checking(void);
+const char *gfxdump_output_path(void);

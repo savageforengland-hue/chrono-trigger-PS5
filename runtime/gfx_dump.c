@@ -1,5 +1,5 @@
 /* Graphics dump (System Settings > Dump graphics): the game's sprites, backgrounds and fonts as PNG files in
- * mods/graphics/dump, for graphics mods. It reads the ROM in memory (rt_rom.data: a translation's patched copy,
+ * graphics-export, for graphics mods. It reads the ROM in memory (rt_rom.data: a translation's patched copy,
  * with the same-size graphics mods applied), on a thread of its own while the game runs. The formats: gfx_rom.c.
  *
  * Written (paths under dump/ are the ROM's, with .png added):
@@ -34,7 +34,8 @@ static SDL_AtomicInt done_bytes, total_bytes;
 static char out_root[1024];
 static char first_error[640];
 static SDL_AtomicInt error_count;
-static int abort_dump,repair_mode;
+static int abort_dump,operation;
+enum { EXPORT, REPAIR, WRITE_CHECK };
 static FILE *dump_log;
 static char last_directory[1024];
 static FILE *palette_log;
@@ -65,7 +66,8 @@ static FILE *create(const char*kind,const char*name,const char*end,char*path,siz
 static void save_png(const char*kind,const char*name,int w,int h,uint8_t*px,int bpp8,const GfxPalette*p,const char*from){
     char path[1024],error[640];if(abort_dump||!output_path(kind,name,".png",path,sizeof path))return;
     if(!gfxdump_write_png(path,w,h,px,bpp8,p->c,error,sizeof error)){failed(error);return;}
-    SDL_AddAtomicInt(&image_count,1);
+    int count=SDL_AddAtomicInt(&image_count,1)+1;
+    if(count==1||count%128==0)rt_log("gfxdump: saved and reopened PNG %d: %s",count,path);
     if(palette_log&&fprintf(palette_log,"%s/%s.png\t%s\t%s\n",kind,name,from,p->from?p->from->path:"-")<0)failed("Cannot write palettes.txt");
 }
 
@@ -208,18 +210,58 @@ static void repair_tree(const char*path,int depth){
     if(closedir(d)!=0){snprintf(error,sizeof error,"Close directory %s: %s",path,strerror(errno));failed(error);}
 }
 
+/* A single real ROM frame, synchronously before the game thread starts. This
+ * proves the output path and PNG round trip without requiring an old folder
+ * or waiting for a background export. Never alter the ROM or its animations. */
+static void write_check(void){
+    gfx_list_files();
+    const GfxFile*tf=gfx_find("Chara/Chara_0000.NCGR");
+    const GfxFile*cf=gfx_find("Chara/Chara_0000.NCER");
+    if(!tf||!cf){failed("Write check: Crono source graphics missing in loaded ROM");return;}
+    GfxBlob tb=gfx_open(tf),cb=gfx_open(cf);GfxTiles tiles;GfxLayout layout;
+    if(gfx_read_tiles(&tb,&tiles)&&gfx_cell_layout(&cb,199,&layout)){
+        GfxPalette palette;gfx_palette_for(tf->path,tiles.bpp8,&palette);
+        uint8_t*pixels=calloc((size_t)layout.w,(size_t)layout.h);
+        if(!pixels)failed("Write check: pixel allocation failed");
+        else{
+            gfx_draw(&layout,&tiles,pixels);
+            save_png("frames","Chara/Chara_0000/199",layout.w,layout.h,pixels,layout.bpp8,&palette,cf->path);
+            if(!abort_dump){
+                char path[1200];snprintf(path,sizeof path,"%sframes/Chara/Chara_0000/199.png",out_root);
+                SDL_Surface*loaded=SDL_LoadPNG(path);
+                SDL_Surface*rgba=loaded?SDL_ConvertSurface(loaded,SDL_PIXELFORMAT_RGBA32):NULL;
+                int okay=rgba&&rgba->w==layout.w&&rgba->h==layout.h;
+                for(int y=0;okay&&y<layout.h;y++)for(int x=0;x<layout.w;x++){
+                    int index=pixels[y*layout.w+x];SDL_Color color=palette.c[index];
+                    uint8_t*actual=(uint8_t*)rgba->pixels+y*rgba->pitch+x*4;
+                    int alpha=(layout.bpp8?index==0:(index&15)==0)?0:255;
+                    if(actual[0]!=color.r||actual[1]!=color.g||actual[2]!=color.b||actual[3]!=alpha){okay=0;break;}
+                }
+                SDL_DestroySurface(rgba);SDL_DestroySurface(loaded);
+                if(!okay)failed("Write check: saved PNG did not decode to the original ROM pixels");
+                else rt_log("gfxdump: write check decoded all original sprite pixels: %s",path);
+            }
+            free(pixels);
+        }
+        free(layout.tiles);
+    }else failed("Write check: cannot decode source sprite frame 199");
+    gfx_close(&cb);gfx_close(&tb);
+}
+
 static int worker(void *arg) {
     (void)arg;
     Uint64 t0 = SDL_GetTicks();
-    snprintf(out_root, sizeof out_root, "%smods/graphics/dump/", rt_data_dir());
     char log_path[1100],error[640];
     snprintf(log_path,sizeof log_path,"%sgraphics-dump.log",rt_data_dir());
     dump_log=fopen(log_path,"w");
-    if(dump_log&&chmod(log_path,0644)!=0)rt_log("gfxdump: report permissions: %s",strerror(errno));
-    rt_log("gfxdump: %s; output %s; report %s",repair_mode?"repairing existing dump permissions":"starting export",out_root,log_path);
-    if(dump_log){fprintf(dump_log,"CTPS5 graphics dump\nOutput: %s\nAction: %s\nState: running\n",out_root,repair_mode?"repair existing permissions; no re-export":"export");fflush(dump_log);}
-    if(repair_mode){repair_tree(out_root,0);goto finished_dump;}
+    if(!dump_log)rt_log("gfxdump: cannot open report %s: %s; diagnostics continue in eggoftime.log",log_path,strerror(errno));
+    else if(chmod(log_path,0644)!=0)rt_log("gfxdump: report permissions: %s",strerror(errno));
+    const char*action=operation==REPAIR?"repair existing permissions; no re-export":operation==WRITE_CHECK?"single-sprite write check":"export";
+    rt_log("gfxdump: worker entered: %s; output %s; report %s",action,out_root,log_path);
+    if(dump_log){fprintf(dump_log,"CTPS5 graphics dump 01.006.009\nOutput: %s\nAction: %s\nState: running\n",out_root,action);fflush(dump_log);}
+    if(operation==REPAIR){repair_tree(out_root,0);goto finished_dump;}
     if(!gfxdump_mkdirs(out_root,error,sizeof error)){failed(error);goto finished_dump;}
+    if(operation==WRITE_CHECK){write_check();goto finished_dump;}
     snprintf(log_path,sizeof log_path,"%spalettes.txt",out_root);
     palette_log=fopen(log_path,"w");
     if(!palette_log){failed("Cannot open dump/palettes.txt");goto finished_dump;}
@@ -245,7 +287,7 @@ static int worker(void *arg) {
 finished_dump:
     if(palette_log){int okay=!ferror(palette_log);if(fclose(palette_log))okay=0;palette_log=NULL;if(!okay)failed("Cannot finish palettes.txt");}
     if(!SDL_GetAtomicInt(&image_count)&&!SDL_GetAtomicInt(&error_count))failed("No PNG files were produced");
-    rt_log("gfxdump: %s: %d verified PNGs, %d errors, %.1f s, in %s",repair_mode?"access repair":"export", SDL_GetAtomicInt(&image_count), SDL_GetAtomicInt(&error_count),
+    rt_log("gfxdump: %s: %d verified PNGs, %d errors, %.1f s, in %s",action, SDL_GetAtomicInt(&image_count), SDL_GetAtomicInt(&error_count),
            (double)(SDL_GetTicks() - t0) / 1000, out_root);
     if(dump_log){fprintf(dump_log,"Verified PNG files: %d\nErrors: %d\nState: %s\nElapsed seconds: %.1f\n",SDL_GetAtomicInt(&image_count),SDL_GetAtomicInt(&error_count),SDL_GetAtomicInt(&error_count)?"failed or partial":"complete",(double)(SDL_GetTicks()-t0)/1000);fclose(dump_log);dump_log=NULL;}
     SDL_SetAtomicInt(&finished, 1);
@@ -253,16 +295,19 @@ finished_dump:
     return 0;
 }
 
-static void start(int repair) {
-    if (!SDL_CompareAndSwapAtomicInt(&running, 0, 1)) return;
-    SDL_SetAtomicInt(&finished,0);SDL_SetAtomicInt(&error_count,0);first_error[0]=0;last_directory[0]=0;abort_dump=0;repair_mode=repair;
+static void start(int mode) {
+    rt_log("gfxdump: requested %s (01.006.009)",mode==WRITE_CHECK?"startup single-sprite write check":mode==REPAIR?"legacy access repair":"full export");
+    if (!SDL_CompareAndSwapAtomicInt(&running, 0, 1)){rt_log("gfxdump: request ignored: another operation is running");return;}
+    SDL_SetAtomicInt(&finished,0);SDL_SetAtomicInt(&error_count,0);first_error[0]=0;last_directory[0]=0;abort_dump=0;operation=mode;
+    snprintf(out_root,sizeof out_root,"%s%s",rt_data_dir(),mode==REPAIR?"mods/graphics/dump/":"graphics-export/");
     SDL_SetAtomicInt(&done_count, 0);
     SDL_SetAtomicInt(&total_count, 0);
     SDL_SetAtomicInt(&done_bytes, 0);
     SDL_SetAtomicInt(&total_bytes, 0);
     SDL_SetAtomicInt(&image_count, 0);
+    if(mode==WRITE_CHECK){worker(NULL);return;}
     SDL_Thread *t = SDL_CreateThread(worker, "gfxdump", NULL);
-    if (t) SDL_DetachThread(t);
+    if (t){rt_log("gfxdump: background worker created");SDL_DetachThread(t);}
     else {failed(SDL_GetError());SDL_SetAtomicInt(&finished,1);SDL_SetAtomicInt(&running,0);}
 }
 
@@ -285,8 +330,8 @@ int gfxdump_errors(void){return SDL_GetAtomicInt(&error_count);}
 const char*gfxdump_error(void){return first_error;}
 
 void gfxdump_start(void){start(0);}
-int gfxdump_repairing(void){return repair_mode;}
-void gfxdump_repair_start(void){
-    char path[1024];snprintf(path,sizeof path,"%smods/graphics/dump",rt_data_dir());
-    struct stat st;if(lstat(path,&st)==0&&S_ISDIR(st.st_mode))start(1);
-}
+int gfxdump_repairing(void){return operation==REPAIR;}
+int gfxdump_checking(void){return operation==WRITE_CHECK;}
+const char*gfxdump_output_path(void){return out_root;}
+void gfxdump_repair_start(void){start(REPAIR);}
+void gfxdump_check_start(void){start(WRITE_CHECK);}

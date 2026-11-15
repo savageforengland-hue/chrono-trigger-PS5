@@ -401,8 +401,8 @@ uint32_t sysmenu_input(uint32_t keys) {
     int images;
     if (gfxdump_finished(&images)) {
         char text[192];int errors=gfxdump_errors();
-        if(errors)SDL_snprintf(text,sizeof text,"Graphics %s incomplete: %d PNGs. See %sgraphics-dump.log",gfxdump_repairing()?"access repair":"dump",images,rt_data_dir());
-        else SDL_snprintf(text,sizeof text,"%s: %d PNGs in %smods/graphics/dump/",gfxdump_repairing()?"FTP access repaired":"Graphics saved",images,rt_data_dir());
+        if(errors)SDL_snprintf(text,sizeof text,"Graphics %s failed: %d PNGs. See eggoftime.log: %s",gfxdump_checking()?"write check":"dump",images,gfxdump_error());
+        else SDL_snprintf(text,sizeof text,"%s: %d PNGs in %s",gfxdump_checking()?"Write check passed (not a full dump)":gfxdump_repairing()?"FTP access repaired":"Graphics saved",images,gfxdump_output_path());
         display_message(text,8000);
     }
     uint32_t game_keys = input(keys);

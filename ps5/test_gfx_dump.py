@@ -51,12 +51,27 @@ with tempfile.TemporaryDirectory() as tmp:
         if not (a.sdl_library and a.output):p.error('--rom needs --sdl-library and --output')
         a.output.mkdir(parents=True,exist_ok=True);exe=d/'rom'
         subprocess.run([*flags,str(root/'ps5/tests/gfx_dump_rom.c'),*[str(root/'runtime'/s) for s in ['gfx_dump.c','gfx_dump_io.c','gfx_rom.c']],str(a.sdl_library),'-lm','-ldl','-pthread','-o',str(exe)],check=True)
+        no_report=d/'no-report';no_report.mkdir();(no_report/'graphics-dump.log').mkdir()
+        result=subprocess.run([str(exe),str(a.rom),str(no_report),'check'],check=True,timeout=30,capture_output=True,text=True)
+        assert 'cannot open report' in result.stderr and 'write check decoded all original sprite pixels' in result.stderr
+        assert (no_report/'graphics-export/frames/Chara/Chara_0000/199.png').is_file()
+        check_blocked=d/'check-blocked';check_blocked.mkdir();(check_blocked/'graphics-export').write_text('not a directory')
+        result=subprocess.run([str(exe),str(a.rom),str(check_blocked),'check-fail'],check=True,timeout=30,capture_output=True,text=True)
+        assert 'requested startup single-sprite write check' in result.stderr and '0 verified PNGs, 1 errors' in result.stderr
+        subprocess.run([str(exe),str(a.rom),str(a.output),'check'],check=True,timeout=30)
+        dump=a.output/'graphics-export'
+        sample=dump/'frames/Chara/Chara_0000/199.png'
+        assert sample.is_file() and len(list(dump.rglob('*.png')))==1
+        png(sample);assert 'single-sprite write check' in (a.output/'graphics-dump.log').read_text()
         subprocess.run([str(exe),str(a.rom),str(a.output)],check=True,timeout=300)
-        images=list((a.output/'mods/graphics/dump').rglob('*.png'));assert images
+        images=list((a.output/'graphics-export').rglob('*.png'));assert images
         for path in images:png(path)
         report=(a.output/'graphics-dump.log').read_text();assert f'Verified PNG files: {len(images)}\n' in report and 'State: complete\n' in report
-        dump=a.output/'mods/graphics/dump'
+        dump=a.output/'graphics-export'
         witness=dump/'frames/Chara/Chara_0000/199.png';digest=hashlib.sha256(witness.read_bytes()).hexdigest()
+        legacy=a.output/'mods/graphics/dump';legacy.parent.mkdir(parents=True,exist_ok=True)
+        dump.rename(legacy);images=[legacy/path.relative_to(dump) for path in images]
+        witness=legacy/witness.relative_to(dump);dump=legacy
         outside=d/'outside.txt';outside.write_text('leave this alone');outside.chmod(0o600)
         link=dump/'outside-link'
         if link.is_symlink():link.unlink()
@@ -70,7 +85,7 @@ with tempfile.TemporaryDirectory() as tmp:
         assert stat.S_IMODE(outside.stat().st_mode)==0o600 and outside.read_text()=='leave this alone'
         assert hashlib.sha256(witness.read_bytes()).hexdigest()==digest
         report=(a.output/'graphics-dump.log').read_text();assert f'Verified PNG files: {len(images)}\n' in report and 'repair existing permissions; no re-export' in report
-        blocked=d/'blocked';blocked.mkdir();(blocked/'mods').write_text('blocked directory')
+        blocked=d/'blocked';blocked.mkdir();(blocked/'graphics-export').write_text('blocked directory')
         subprocess.run([str(exe),str(a.rom),str(blocked),'expect-fail'],check=True,timeout=30)
         assert 'ERROR:' in (blocked/'graphics-dump.log').read_text()
-        print(f'PASS: full own-ROM dump; {len(images)} files decoded/CRC-checked, on-disk count matches report; startup repair restores 0755/0644 without changing PNG bytes or following links; blocked output reports failure')
+        print(f'PASS: full own-ROM dump; {len(images)} files decoded/CRC-checked, on-disk count matches report; explicit legacy repair restores 0755/0644 without changing PNG bytes or following links; blocked output reports failure')
