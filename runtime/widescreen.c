@@ -828,7 +828,7 @@ static void game_enter_oam(CPU *cpu) {
 #ifdef EGG_PS5
     /* Tag stock battle widgets even without zoom/camera smoothing. Filtering
      * at composition keeps the original game draw/update calls intact. */
-    if(!cpu->resume_pc&&portrait_entry&&!drawing_world&&ctps5_battle_hud_stock_entry(portrait_entry,rt_r16(R[0]),rt_r16(R[0]+2),rt_r16(R[0]+4))&&!(rt_r16(R[0])&0x100))
+    if(!cpu->resume_pc&&portrait_entry&&ctps5_battle_hud_stock_entry(portrait_entry,drawing_world,called_from(cpu,ACTOR_CELL))&&!(rt_r16(R[0])&0x100))
         rt_w16(R[0]+2,rt_r16(R[0]+2)|WS_OAM_UI);
 #endif
     rt_call_wrapped(cpu, "main", GAME_ADDR(0x02048098u, 0x020480c8u));

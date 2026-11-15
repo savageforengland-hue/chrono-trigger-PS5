@@ -7,7 +7,7 @@ typedef struct CtHudSnapshot { CtHudState state; int active,row; } CtHudSnapshot
 void ctps5_battle_hud_capture(CtHudSnapshot *snapshot);
 void ctps5_battle_hud_init(void);
 void ctps5_battle_hud_entry(uint32_t entry);
-int ctps5_battle_hud_stock_entry(uint32_t entry,uint16_t a0,uint16_t a1,uint16_t a2);
+int ctps5_battle_hud_stock_entry(uint32_t entry,int world,int actor);
 void ctps5_battle_hud_cell(uint32_t entry,int ds_column,int ds_row);
 void ctps5_battle_hud_frame(void); /* game thread */
 int ctps5_battle_hud_enabled(void);

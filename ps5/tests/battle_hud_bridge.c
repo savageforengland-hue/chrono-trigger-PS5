@@ -53,13 +53,13 @@ int main(void){
  w8(0x2200101,0x80);w8(0x2200102,0x80);w16(0x2210003,50);w16(0x2210005,70);w16(0x2210007,3);w16(0x2210009,8);w8(0x2211545,1);
  ctps5_battle_hud_frame();assert(!PREP(340,192,0)); /* battle alone is insufficient */
  observe(146,1);
- assert(ctps5_battle_hud_stock_entry(0x225cdf0,0x92,0xc02a,0x4130)); /* Window list is separate from digit list. */
- assert(!ctps5_battle_hud_stock_entry(0x225cdf0,0x92,0x402a,0x4130)); /* A 16px actor is not a window. */
- assert(!ctps5_battle_hud_stock_entry(0x225cdf0,0x92,0xc02a,0x2130)); /* Foreign palette is not a window. */
- assert(!ctps5_battle_hud_stock_entry(0x1ffffff,0x92,0xc02a,0x4130));
+ assert(ctps5_battle_hud_stock_entry(0x225cdf0,0,0)); /* Window list is separate from digit list. */
+ assert(!ctps5_battle_hud_stock_entry(0x225cdf0,0,1)); /* Actor call context must survive zoom. */
+ assert(!ctps5_battle_hud_stock_entry(0x225cdf0,1,0)); /* World damage text is not a window. */
+ assert(!ctps5_battle_hud_stock_entry(0x1ffffff,0,0));
  ctps5_battle_hud_cell(0x2200000+0xaf64+22*0x9c,-1,147);
- assert(!ctps5_battle_hud_stock_entry(0x2200000+0xaf64+22*0x9c,0,0,0));
- observe(146,1);assert(ctps5_battle_hud_stock_entry(0x2200000+0xaf64+22*0x9c,0,0,0));
+ assert(!ctps5_battle_hud_stock_entry(0x2200000+0xaf64+22*0x9c,0,0));
+ observe(146,1);assert(ctps5_battle_hud_stock_entry(0x2200000+0xaf64+22*0x9c,0,0));
  fail_texture=1;assert(!PREP(340,192,0));assert(!memcmp(&rect,&before,sizeof rect));
  fail_texture=0;fail_upload=1;assert(!PREP(340,192,0));assert(!memcmp(&rect,&before,sizeof rect));
  fail_upload=0;

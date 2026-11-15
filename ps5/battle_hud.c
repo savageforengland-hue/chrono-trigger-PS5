@@ -19,16 +19,13 @@ static int slot(uint32_t entry){
     if(secondary<0x02000008||secondary>0x023f0000||entry<base||entry>=base+41*0x9c)return -1;
     return (entry-base)%0x9c?-1:(int)((entry-base)/0x9c);
 }
-int ctps5_battle_hud_stock_entry(uint32_t entry,uint16_t a0,uint16_t a1,uint16_t a2){
-    if(!available||strcmp(rt_rom.code,"YQUE"))return 0;
+int ctps5_battle_hud_stock_entry(uint32_t entry,int world,int actor){
+    if(!available||world||actor||strcmp(rt_rom.code,"YQUE"))return 0;
     int id=slot(entry);
-    /* Window pieces live in separate UI lists, not the 41-widget list. */
-    if(id>=0&&id<=21)return 1;
-    if(id==22)return cursor_column>=0;
-    /* The two original window lists use square 64px objects in UI banks
-     * 4/6. Other UI-list actors must retain their world coordinate space. */
-    return entry>=0x02000000&&entry<=0x023fff64 && !(a0&0xff00) &&
-        (a1&0xc000)==0xc000 && ((a2>>12)==4||(a2>>12)==6);
+    /* Digits and window pieces belong to separate screen-space lists.
+     * The caller supplies original actor/world call context, never palette
+     * guesses: actors can also be drawn from managed UI entries. */
+    return id==22?cursor_column>=0:entry>=0x02000000&&entry<=0x023fff64;
 }
 void ctps5_battle_hud_entry(uint32_t entry){
     if(!on())return;
