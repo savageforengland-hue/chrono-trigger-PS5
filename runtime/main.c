@@ -12,6 +12,7 @@
 #include "display.h"
 #include "game_build.h"
 #include "gfx_mod.h"
+#include "gfx_dump.h"
 #include "rt.h"
 #include "sound.h"
 #include "system_menu.h"
@@ -280,6 +281,7 @@ int main(int argc, char **argv) {
 #ifdef EGG_PS5
     (void)egg_ps5_game_prompts_init();
     ctps5_battle_hud_init();
+    gfxdump_repair_start();
     display_message("L3 + R3: Settings and Mods",5000);
 #endif
     spu_open_output();

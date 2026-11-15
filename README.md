@@ -58,3 +58,5 @@ The combined PS5 distribution includes GPL-3.0-or-later components; see [LICENSE
 Unofficial fan project, not affiliated with or endorsed by Square Enix, Nintendo or Sony. Chrono Trigger and the associated game content belong to their respective owners.
 
 The [01.006.007 HUD fixes](docs/HUD-FIXES-007.md) remove the fixed black cover and stock battle widgets when the portrait HUD is active, and synchronize its state with the displayed frame.
+
+The [01.006.008 graphics dumper fix](docs/GRAPHICS-DUMP.md) repairs FTP access to existing exports and verifies new PNG files. Sprite integration work is separate.

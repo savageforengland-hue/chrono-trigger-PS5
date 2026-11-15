@@ -9,3 +9,11 @@ int gfxdump_running(void);
 void gfxdump_progress(int *done, int *total, float *share);
 /* After a dump: the images written (and 1), once; else 0. Host thread. */
 int gfxdump_finished(int *images);
+
+/* Inspect after gfxdump_finished consumes the completion notification. */
+int gfxdump_errors(void);
+const char *gfxdump_error(void);
+
+/* Startup: repair FTP access to an existing dump without re-exporting it. */
+void gfxdump_repair_start(void);
+int gfxdump_repairing(void);

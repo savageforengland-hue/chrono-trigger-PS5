@@ -9,6 +9,8 @@
 #include "runtime/menu_chord.h"
 static Uint64 ticks;
 static int scene_place,mod_change,sets,capture,pilot_page,pilot_pose;
+static int dump_notice,dump_images,dump_errors,dump_repair;static char last_message[256];
+const char*rt_data_dir(void){return "/data/eggoftime/";}
 int ct_redraw_viewer_active(void){return pilot_page;}
 int ct_redraw_viewer_open(void){pilot_page=1;pilot_pose=0;return 1;}
 void ct_redraw_viewer_close(void){pilot_page=0;}
@@ -25,7 +27,7 @@ int SDL_snprintf(char*d,size_t n,const char*f,...){va_list a;va_start(a,f);int r
 int ss_menu_place(void){return scene_place;}
 int display_language(void){return 1;}
 int rt_language(void){return 1;}
-void display_message(const char*s,unsigned ms){(void)s;(void)ms;}
+void display_message(const char*s,unsigned ms){snprintf(last_message,sizeof last_message,"%s",s);(void)ms;}
 void display_text_input(int on){(void)on;}
 int display_setting_shown(int i){return i==SET_ASPECT||i==SET_FRAMERATE;}
 int display_setting_count(int i){(void)i;return 2;}
@@ -41,7 +43,10 @@ const char *controls_capture_conflict(void){return NULL;}
 void controls_reset(void){}
 const char *controls_name(int i){(void)i;return "Confirm";}
 const char *controls_pad_label(int i){(void)i;return i==CTL_B?"\xC3\x97":"\xE2\x97\x8B";}
-int gfxdump_finished(int*i){(void)i;return 0;}
+int gfxdump_repairing(void){return dump_repair;}
+int gfxdump_errors(void){return dump_errors;}
+const char*gfxdump_error(void){return "";}
+int gfxdump_finished(int*i){if(!dump_notice)return 0;dump_notice=0;*i=dump_images;return 1;}
 void gfxdump_start(void){}
 int gfxdump_running(void){return 0;}
 void gfxdump_progress(int*d,int*t,float*s){*d=*t=0;*s=0;}
@@ -82,5 +87,7 @@ int main(int argc,char**argv){
  tap(KEY_A);assert(capture);sysmenu_host_toggle();step(KEY_A);assert(!sysmenu_is_open()&&!sysmenu_pauses_game()&&!capture);
  assert(sysmenu_input(KEY_A)==0);step(0);assert(sysmenu_input(KEY_A)==KEY_A); /* closing input cannot leak */
  scene_place=SS_MENU_PAUSE;tap(KEY_SELECT);assert(sysmenu_is_open()&&!sysmenu_pauses_game());tap(KEY_B);assert(!sysmenu_is_open());
+ dump_notice=1;dump_images=30577;dump_repair=1;sysmenu_input(0);assert(strstr(last_message,"FTP access repaired")&&strstr(last_message,"30577")&&strstr(last_message,"/data/eggoftime/mods/graphics/dump/"));
+ dump_notice=1;dump_images=0;dump_errors=1;dump_repair=0;sysmenu_input(0);assert(strstr(last_message,"incomplete")&&strstr(last_message,"graphics-dump.log"));
  puts("PASS: L3+R3 one-shot/release latch, open from active gameplay, host pause state, settings/mods/controls navigation, live mod actions, capture cancellation, close/release input guard, legacy Select menu");
 }

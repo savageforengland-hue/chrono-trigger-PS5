@@ -400,9 +400,10 @@ static uint32_t input(uint32_t keys) {
 uint32_t sysmenu_input(uint32_t keys) {
     int images;
     if (gfxdump_finished(&images)) {
-        char text[96];
-        SDL_snprintf(text, sizeof text, ui_text("Graphics: %d images in mods/graphics/dump"), images);
-        display_message(text, 4000);
+        char text[192];int errors=gfxdump_errors();
+        if(errors)SDL_snprintf(text,sizeof text,"Graphics %s incomplete: %d PNGs. See %sgraphics-dump.log",gfxdump_repairing()?"access repair":"dump",images,rt_data_dir());
+        else SDL_snprintf(text,sizeof text,"%s: %d PNGs in %smods/graphics/dump/",gfxdump_repairing()?"FTP access repaired":"Graphics saved",images,rt_data_dir());
+        display_message(text,8000);
     }
     uint32_t game_keys = input(keys);
     SDL_SetAtomicInt(&open_now, place != SS_MENU_NONE);
@@ -560,6 +561,7 @@ static const char *row_value(int i, int w) {
     }
     if (i != ROW_DUMP) return fit(ui_text(display_setting_label(i, display_setting_get(i))), w);
     if (!gfxdump_running()) return ui_text("A: dump");
+    if (gfxdump_repairing()) return "Repairing access";
     gfxdump_progress(&done, &total, &share);
     SDL_snprintf(buf, sizeof buf, "%d%%", (int)(share * 100));
     return buf;
@@ -577,7 +579,10 @@ static void draw_dump_progress(uint32_t *s) {
     float share;
     gfxdump_progress(&done, &total, &share);
     char count[80], left[80];
-    if (!total) {
+    if (gfxdump_repairing()) {
+        SDL_snprintf(count,sizeof count,"%d existing files checked",done);
+        SDL_strlcpy(left,"Existing dump; no re-export.",sizeof left);
+    } else if (!total) {
         SDL_strlcpy(count, ui_text("Listing the game's files..."), sizeof count);
         left[0] = 0;
     } else {
@@ -587,7 +592,7 @@ static void draw_dump_progress(uint32_t *s) {
         else if (rest < 60000) SDL_snprintf(left, sizeof left, ui_text("About %d s left"), (int)(rest / 1000) + 1);
         else SDL_snprintf(left, sizeof left, ui_text("About %d min left"), (int)((rest + 30000) / 60000));
     }
-    const char *lines[] = {ui_text("Dumping graphics...")};
+    const char *lines[] = {gfxdump_repairing()?"Repairing dump access...":ui_text("Dumping graphics...")};
     Rect r = {28, 52, 200, 86}, bar = {44, 78, 168, 12};
     dialog(s, r, lines, 1);
     panel(s, bar, &BUTTON);
@@ -885,8 +890,8 @@ void sysmenu_draw(uint32_t *s) {
     if (confirm) {
         const char *const language[] = {ui_text("Restart the game now?"), ui_text("The new language needs a restart."),
                                         ui_text("Unsaved progress will be lost.")};
-        const char *const dump[] = {ui_text("Dump all game graphics?"), ui_text("Every sprite and background, to"),
-                                    ui_text("mods/graphics/dump. May take a while.")};
+        const char *const dump[] = {ui_text("Dump all game graphics?"), ui_text("PNGs in /data/eggoftime/"),
+                                    ui_text("mods/graphics/dump/ subfolders.")};
         dialog(s, (Rect){28, 52, 200, 86}, confirm == CONFIRM_DUMP ? dump : language, 3);
         for (int i = 0; i < 2; i++) {
             Rect b = {64 + 72 * i, 106, 56, 20};
