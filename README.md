@@ -66,3 +66,5 @@ The [01.006.010 graphics dumper update](docs/GRAPHICS-DUMP.md) uses explicit PS5
 The [01.006.012 HUD themes and PNG workflow](docs/HUD-THEMES-AND-PNG-MODS.md) updates the existing HUD with optional portrait/icon/background PNGs and configurable colours/layout. The included offline editor generates JSON and mod ZIPs. Supported graphics use their dumped relative paths; missing overrides use original game assets. This host update awaits PS5 validation.
 
 The [Crono two-frame PNG test](docs/CRONO-PNG-TEST.md) uses a purple tunic to verify same-path battle-ready replacements and removal fallback. Host 01.006.013 fixes scene softening found during the desktop battle comparison; PS5 testing remains pending.
+
+The expanded [Crono PNG test v0.2.0](docs/CRONO-PNG-TEST.md#expanded-test-v020--visible-during-normal-play) covers all 244 visible poses so the colour change can be checked while walking. The user confirmed the remastered HUD works on PS5; the first two PNGs loaded there but had no logged rendering match in the supplied session. The expanded pack retains host 01.006.013 and awaits a console visual result.

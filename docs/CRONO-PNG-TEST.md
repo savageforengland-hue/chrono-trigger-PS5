@@ -56,3 +56,19 @@ python3 ps5/test_hd_filter.py \
 The first command creates a ready-to-copy `eggoftime/mods/packs/crono-png-test/` folder and runs the valid/missing/damaged/empty fixture checks. Palette entries 8, 9 and 10 are recoloured to `#F078FF`, `#9230BC` and `#39144D`; all other entries keep their original colours.
 
 Original PC project: **Egg of Time v1.3.5 by Power Pudu**. Its pristine source and notices remain under `upstream/`; see [credits](CREDITS.md). Generated test art and the personal native host are supplied privately, separate from the source archive.
+
+## Expanded test v0.2.0 — visible during normal play
+
+The user confirmed the remastered HUD works on PS5, but reported no visible Crono change from v0.1.0. Their host 01.006.013 log confirms `crono-png-test` was selected and both `198.png` and `199.png` loaded. It contains no rendering-match entry for those two poses in that session. The loader therefore succeeded; the log does not establish whether those poses were used or why they did not match. A two-pose test was too narrow to check ordinary play reliably.
+
+**v0.2.0 keeps the same host and pack folder.** It adds native-size RGBA PNGs for all **244 nonblank Crono cells**; the four empty cells 131–134 stay blank. His original pixel artwork remains, with the same three tunic colours changed to purple. You should now be able to check the colour after loading a save and walking a few steps, as well as during battles. This is a colour diagnostic, not a remaster art pack.
+
+Merge the revised ZIP's `eggoftime/` folder into `/data/` over the previous test pack and fully restart. Keep host **01.006.013**, **Texture mods On**, **Texture pack = crono-png-test**, and your working HUD configuration. The archive contains no host files, INIs, saves, HUD files or other characters' images. The `Crono redraw` menu switch belongs to the older JSON art pack; this PNG test is controlled by the Texture mods/Texture pack settings.
+
+The expanded PNGs take precedence over the older Crono JSON pack for the same stored cells. Consequently `Crono JSON registered 0/8` can be expected while the expanded pack is installed: those cells are already supplied by the PNG pack. Removing the test reveals the older art pack again if it is still enabled. To return to your previous selection, restore that Texture pack and restart; no older mod files are deleted.
+
+The expanded fixture audit checks every stored Crono cell, including identical poses stored with different actor-relative offsets. It verifies the rendered placement after matching, 371,336 opaque HD texels, original transparency and canvas geometry, and no shared-tile/ROM edits. All 1,437 stored cells of the other six party members were also checked for false replacements. Missing/corrupt PNGs and an empty folder retain their appropriate fallbacks.
+
+A desktop run with the older eight-pose Crono pack enabled was checked in both field and battle scenes. The expanded PNGs match a normal field pose (cell 2) and the battle-ready pose (cell 199). Removing the expanded pack restores pixel-identical captures of the previous graphics in both scenes. The remastered HUD is retained during these checks. This is further desktop evidence; visible operation of v0.2.0 on PS5 remains to be tested.
+
+To generate and verify the full test from your own supported NDS, add `--all` to the `ps5/test_crono_png_pack.py` command above. Without that flag it retains the original two-frame test for reproduction. No hand-written registration JSON is needed in either mode.
