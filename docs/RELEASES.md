@@ -1,5 +1,15 @@
 # Release notes and validation
 
+## Private mod host 01.006.014 — 16 November 2026
+
+Removes the automatic startup graphics write check at the user's request.
+Manual full export, the filename-based PNG loader and the existing remastered
+HUD remain available. No settings migration or save changes are introduced.
+The separate private Crono bedroom texture test uses six dump-relative PNG
+sheet paths; see [installation and scope](HOUSE-INTERIOR-TEST.md).
+Desktop before/after/removal checks and native package validation are separate
+from the pending console test of this build and artwork.
+
 ## 0.1.0-rc3 — 14 November 2026
 
 In-game PS5 controller prompts; metadata version 01.006.000. RC1/RC2 only adapted runtime text, leaving the game's own DS sprites and instructions visible. RC3 adds authored PS5 prompt graphics to the shared menu, battle, field, warp and race assets, updates explicit button references in English/French messages, and replaces DS input names on the native Controls page with action descriptions. The replacements follow saved bindings at startup; fully relaunch after rebinding. Runtime prompts remain live.

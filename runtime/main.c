@@ -281,7 +281,6 @@ int main(int argc, char **argv) {
 #ifdef EGG_PS5
     (void)egg_ps5_game_prompts_init();
     ctps5_battle_hud_init();
-    gfxdump_check_start();
     display_message("L3 + R3: Settings and Mods",5000);
 #endif
     spu_open_output();
