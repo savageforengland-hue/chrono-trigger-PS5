@@ -64,3 +64,5 @@ The [Crono eight-pose art test](docs/CRONO-POSE-TEST.md) adds JSON-selected redr
 The [01.006.010 graphics dumper update](docs/GRAPHICS-DUMP.md) uses explicit PS5 kernel paths for exports and reports, checks a real sprite at startup, and logs requests and failures in `eggoftime.log`. The working dump path is retained by the Crono test host.
 
 The [01.006.012 HUD themes and PNG workflow](docs/HUD-THEMES-AND-PNG-MODS.md) updates the existing HUD with optional portrait/icon/background PNGs and configurable colours/layout. The included offline editor generates JSON and mod ZIPs. Supported graphics use their dumped relative paths; missing overrides use original game assets. This host update awaits PS5 validation.
+
+The [Crono two-frame PNG test](docs/CRONO-PNG-TEST.md) uses a purple tunic to verify same-path battle-ready replacements and removal fallback. Host 01.006.013 fixes scene softening found during the desktop battle comparison; PS5 testing remains pending.

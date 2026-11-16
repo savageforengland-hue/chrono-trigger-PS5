@@ -771,9 +771,13 @@ static int upload_hd(View *v, int tex, const uint32_t *px, const VideoHd *src, i
         SDL_DestroyTexture(hd_tex[tex]);
         hd_tex[tex] = SDL_CreateTexture(v->ren, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, full_w, full_h);
         if (!hd_tex[tex]) return 0;
-        SDL_SetTextureScaleMode(hd_tex[tex], SDL_SCALEMODE_LINEAR);
         SDL_SetTextureBlendMode(hd_tex[tex], tex >= 2 ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE); /* see create_textures */
     }
+    /* HD textures include the unmodified scene as well as replacement art.
+     * Sharp/Pixel/LCD must keep the same nearest first stage as native art;
+     * otherwise even one replacement blurs the whole scene. Reapply on each
+     * upload so a live filter change also updates an existing texture. */
+    SDL_SetTextureScaleMode(hd_tex[tex], SETTING(SET_FILTER) == FILTER_SMOOTH ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST);
     static size_t have;
     size_t need = (size_t)VIDEO_LINE_MAX * VIDEO_ROWS_MAX * k * k;
     if (have < need) {

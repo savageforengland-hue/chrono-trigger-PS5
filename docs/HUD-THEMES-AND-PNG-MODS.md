@@ -130,3 +130,5 @@ Offline checks cover missing/invalid files, single-portrait fallback, JSON valid
 Fresh startup identifies `01.006.012` in `/data/eggoftime/eggoftime.log`. Theme errors and PNG registration/fallback go to that log. The dump still uses its verified explicit kernel write/readback route; refresh FTP listings after export.
 
 To undo appearance changes, choose classic, remove only your overrides and restart. Removing `theme=` is optional. To undo the host update, restore your previous **PPSA90436 app folder**. Leave the NDS, saves, control mappings and shared settings intact.
+
+A [two-frame Crono battle-ready test](CRONO-PNG-TEST.md) provides a small diagnostic PNG pack and reproducible checks. Use host 01.006.013 for its HD sampling fix; it retains all 01.006.012 HUD theme features.
