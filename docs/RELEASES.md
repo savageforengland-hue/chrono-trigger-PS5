@@ -1,5 +1,21 @@
 # Release notes and validation
 
+## Private mod host 01.006.016 — 16 November 2026
+
+Replaces the crowded flat Mods page with Characters, Backgrounds, Battle HUD
+and Texture Packs. Installed PNG packs are classified by their dump-relative
+paths; mixed packs appear in both relevant categories. Packs use A-to-select
+scrolling lists, absent character modules are hidden, and Back restores the
+parent selection. Existing pack/settings files and all live controls are retained.
+
+Room-only HD processing no longer runs outside the configured rooms. Bounded
+audio source-queue diagnostics support the reported music breakup, including
+Aura Whirl; a console fix is not established. See [menu and diagnostic details](MODS.md).
+
+Actual menu renderer/state-machine, persistence, pack discovery, HD fallback,
+lighting and audio-queue checks passed. Native package validation and PS5 testing
+are recorded separately in the private delivery report.
+
 ## Private mod host 01.006.015 — 16 November 2026
 
 Adds opt-in room restrictions, transparent-tile original fallback, painted

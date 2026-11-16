@@ -46,7 +46,7 @@
 #include "../ps5/mod_menu.h"
 #include "redraw.h"
 #define HOST_MENU 100
-static int host_toggle,hub_page,hub_cursor,mods_page,mods_cursor;
+static int host_toggle,hub_page,hub_cursor,mods_page,mods_cursor,mods_section,mods_top,mods_saved[MOD_PAGE_COUNT];
 static SDL_AtomicInt host_paused;
 void sysmenu_host_toggle(void){host_toggle=1;}
 #endif
@@ -308,17 +308,25 @@ static uint32_t input(uint32_t keys) {
             place=SS_MENU_NONE;hub_page=0;blocked=keys;
         }else if(act&KEY_A){
             hub_page=0;
-            if(hub_cursor==1){mods_page=1;mods_cursor=0;egg_ps5_mod_menu_refresh();}
+            if(hub_cursor==1){mods_page=1;mods_cursor=mods_section=mods_top=0;memset(mods_saved,0,sizeof mods_saved);egg_ps5_mod_menu_refresh();}
             if(hub_cursor==2){controls_page=1;ctl_cursor=ctl_top=0;ctl_pad=1;}
         }
         return 0;
     }
     if(mods_page){
-        if(act&(KEY_B|KEY_SELECT)){mods_page=0;if(place==HOST_MENU)hub_page=1;return 0;}
-        int n=egg_ps5_mod_menu_count();
+        if(act&(KEY_B|KEY_SELECT)){
+            if(mods_section!=MOD_ROOT){mods_section=mods_section==MOD_CHARACTER_PACKS?MOD_CHARACTERS:MOD_ROOT;mods_cursor=mods_saved[mods_section];mods_top=0;}
+            else{mods_page=0;if(place==HOST_MENU)hub_page=1;}
+            return 0;
+        }
+        int n=egg_ps5_mod_page_count(mods_section);
         if(act&KEY_UP)mods_cursor=(mods_cursor+n-1)%n;
         if(act&KEY_DOWN)mods_cursor=(mods_cursor+1)%n;
-        if(act&(KEY_LEFT|KEY_RIGHT|KEY_A))egg_ps5_mod_menu_change(mods_cursor,act&KEY_LEFT?-1:mods_cursor==9&&(act&KEY_A)?0:1);
+        if(act&(KEY_LEFT|KEY_RIGHT|KEY_A)){
+            int target=egg_ps5_mod_page_target(mods_section,mods_cursor);
+            if(target>=0){if(act&KEY_A){mods_saved[mods_section]=mods_cursor;mods_section=target;mods_cursor=mods_top=0;}}
+            else egg_ps5_mod_page_change(mods_section,mods_cursor,act&KEY_A?0:act&KEY_LEFT?-1:1);
+        }
         return 0;
     }
 #endif
@@ -368,7 +376,7 @@ static uint32_t input(uint32_t keys) {
     if (act & KEY_DOWN) do cursor = (cursor + 1) % ROW_COUNT; while (!row_shown(cursor));
 #ifdef EGG_PS5
     if(cursor==ROW_MODS){
-        if(act&KEY_A){mods_page=1;mods_cursor=0;egg_ps5_mod_menu_refresh();}
+        if(act&KEY_A){mods_page=1;mods_cursor=mods_section=mods_top=0;memset(mods_saved,0,sizeof mods_saved);egg_ps5_mod_menu_refresh();}
     }else
 #endif
     if (cursor == ROW_CONTROLS) {
@@ -811,15 +819,18 @@ void sysmenu_draw(uint32_t *s) {
             centered(s,ui_text(names[i]),(Rect){r.x,r.y+4,r.w,r.h},sel?YELLOW:WHITE);
         }
     }else if(mods_page){
-        ui_draw_text(s,"Mods",(SCREEN_W-ui_text_width("Mods"))/2,8,WHITE);
-        for(int i=0;i<egg_ps5_mod_menu_count();i++){
-            int step=egg_ps5_mod_menu_count()>9?13:egg_ps5_mod_menu_count()>8?15:egg_ps5_mod_menu_count()>7?16:egg_ps5_mod_menu_count()>6?19:egg_ps5_mod_menu_count()>5?22:25;
-            int height=step<14?12:step<16?14:step<17?15:step<20?17:20;
-            int y=28+i*step;Rect lr={6,y,112,height},vr={122,y,128,height};
-            panel(s,lr,i==mods_cursor?&BUTTON_LIT:&BUTTON);panel(s,vr,&BUTTON);
-            if(i==mods_cursor)frame(s,vr,TEAL);
-            centered(s,egg_ps5_mod_menu_title(i),(Rect){lr.x,lr.y+3,lr.w,lr.h},i==mods_cursor?YELLOW:WHITE);
-            centered(s,fit(egg_ps5_mod_menu_value(i),112),(Rect){vr.x,vr.y+3,vr.w,vr.h},WHITE);
+        const char*title=egg_ps5_mod_page_title(mods_section);
+        ui_draw_text(s,title,(SCREEN_W-ui_text_width(title))/2,8,WHITE);
+        int n=egg_ps5_mod_page_count(mods_section);
+        scroll_to(s,&mods_top,mods_cursor,n);
+        for(int i=mods_top;i<n&&i<mods_top+ROWS_SHOWN;i++){
+            int category=egg_ps5_mod_page_target(mods_section,i)>=0,sel=i==mods_cursor;
+            int pitch=mods_section==MOD_ROOT?29:ROW_PITCH;
+            int y=28+(i-mods_top)*pitch,height=mods_section==MOD_ROOT?24:ROW_H;
+            Rect r={6,y,244,height};panel(s,r,sel?&BUTTON_LIT:&BUTTON);if(sel)frame(s,r,TEAL);
+            ui_draw_text(s,fit(egg_ps5_mod_page_label(mods_section,i),category?195:155),12,y+(height-8)/2,sel?YELLOW:WHITE);
+            const char*value=egg_ps5_mod_page_value(mods_section,i);
+            ui_draw_text(s,fit(value,category?28:72),244-ui_text_width(fit(value,category?28:72)),y+(height-8)/2,category?GREY:WHITE);
         }
     }else
 #endif
@@ -881,7 +892,7 @@ void sysmenu_draw(uint32_t *s) {
 #ifdef EGG_PS5
     if(ct_redraw_viewer_active())footer="Left/Right: pose. Back: return. Game paused.";
     else if(hub_page)footer="Game paused. L3 + R3: close.";
-    else if(mods_page)footer=egg_ps5_mod_menu_description(mods_cursor);
+    else if(mods_page)footer=egg_ps5_mod_page_description(mods_section,mods_cursor);
 #endif
     panel(s, (Rect){0, 166, 222, 26}, &BAR);
     draw_lines(s, footer, 8, ui_text_width(footer) <= 208 ? 175 : 170, 208, WHITE);

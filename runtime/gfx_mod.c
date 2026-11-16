@@ -74,7 +74,7 @@ static void background_load_rules(const char*root){
 typedef struct Entry { GfxHdTile hd; uint8_t bytes[64]; int bpp8,direct; uint64_t hash; uint32_t next; } Entry;
 static Entry *entries; /* [0] unused: tile number 0 is none */
 static uint32_t entry_count, entry_cap, *slots, slot_mask;
-static int hd_scale,general_hd_scale,generated_hd_scale;
+static int hd_scale,general_hd_scale,scoped_hd_scale,generated_hd_scale;
 
 static uint64_t tile_hash(const uint8_t *t, int bpp8) {
     uint64_t h = 1469598103934665603ull ^ (uint64_t)bpp8;
@@ -130,7 +130,7 @@ static int add_hd(const uint8_t*t,int bpp8,int scale,int indexed,void*px,int sco
 }
 
 int gfxmod_hd_scale(void) { return hd_scale; }
-int gfxmod_hd_active(int battle) { return general_hd_scale>0||(battle&&generated_hd_scale>0); }
+int gfxmod_hd_active(int battle) { return general_hd_scale>0||(scoped_hd_scale>0&&gfxmod_background_allowed())||(battle&&generated_hd_scale>0); }
 
 uint32_t gfxmod_find(const uint8_t *t, int bpp8) { return entry_count > 1 ? lookup(t, bpp8, tile_hash(t, bpp8)) : 0; }
 
@@ -715,7 +715,8 @@ void gfxmod_load(void) {
             } else {
                 hd += hd_tiles(&png, &it, s);
                 hd_scale = SDL_max(hd_scale, s);
-                general_hd_scale = SDL_max(general_hd_scale, s);
+                if(background_mode==1&&(scoped_background(rel)||scoped_character(rel)))scoped_hd_scale=SDL_max(scoped_hd_scale,s);
+                else general_hd_scale=SDL_max(general_hd_scale,s);
             }
             png_free(&png);
             item_free(&it);

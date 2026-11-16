@@ -13,15 +13,15 @@
 #include "runtime/display.h"
 #include "runtime/redraw.h"
 EggPs5Config egg_ps5_config={2160,60,3,"default"};
-static int redraw=1,loaded=1,crono=1;
-int ct_redraw_module_count(int m){return m==CT_REDRAW_MARLE?4:m==CT_REDRAW_CRONO?13:0;}
+static int redraw=1,loaded=1,crono=1,modules=1;
+int ct_redraw_module_count(int m){return !modules?0:m==CT_REDRAW_MARLE?4:m==CT_REDRAW_CRONO?13:0;}
 int ct_redraw_module_enabled(int m){return m==CT_REDRAW_MARLE?redraw:crono;}
 void ct_redraw_module_set_enabled(int m,int on){if(m==CT_REDRAW_MARLE)redraw=on;else crono=on;}
 int sprite_hd_loaded(void){return loaded;}
 int ct_redraw_enabled(void){return redraw;}
 void ct_redraw_set_enabled(int on){redraw=on;}
 static const char*root;static int hud,texture=1,scales[2]={100,70};
-int ct_redraw_count(void){return 4;}
+int ct_redraw_count(void){return modules?4:0;}
 void ct_redraw_set_visible(int on){(void)on;}
 int ct_redraw_viewer_open(void){return 1;}
 static const char *path(const char*p,char out[2048]){
@@ -56,9 +56,23 @@ int main(int argc,char**argv){
  assert(!strcmp(egg_ps5_mod_menu_value(7),"Open pilot"));
  assert(!strcmp(egg_ps5_mod_menu_title(5),"Sprite smoothing"));
  assert(!strcmp(egg_ps5_mod_menu_value(6),"On (fear poses)"));
+ assert(egg_ps5_mod_page_count(MOD_ROOT)==4);
+ assert(egg_ps5_mod_page_count(MOD_HUD)==4);
+ modules=0;assert(egg_ps5_mod_page_count(MOD_CHARACTERS)==1);modules=1;
+ assert(egg_ps5_mod_page_count(MOD_CHARACTERS)==4); /* missing smoother hidden */
+ assert(egg_ps5_mod_page_count(MOD_BACKGROUNDS)==3); /* switch/default/mixed */
+ assert(egg_ps5_mod_page_count(MOD_CHARACTER_PACKS)==4); /* switch/default/character/mixed */
+ assert(egg_ps5_mod_pack_flags(1)==MOD_PACK_CHARACTERS);
+ assert(egg_ps5_mod_pack_flags(2)==3);
+ assert(!strcmp(egg_ps5_mod_page_label(MOD_BACKGROUNDS,2),"z-pack"));
+ egg_ps5_mod_page_change(MOD_ROOT,0,0);egg_ps5_mod_page_change(MOD_BACKGROUNDS,2,1);
+ assert(!strcmp(egg_ps5_mod_menu_value(4),"default")); /* navigation and L/R cannot choose */
+ egg_ps5_mod_page_change(MOD_CHARACTER_PACKS,2,0);assert(!strcmp(egg_ps5_mod_menu_value(4),"a-pack"));
+ egg_ps5_mod_page_change(MOD_CHARACTER_PACKS,2,0);assert(!strcmp(egg_ps5_mod_menu_value(4),"a-pack"));
+ egg_ps5_mod_pack_select(0);assert(!strcmp(egg_ps5_mod_menu_value(4),"default"));
  char folder[2048];snprintf(folder,sizeof folder,"%s/mods/battle-sprites",root);assert(!mkdir(folder,0777));
  f=fopen("/data/eggoftime/mods/battle-sprites/sprites.ini","w");assert(f);fputs("# Keep detail\nenabled=1\nscale=4\nshading=65\n",f);fclose(f);
- egg_ps5_mod_menu_refresh();loaded=0;assert(!strcmp(egg_ps5_mod_menu_value(5),"Not loaded"));loaded=1;
+ egg_ps5_mod_menu_refresh();assert(egg_ps5_mod_page_count(MOD_CHARACTERS)==5);loaded=0;assert(!strcmp(egg_ps5_mod_menu_value(5),"Not loaded"));loaded=1;
  assert(!strcmp(egg_ps5_mod_menu_value(5),"On"));egg_ps5_mod_menu_change(5,1);
  assert(!strcmp(egg_ps5_mod_menu_value(5),"Off; restart"));egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(5),"Off; restart"));
  f=fopen("/data/eggoftime/mods/battle-sprites/sprites.ini","r");assert(f);size_t bytes=fread(b,1,sizeof b-1,f);b[bytes]=0;fclose(f);

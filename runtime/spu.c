@@ -10,7 +10,7 @@
 
 #include "sound.h"
 
-#define LATENCY_MIN 0.04 /* seconds queued when output (re)starts, and the most allowed before dropping */
+#define LATENCY_MIN 0.04 /* seconds queued when output (re)starts */
 #define LATENCY_MAX 0.15
 
 SpuChannel spu_ch[SPU_CHANNELS];
@@ -181,11 +181,42 @@ static void output(const float *buf, uint32_t frames) {
     int bytes = (int)(frames * 2 * sizeof(float));
     if (stream) {
         int queued = SDL_GetAudioStreamQueued(stream);
+#ifdef EGG_PS5
+        /* Source queue observations, not proof of a device underrun: SDL may
+         * already have converted samples waiting at the device. Log at most
+         * once per five seconds; leave mixing, pitch and buffering unchanged. */
+        static Uint64 last_output,last_report,max_gap;
+        static unsigned empty,dropped,errors;
+        Uint64 now=SDL_GetTicks();
+        if(last_output&&now>=last_output&&now-last_output>max_gap)max_gap=now-last_output;
+        if(last_output&&queued==0)empty++;
+        if(queued<0)errors++;
+        if(!last_report)last_report=now;
+        last_output=now;
+#endif
         if (queued == 0) { /* (re)start: queue some silence so host scheduling jitter does not underrun */
             static float silence[SPU_RATE / 25 * 2]; /* LATENCY_MIN */
-            SDL_PutAudioStreamData(stream, silence, sizeof silence);
+            if(!SDL_PutAudioStreamData(stream, silence, sizeof silence)){
+#ifdef EGG_PS5
+                errors++;
+#endif
+            }
         }
-        if (queued < (int)(SPU_RATE * LATENCY_MAX) * 2 * (int)sizeof(float)) SDL_PutAudioStreamData(stream, buf, bytes);
+        if (queued >= 0 && queued < (int)(SPU_RATE * LATENCY_MAX) * 2 * (int)sizeof(float)) {
+            if(!SDL_PutAudioStreamData(stream, buf, bytes)){
+#ifdef EGG_PS5
+                errors++;
+#endif
+            }
+        }
+#ifdef EGG_PS5
+        else if(queued>=0)dropped++;
+        if(now>=last_report&&now-last_report>=5000){
+            rt_log("audio queue: source_ms=%d empty=%u dropped=%u errors=%u max_producer_gap_ms=%llu (includes pauses)",
+                   queued<0?-1:(int)((int64_t)queued*1000/(SPU_RATE*2*(int)sizeof(float))),empty,dropped,errors,(unsigned long long)max_gap);
+            last_report=now;max_gap=0;empty=dropped=errors=0;
+        }
+#endif
     }
     if (wav) {
         int16_t pcm[2048];

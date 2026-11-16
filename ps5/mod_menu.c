@@ -14,6 +14,7 @@
 #include <stdio.h>
 #define MAX_PACKS 64
 static char packs[MAX_PACKS][64];
+static unsigned char pack_flags[MAX_PACKS];
 static int count,selected,textures_changed,pack_changed,sprites_installed,sprites_enabled,sprites_changed;
 static int valid(const char*s){
     size_t n=strlen(s);if(!n||n>=64)return 0;
@@ -21,6 +22,27 @@ static int valid(const char*s){
     return 1;
 }
 static int compare(const void*a,const void*b){return strcmp(a,b);}
+/* Scan only when opening Mods, never during gameplay. Bound recursion and
+ * path size; ignore empty directories and unrelated non-PNG files. */
+static int contains_png(const char *path,int depth){
+    if(depth>8)return 0;
+    DIR*d=opendir(path);if(!d)return 0;int found=0;struct dirent*e;
+    while(!found&&(e=readdir(d))){
+        if(e->d_name[0]=='.')continue;
+        char child[1024];int n=snprintf(child,sizeof child,"%s/%s",path,e->d_name);
+        if(n<0||(size_t)n>=sizeof child)continue;
+        SDL_PathInfo info;if(!SDL_GetPathInfo(child,&info))continue;
+        size_t len=strlen(e->d_name);
+        if(info.type==SDL_PATHTYPE_DIRECTORY)found=contains_png(child,depth+1);
+        else if(info.type==SDL_PATHTYPE_FILE&&len>4){const char*x=e->d_name+len-4;found=x[0]=='.'&&tolower((unsigned char)x[1])=='p'&&tolower((unsigned char)x[2])=='n'&&tolower((unsigned char)x[3])=='g';}
+    }
+    closedir(d);return found;
+}
+static int classify(const char*root){
+    static const char*paths[]={"sheets/Chara","frames/Chara","sheets/Map","screens/Map"};
+    int flags=0;for(int i=0;i<4;i++){char p[512];snprintf(p,sizeof p,"%s/%s",root,paths[i]);if(contains_png(p,0))flags|=i<2?MOD_PACK_CHARACTERS:MOD_PACK_BACKGROUNDS;}
+    return flags;
+}
 void egg_ps5_mod_menu_refresh(void){
     ctps5_hud_themes_refresh();
     sprites_installed=sprites_enabled=0;
@@ -37,7 +59,13 @@ void egg_ps5_mod_menu_refresh(void){
         snprintf(packs[count++],64,"%.63s",e->d_name);
     }closedir(d);}
     qsort(packs+1,(size_t)(count-1),64,compare);
-    for(int i=0;i<count;i++)if(!strcmp(packs[i],egg_ps5_config.active_pack))selected=i;
+    for(int i=0;i<count;i++){
+        char root[256];
+        if(i)snprintf(root,sizeof root,"/data/eggoftime/mods/packs/%s/graphics",packs[i]);
+        else snprintf(root,sizeof root,"/data/eggoftime/mods/graphics");
+        pack_flags[i]=(unsigned char)classify(root);
+        if(!strcmp(packs[i],egg_ps5_config.active_pack))selected=i;
+    }
 }
 int egg_ps5_mod_menu_count(void){return 10;}
 const char *egg_ps5_mod_menu_title(int row){
@@ -66,10 +94,10 @@ const char *egg_ps5_mod_menu_description(int row){
     if(row==2)return "Transparent action symbols. Applies now.";
     if(row==3)return textures_changed?"Restart CTPS5 to fully apply texture changes.":"Texture replacements. Restart after changes.";
     if(row==4)return pack_changed?"Pack saved. Restart CTPS5 to load it.":"Installed packs. Restart to load your choice.";
-    if(row==5)return sprites_changed?"Saved. Restart CTPS5 to apply sprite changes.":"Smoothing module only; separate from Marle art.";
-    if(row==6)return "Live fear art. Waiting/hit use original poses.";
-    if(row==7)return "Original/detailed poses; crossbow review only.";
-    if(row==8)return "Crono JSON art test. Applies now; other poses original.";
+    if(row==5)return sprites_changed?"Saved. Restart CTPS5 to apply sprite changes.":"Battle-sprite smoothing. Restart after changes.";
+    if(row==6)return "Marle fear poses. Other poses use original art.";
+    if(row==7)return "Compare installed redraws with original poses.";
+    if(row==8)return "Crono redraws apply now; other poses original.";
     return "";
 }
 void egg_ps5_mod_menu_change(int row,int direction){
@@ -87,10 +115,7 @@ void egg_ps5_mod_menu_change(int row,int direction){
         ct_redraw_set_visible(display_setting_get(SET_MODS));
     }else if(row==4&&count>0){
         int next=(selected+count+(direction<0?-1:1))%count;
-        if(!egg_ps5_ini_set("/data/eggoftime/ps5.ini","active_pack",packs[next])){
-            display_message("Texture pack choice could not be saved.",3000);return;
-        }
-        selected=next;snprintf(egg_ps5_config.active_pack,sizeof egg_ps5_config.active_pack,"%s",packs[selected]);pack_changed=1;
+        egg_ps5_mod_pack_select(next);
     }else if(row==5&&sprites_installed){
         if(!egg_ps5_ini_set("/data/eggoftime/mods/battle-sprites/sprites.ini","enabled",sprites_enabled?"0":"1")){
             display_message("Sprite setting could not be saved.",3000);return;
@@ -107,4 +132,19 @@ void egg_ps5_mod_menu_change(int row,int direction){
         if(!egg_ps5_ini_set("/data/eggoftime/mods/crono-hd/pack.ini","gameplay",next?"1":"0")){display_message("Crono setting could not be saved.",3000);return;}
         ct_redraw_module_set_enabled(CT_REDRAW_CRONO,next);
     }
+}
+
+int egg_ps5_mod_pack_count(void){return count;}
+const char *egg_ps5_mod_pack_name(int pack){return pack>=0&&pack<count?pack?packs[pack]:"Default folder":"";}
+int egg_ps5_mod_pack_flags(int pack){return pack>=0&&pack<count?pack_flags[pack]:0;}
+int egg_ps5_mod_pack_selected(int pack){return pack>=0&&pack<count&&pack==selected;}
+void egg_ps5_mod_pack_select(int pack){
+    if(pack<0||pack>=count||pack==selected)return;
+    if(!egg_ps5_ini_set("/data/eggoftime/ps5.ini","active_pack",packs[pack])){
+        display_message("Texture pack choice could not be saved.",3000);return;
+    }
+    selected=pack;snprintf(egg_ps5_config.active_pack,sizeof egg_ps5_config.active_pack,"%s",packs[selected]);pack_changed=1;
+}
+int egg_ps5_mod_option_available(int setting){
+    return setting==5?sprites_installed:setting==6?ct_redraw_module_count(CT_REDRAW_MARLE)>0:setting==7?ct_redraw_count()>0:setting==8?ct_redraw_module_count(CT_REDRAW_CRONO)>0:1;
 }

@@ -61,10 +61,16 @@ const uint32_t *cheevos_badge(const char*u){(void)u;return NULL;}
 const char *ui_text(const char*s){return s;}
 void egg_ps5_mod_menu_refresh(void){}
 int egg_ps5_mod_menu_count(void){return 10;}
-const char *egg_ps5_mod_menu_title(int i){const char*n[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","Sprite smoothing","Marle redraw","Detailed pose test","Crono redraw"};return n[i];}
-const char *egg_ps5_mod_menu_value(int i){return i==4?"default":i==1?"100%":i==2?"70%":"On";}
-const char *egg_ps5_mod_menu_description(int i){(void)i;return "Menu portraits and action icons. Applies now.";}
+const char *egg_ps5_mod_menu_title(int i){const char*n[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","Sprite smoothing","Marle redraw","Detailed pose test","Crono redraw","HUD theme"};return n[i];}
+const char *egg_ps5_mod_menu_value(int i){return i==9?"remaster":i==7?"Open pilot":i==4?"default":i==1?"100%":i==2?"70%":"On";}
+const char *egg_ps5_mod_menu_description(int i){return i==3?"Texture replacements. Restart after changes.":"Menu portraits and action icons. Applies now.";}
 void egg_ps5_mod_menu_change(int i,int d){mod_change=i+1;if(i==7)ct_redraw_viewer_open();(void)d;}
+int egg_ps5_mod_option_available(int setting){(void)setting;return 1;}
+int egg_ps5_mod_pack_count(void){return 12;}
+const char*egg_ps5_mod_pack_name(int pack){const char*n[]={"Default folder","crono-house-hd2d","crono-png-test","forest-hd","guardia-castle","millennial-fair","mountains","overworld","ruins","towns","truce-inn","zeal"};return n[pack];}
+int egg_ps5_mod_pack_flags(int pack){return pack==1?3:pack==2?1:2;}
+int egg_ps5_mod_pack_selected(int pack){return pack==1;}
+void egg_ps5_mod_pack_select(int pack){mod_change=100+pack;}
 static void step(unsigned keys){ticks+=120;sysmenu_input(keys);}
 static void tap(unsigned keys){step(keys);step(0);}
 static void shot(const char*directory,const char*name){
@@ -80,10 +86,22 @@ int main(int argc,char**argv){
  scene_place=SS_MENU_NONE;sysmenu_host_toggle();step(KEY_A);assert(sysmenu_is_open()&&sysmenu_pauses_game());
  step(0);assert(hub_page&&hub_cursor==0);shot(argc>1?argv[1]:NULL,"settings-hub");
  tap(KEY_DOWN);tap(KEY_A);assert(mods_page&&!hub_page);shot(argc>1?argv[1]:NULL,"mods-menu");
+ tap(KEY_RIGHT);assert(!mod_change&&mods_section==MOD_ROOT);
+ tap(KEY_A);assert(mods_section==MOD_CHARACTERS&&!mod_change);shot(argc>1?argv[1]:NULL,"mods-characters");
+ tap(KEY_A);assert(mods_section==MOD_CHARACTER_PACKS&&!mod_change);shot(argc>1?argv[1]:NULL,"mods-character-packs");
+ tap(KEY_DOWN);tap(KEY_DOWN);tap(KEY_RIGHT);assert(!mod_change);tap(KEY_A);assert(mod_change==101);shot(argc>1?argv[1]:NULL,"mods-pack-selected");
+ tap(KEY_B);assert(mods_section==MOD_CHARACTERS&&mods_cursor==0);
+ for(int i=0;i<4;i++)tap(KEY_DOWN);tap(KEY_A);assert(pilot_page&&sysmenu_pauses_game());
+ tap(KEY_RIGHT);assert(pilot_pose==1);tap(KEY_B);assert(!pilot_page&&mods_section==MOD_CHARACTERS&&mods_cursor==4);
+ tap(KEY_B);assert(mods_section==MOD_ROOT&&mods_cursor==0);
+ tap(KEY_DOWN);tap(KEY_A);assert(mods_section==MOD_BACKGROUNDS);shot(argc>1?argv[1]:NULL,"mods-backgrounds");
+ tap(KEY_UP);assert(mods_cursor==egg_ps5_mod_page_count(MOD_BACKGROUNDS)-1);shot(argc>1?argv[1]:NULL,"mods-backgrounds-scroll");assert(mods_top>0);
+ tap(KEY_DOWN);assert(!mods_cursor);tap(KEY_B);assert(mods_section==MOD_ROOT&&mods_cursor==1);
+ tap(KEY_DOWN);tap(KEY_A);assert(mods_section==MOD_HUD);shot(argc>1?argv[1]:NULL,"mods-hud");
  tap(KEY_RIGHT);assert(mod_change==1);tap(KEY_DOWN);tap(KEY_A);assert(mod_change==2);
- for(int i=0;i<6;i++)tap(KEY_DOWN);tap(KEY_A);assert(pilot_page&&sysmenu_pauses_game());
- tap(KEY_RIGHT);assert(pilot_pose==1);tap(KEY_B);assert(!pilot_page&&mods_page);
- for(int i=0;i<5;i++)tap(KEY_UP);
+ tap(KEY_B);tap(KEY_DOWN);tap(KEY_A);assert(mods_section==MOD_PACKS);shot(argc>1?argv[1]:NULL,"mods-all-packs");
+ sysmenu_host_toggle();step(KEY_A);assert(!sysmenu_is_open()&&!sysmenu_pauses_game());step(0);
+ sysmenu_host_toggle();step(0);step(0);tap(KEY_DOWN);tap(KEY_A);assert(mods_section==MOD_ROOT&&mods_cursor==0);
  tap(KEY_B);assert(hub_page);tap(KEY_UP);tap(KEY_A);assert(!hub_page&&!mods_page);tap(KEY_RIGHT);assert(sets==1);
  tap(KEY_B);assert(hub_page);tap(KEY_DOWN);tap(KEY_DOWN);tap(KEY_A);assert(controls_page);
  tap(KEY_A);assert(capture);sysmenu_host_toggle();step(KEY_A);assert(!sysmenu_is_open()&&!sysmenu_pauses_game()&&!capture);
