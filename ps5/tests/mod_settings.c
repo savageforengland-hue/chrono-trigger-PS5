@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include "ps5/config.h"
 #include "ps5/config_file.h"
+#include "ps5/pack_state.h"
 #include "ps5/mod_menu.h"
 #include "runtime/display.h"
 #include "runtime/redraw.h"
@@ -51,7 +52,7 @@ int ctps5_hud_theme_change(int direction){return direction>=-1&&direction<=1;}
 int main(int argc,char**argv){
  assert(argc==2);root=argv[1];char b[4096];
  FILE*f=fopen("/data/eggoftime/ps5.ini","w");assert(f);fputs("# Keep comment\noutput_height=2160\nactive_pack=default\ntarget_fps=60\nunknown=keep\n",f);fclose(f);
- egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(4),"default"));
+ egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(4),"1 enabled"));
  assert(egg_ps5_mod_menu_count()==10&&!strcmp(egg_ps5_mod_menu_value(5),"Not installed"));
  assert(!strcmp(egg_ps5_mod_menu_value(7),"Open pilot"));
  assert(!strcmp(egg_ps5_mod_menu_title(5),"Sprite smoothing"));
@@ -66,10 +67,15 @@ int main(int argc,char**argv){
  assert(egg_ps5_mod_pack_flags(2)==3);
  assert(!strcmp(egg_ps5_mod_page_label(MOD_BACKGROUNDS,2),"z-pack"));
  egg_ps5_mod_page_change(MOD_ROOT,0,0);egg_ps5_mod_page_change(MOD_BACKGROUNDS,2,1);
- assert(!strcmp(egg_ps5_mod_menu_value(4),"default")); /* navigation and L/R cannot choose */
- egg_ps5_mod_page_change(MOD_CHARACTER_PACKS,2,0);assert(!strcmp(egg_ps5_mod_menu_value(4),"a-pack"));
- egg_ps5_mod_page_change(MOD_CHARACTER_PACKS,2,0);assert(!strcmp(egg_ps5_mod_menu_value(4),"a-pack"));
- egg_ps5_mod_pack_select(0);assert(!strcmp(egg_ps5_mod_menu_value(4),"default"));
+ assert(egg_ps5_mod_pack_selected(0)&&!egg_ps5_mod_pack_selected(1));
+ egg_ps5_mod_page_change(MOD_CHARACTER_PACKS,2,0);assert(egg_ps5_mod_pack_selected(0)&&egg_ps5_mod_pack_selected(1));
+ egg_ps5_mod_page_change(MOD_CHARACTER_PACKS,3,0);assert(egg_ps5_mod_pack_selected(1)&&egg_ps5_mod_pack_selected(2));
+ egg_ps5_mod_pack_select(0);assert(!egg_ps5_mod_pack_selected(0)&&egg_ps5_mod_pack_selected(1)&&egg_ps5_mod_pack_selected(2));
+ egg_ps5_mod_menu_refresh();assert(egg_ps5_mod_pack_selected(1)&&egg_ps5_mod_pack_selected(2));
+ egg_ps5_mod_pack_select(1);assert(!egg_ps5_mod_pack_selected(1)&&egg_ps5_mod_pack_selected(2));
+ egg_ps5_mod_pack_select(2);assert(!egg_ps5_mod_pack_selected(0)&&!egg_ps5_mod_pack_selected(1)&&!egg_ps5_mod_pack_selected(2));
+ assert(!strcmp(egg_ps5_mod_menu_value(4),"0 enabled"));
+ egg_ps5_mod_pack_select(0);
  char folder[2048];snprintf(folder,sizeof folder,"%s/mods/battle-sprites",root);assert(!mkdir(folder,0777));
  f=fopen("/data/eggoftime/mods/battle-sprites/sprites.ini","w");assert(f);fputs("# Keep detail\nenabled=1\nscale=4\nshading=65\n",f);fclose(f);
  egg_ps5_mod_menu_refresh();assert(egg_ps5_mod_page_count(MOD_CHARACTERS)==5);loaded=0;assert(!strcmp(egg_ps5_mod_menu_value(5),"Not loaded"));loaded=1;
@@ -87,17 +93,19 @@ int main(int argc,char**argv){
  snprintf(folder,sizeof folder,"%s/mods/crono-hd",root);assert(!mkdir(folder,0777));
  f=fopen("/data/eggoftime/mods/crono-hd/pack.ini","w");assert(f);fputs("# Keep Crono\ngameplay=1\n",f);fclose(f);
  assert(!strcmp(egg_ps5_mod_menu_value(8),"On (13 poses)"));egg_ps5_mod_menu_change(8,1);assert(!crono&&!strcmp(egg_ps5_mod_menu_value(8),"Off"));egg_ps5_mod_menu_change(8,1);assert(crono&&redraw);
- egg_ps5_mod_menu_change(4,1);assert(!strcmp(egg_ps5_mod_menu_value(4),"a-pack"));
- read_ini(b);assert(strstr(b,"active_pack=a-pack\n")&&strstr(b,"# Keep comment\n")&&strstr(b,"output_height=2160\n")&&strstr(b,"unknown=keep\n"));
- egg_ps5_mod_menu_change(4,1);assert(!strcmp(egg_ps5_mod_menu_value(4),"z-pack"));
- egg_ps5_mod_menu_change(4,1);assert(!strcmp(egg_ps5_mod_menu_value(4),"default"));
- egg_ps5_mod_menu_change(4,-1);assert(!strcmp(egg_ps5_mod_menu_value(4),"z-pack"));
+ /* Independent flags never rewrite the former exclusive pack or unrelated config. */
+ egg_ps5_mod_pack_select(1);egg_ps5_mod_pack_select(2);
+ read_ini(b);assert(strstr(b,"active_pack=default\n")&&strstr(b,"# Keep comment\n")&&strstr(b,"output_height=2160\n")&&strstr(b,"unknown=keep\n"));
+ FILE*states=fopen("/data/eggoftime/mods/pack-states.ini","a");assert(states);fputs("# Keep pack note\nremoved-pack=1\n",states);fclose(states);
+ ctps5_pack_states_refresh();egg_ps5_mod_pack_select(1);
+ states=fopen("/data/eggoftime/mods/pack-states.ini","r");assert(states);size_t sn=fread(b,1,sizeof b-1,states);b[sn]=0;fclose(states);
+ assert(strstr(b,"# Keep pack note\n")&&strstr(b,"removed-pack=1\n")&&strstr(b,"a-pack=0\n")&&strstr(b,"z-pack=1\n"));
  egg_ps5_mod_menu_change(0,1);assert(hud);egg_ps5_mod_menu_change(0,-1);assert(!hud);
  egg_ps5_mod_menu_change(3,1);assert(!texture);assert(!strcmp(egg_ps5_mod_menu_value(6),"Textures Off"));
  egg_ps5_mod_menu_change(1,1);assert(scales[0]==105);egg_ps5_mod_menu_change(2,-1);assert(scales[1]==60);
  assert(!egg_ps5_ini_set("/data/eggoftime/ps5.ini","active_pack","bad\nother=value"));
- read_ini(b);assert(strstr(b,"active_pack=z-pack\n"));
+ read_ini(b);assert(strstr(b,"active_pack=default\n"));
  f=fopen("/data/eggoftime/ps5.ini","w");assert(f);for(int i=0;i<1500;i++)fputc('x',f);fputs("\nactive_pack=z-pack\n",f);fclose(f);
  assert(!egg_ps5_ini_set("/data/eggoftime/ps5.ini","active_pack","default"));read_ini(b);assert(strlen(b)==1520&&strstr(b,"active_pack=z-pack"));
- puts("PASS: installed pack filtering/sorting/cycling, HUD/texture switches, persistent pack choice, unrelated settings/comments preserved, newline injection and oversized-line failures leave original intact");
+ puts("PASS: independent pack toggles, migration/zero/multiple enabled states, shared category flags, restart persistence, HUD/texture controls, unrelated settings/comments and removed-pack flags retained");
 }

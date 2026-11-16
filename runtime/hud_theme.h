@@ -37,3 +37,6 @@ const uint32_t *ct_hud_theme_draw(CtHudTheme *theme,const CtHudState *state,cons
 const uint32_t *ct_hud_theme_commands(CtHudTheme *theme,int selected,const uint32_t icons[3][32*32]);
 /* Default original-art aliases produced by the graphics dumper/editor. */
 const char *ct_hud_theme_asset_name(int index);
+
+/* Highest-priority image fallback first; explicit selected theme stays on top. */
+CtHudTheme *ct_hud_theme_load_stack(const char *root,const char *const *fallbacks,int count,char *error,size_t capacity,CtThemeLog log);

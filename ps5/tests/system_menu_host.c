@@ -69,8 +69,9 @@ int egg_ps5_mod_option_available(int setting){(void)setting;return 1;}
 int egg_ps5_mod_pack_count(void){return 12;}
 const char*egg_ps5_mod_pack_name(int pack){const char*n[]={"Default folder","crono-house-hd2d","crono-png-test","forest-hd","guardia-castle","millennial-fair","mountains","overworld","ruins","towns","truce-inn","zeal"};return n[pack];}
 int egg_ps5_mod_pack_flags(int pack){return pack==1?3:pack==2?1:2;}
-int egg_ps5_mod_pack_selected(int pack){return pack==1;}
-void egg_ps5_mod_pack_select(int pack){mod_change=100+pack;}
+static int pack_on[12]={[1]=1,[2]=1};
+int egg_ps5_mod_pack_selected(int pack){return pack_on[pack];}
+void egg_ps5_mod_pack_select(int pack){mod_change=100+pack;pack_on[pack]=!pack_on[pack];}
 static void step(unsigned keys){ticks+=120;sysmenu_input(keys);}
 static void tap(unsigned keys){step(keys);step(0);}
 static void shot(const char*directory,const char*name){
@@ -89,7 +90,7 @@ int main(int argc,char**argv){
  tap(KEY_RIGHT);assert(!mod_change&&mods_section==MOD_ROOT);
  tap(KEY_A);assert(mods_section==MOD_CHARACTERS&&!mod_change);shot(argc>1?argv[1]:NULL,"mods-characters");
  tap(KEY_A);assert(mods_section==MOD_CHARACTER_PACKS&&!mod_change);shot(argc>1?argv[1]:NULL,"mods-character-packs");
- tap(KEY_DOWN);tap(KEY_DOWN);tap(KEY_RIGHT);assert(!mod_change);tap(KEY_A);assert(mod_change==101);shot(argc>1?argv[1]:NULL,"mods-pack-selected");
+ tap(KEY_DOWN);tap(KEY_DOWN);tap(KEY_RIGHT);assert(!mod_change);tap(KEY_A);assert(mod_change==101&&!pack_on[1]&&pack_on[2]);tap(KEY_A);assert(pack_on[1]&&pack_on[2]);shot(argc>1?argv[1]:NULL,"mods-pack-selected");
  tap(KEY_B);assert(mods_section==MOD_CHARACTERS&&mods_cursor==0);
  for(int i=0;i<4;i++)tap(KEY_DOWN);tap(KEY_A);assert(pilot_page&&sysmenu_pauses_game());
  tap(KEY_RIGHT);assert(pilot_pose==1);tap(KEY_B);assert(!pilot_page&&mods_section==MOD_CHARACTERS&&mods_cursor==4);

@@ -67,16 +67,19 @@ static SDL_Surface*load_image(const char*path,size_t used,CtThemeLog log){
  SDL_Surface*raw=NULL;if(good){SDL_IOStream*io=SDL_IOFromConstMem(data,(size_t)bytes);if(io)raw=SDL_LoadPNG_IO(io,true);}free(data);
  if(!raw){note(log,"unreadable PNG",path);return NULL;}SDL_Surface*s=SDL_ConvertSurface(raw,SDL_PIXELFORMAT_ABGR8888);SDL_DestroySurface(raw);if(!s){note(log,"unsupported PNG",path);return NULL;}return s;
 }
-CtHudTheme*ct_hud_theme_load(const char*root,const char*fallback,char*error,size_t capacity,CtThemeLog log){
+CtHudTheme*ct_hud_theme_load_stack(const char*root,const char*const*fallbacks,int count,char*error,size_t capacity,CtThemeLog log){
  if(error&&capacity)error[0]=0;CtHudTheme*t=calloc(1,sizeof *t);if(!t){if(error&&capacity)snprintf(error,capacity,"Theme allocation failed");return NULL;}ct_hud_theme_defaults(&t->cfg);
- char path[1200];int has_json=0;if(join(path,sizeof path,root,"theme.json")){
+ char path[1200];int has_json=0;
+ const char*config_root=root;
+ if(!config_root)for(int i=0;i<count;i++)if(join(path,sizeof path,fallbacks[i],"theme.json")){FILE*f=fopen(path,"rb");if(f){fclose(f);config_root=fallbacks[i];break;}}
+ if(join(path,sizeof path,config_root,"theme.json")){
   FILE*f=fopen(path,"rb");if(f){has_json=1;if(fseek(f,0,SEEK_END)!=0){fclose(f);goto io_error;}long n=ftell(f);if(n<=0||n>512*1024||fseek(f,0,SEEK_SET)!=0){fclose(f);goto io_error;}
    char*json=malloc((size_t)n);int good=json&&fread(json,1,(size_t)n,f)==(size_t)n;if(fclose(f))good=0;if(!good){free(json);goto io_error;}good=ct_hud_theme_parse(json,(size_t)n,&t->cfg,error,capacity);free(json);if(!good){ct_hud_theme_free(t);return NULL;}
   }
  }
  for(int i=0;i<CT_THEME_IMAGES;i++)if(t->cfg.files[i][0]){
   SDL_Surface*s=NULL;if(join(path,sizeof path,root,t->cfg.files[i]))s=load_image(path,t->asset_bytes,log);
-  if(!s&&fallback&&(!root||strcmp(root,fallback))&&asset_names[i]&&join(path,sizeof path,fallback,asset_names[i]))s=load_image(path,t->asset_bytes,log);
+  for(int layer=0;!s&&layer<count;layer++)if(fallbacks[layer]&&(!root||strcmp(root,fallbacks[layer]))&&asset_names[i]&&join(path,sizeof path,fallbacks[layer],!root&&fallbacks[layer]==config_root?t->cfg.files[i]:asset_names[i]))s=load_image(path,t->asset_bytes,log);
   if(!s)continue;t->image[i].surface=s;t->asset_bytes+=(size_t)s->w*s->h*4;t->overrides++;
  }
  if(t->image[TH_FONT].surface){SDL_Surface*s=t->image[TH_FONT].surface;if(s->w%t->cfg.font_columns||s->h%t->cfg.font_rows){note(log,"font PNG does not match glyph grid","font.png");t->asset_bytes-=(size_t)s->w*s->h*4;SDL_DestroySurface(s);t->image[TH_FONT].surface=NULL;t->overrides--;}}
@@ -87,6 +90,10 @@ CtHudTheme*ct_hud_theme_load(const char*root,const char*fallback,char*error,size
  return t;
 io_error:if(error&&capacity)snprintf(error,capacity,"Could not read or allocate HUD theme");ct_hud_theme_free(t);return NULL;
 }
+CtHudTheme*ct_hud_theme_load(const char*root,const char*fallback,char*error,size_t capacity,CtThemeLog log){
+ const char*paths[]={fallback};return ct_hud_theme_load_stack(root,paths,fallback?1:0,error,capacity,log);
+}
+
 void ct_hud_theme_free(CtHudTheme*t){if(!t)return;for(int i=0;i<CT_THEME_IMAGES;i++)SDL_DestroySurface(t->image[i].surface);SDL_DestroySurface(t->surface);SDL_DestroySurface(t->command_surface);free(t->pixels);free(t->commands);free(t);}
 /* All primitives clip to the output canvas/card, including user-supplied
  * layouts. The entire RGBA canvas is rebuilt each frame: no stale patches. */

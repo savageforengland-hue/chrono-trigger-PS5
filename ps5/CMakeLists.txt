@@ -24,7 +24,7 @@ file(GLOB RC_SOURCES "${EGG_ROOT}/ps5/vendor/rcheevos/src/*.c"
     "${EGG_ROOT}/ps5/vendor/rcheevos/src/rhash/*.c")
 list(FILTER RC_SOURCES EXCLUDE REGEX "/(rc_libretro|cdreader|hash_disc|hash_zip|hash_encrypted|aes)\\.c$")
 add_library(egg_objects OBJECT ${RUNTIME_SOURCES} ${GAME_SOURCES}
-    game_prepare.c diagnostics.c memory.c battle_hud.c hud_themes.c config_file.c mod_menu.c mod_browser.c prompts.c game_prompts.c game_prompt_icons.c presentation.c compat/directory.c compat/fp.c
+    game_prepare.c diagnostics.c memory.c battle_hud.c hud_themes.c config_file.c pack_state.c mod_menu.c mod_browser.c prompts.c game_prompts.c game_prompt_icons.c presentation.c compat/directory.c compat/fp.c
     compat/heap.c compat/heap_wrap.c compat/placement.c compat/dlmalloc/mspace.c
     "${EGG_PLATFORM_MODULE}" config.c mods.c "${EGG_FEATURE_MODULE}")
 if(NOT EGG_PS5_SYSTEM_KEYBOARD)
@@ -38,7 +38,7 @@ file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/egg_objects.list"
     CONTENT "$<JOIN:$<TARGET_OBJECTS:egg_objects>,\n>\n")
 target_include_directories(egg_objects PRIVATE "${EGG_ROOT}/runtime" "${EGG_GEN}"
     "${SDL3_SOURCE}/include" "${HB}/include" "${EGG_ROOT}/ps5/vendor/rcheevos/include")
-target_compile_definitions(egg_objects PRIVATE EGG_PS5=1 EGG_STATIC_GAME=1 EGG_SINGLE_SCREEN=1
+target_compile_definitions(egg_objects PRIVATE EGG_PS5=1 EGG_PS5_PACK_STACK=1 EGG_STATIC_GAME=1 EGG_SINGLE_SCREEN=1
     EGG_VERSION="1.3.5-ps5-experimental" SDL_MAIN_HANDLED RC_CLIENT_SUPPORTS_HASH
     RC_HASH_NO_DISC RC_HASH_NO_ZIP RC_HASH_NO_ENCRYPTED)
 target_compile_options(egg_objects PRIVATE -O1 -fwrapv -fPIC -ffunction-sections -fdata-sections)

@@ -1,17 +1,22 @@
 # Release notes and validation
 
-## Private mod host 01.006.017 — 16 November 2026
+## Private mod host 01.006.018 — 16 November 2026
 
-Adds WorldMap/WorldBg support to location-scoped PNG loading and Backgrounds
-menu discovery. Optional background palette-pair detail uses its own bounded
-JSON setting; absent settings retain existing indexed behaviour. The private
-[1000 AD remaster test](WORLD-MAP-1000AD.md) keeps native map geometry, live
-colours and non-background objects, with seven 4× replacement sheets. Existing
-house lighting, characters, HUD, controls and saved pack settings are retained.
+Replaces the single named texture-pack selector with independent On/Off
+switches. Several character/background packs now load together, retaining
+their own location rules, curtain lighting and palette behaviour. The old
+selection migrates without rewriting unrelated configuration; all graphics
+packs can be Off. Later names in the menu have priority for overlaps, including
+exact character frames and HUD PNGs. See [multi-pack behaviour](MODS-MULTIPLE-PACKS.md).
 
-Actual desktop port captures include 3840×2160 output. Loader, palette/mask,
-legacy room, menu and native-package checks are recorded in the private test
-report. Console testing remains pending; music-stutter resolution is not claimed.
+Also adds WorldMap/WorldBg location scoping and optional live-palette background
+detail for the private [1000 AD world-map remaster test](WORLD-MAP-1000AD.md).
+Seven 4× sheets retain original map geometry, colours and animation data.
+Desktop captures include simultaneous world/house/Crono packs and 4K output;
+loader, persistence, conflicts/fallback, HUD, character, room and native-package
+validation are recorded in the private report. PS5 hardware testing remains
+pending. Music-stutter resolution is not claimed. Version 017 was an internal
+intermediate and was superseded before delivery.
 
 ## Private mod host 01.006.016 — 16 November 2026
 

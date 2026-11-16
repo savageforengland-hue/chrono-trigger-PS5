@@ -9,7 +9,7 @@ void gfxmod_load(void);
 
 /* HD art for one 8x8 tile: scale * 8 pixels square, unflipped; indexed (palette indexes as the tile's own: 0-15
  * in its row, or 0-255; 0 transparent) or RGBA (ABGR8888, alpha 0 transparent). */
-typedef struct GfxHdTile { int scale, indexed, bpp8; const void *px; int scope; unsigned characters; } GfxHdTile;
+typedef struct GfxHdTile { int scale, indexed, bpp8; const void *px; int scope; unsigned characters; int policy; } GfxHdTile;
 /* Authored palette-relative sprite texels (indexed=2). Scope 1 additionally
  * requires a battle, sprite layer and matching player palette/character mask.
  * Scope 2 is a location background (Map/Bg or WorldMap/WorldBg); scope 3 a room actor. Indexed=4 is painted
@@ -36,7 +36,11 @@ int gfxmod_background_allowed(void);
 int gfxmod_window_probe(int *bg,int *x,int *y,int *control);
 void gfxmod_window_state(int valid,int tile,uint64_t frame);
 int gfxmod_window_gain(void); /* 256 daylight; applies to world textures, not HUD/minimap. */
+#define GFXMOD_POLICY_LIMIT 64
 void gfxmod_background_gains(const uint16_t *palette,uint16_t gains[32]);
+void gfxmod_background_gains_all(const uint16_t *palette,uint16_t gains[(GFXMOD_POLICY_LIMIT+1)*32]);
+int gfxmod_policy_allowed(int policy);
+void gfxmod_release_direct(uint32_t tile);
 static inline int gfxmod_allowed(const GfxHdTile*t,int sprite,int battle,int character){
-    return t&&(!t->scope||(((t->scope==2&&!sprite)||(t->scope==3&&sprite))&&gfxmod_background_allowed())||(t->scope==1&&sprite&&battle&&character>=0&&character<7&&(t->characters&(1u<<character))));
+    return t&&(!t->scope||(((t->scope==2&&!sprite)||(t->scope==3&&sprite))&&gfxmod_policy_allowed(t->policy))||(t->scope==1&&sprite&&battle&&character>=0&&character<7&&(t->characters&(1u<<character))));
 }

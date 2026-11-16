@@ -20,7 +20,7 @@ Texture pack format v1 targets USA YQUE, with 2x–8x replacement scales. Keep p
 
 This PS5 core profile disables the PC shader, FFmpeg media replacement, online RetroAchievements and translation patch integrations. Do not assume a desktop mod depending on those modules works on PS5. Test a pack with the unmodified game first, and include its ID and version when reporting a problem.
 
-## Categorized Mods menu (01.006.016)
+## Categorized Mods menu (01.006.018)
 
 Open **L3+R3 → Mods**:
 
@@ -36,18 +36,18 @@ Left/Right changes a setting, but never enters a category or selects a pack.
 Back returns one level. L3+R3 closes from any level. Long lists scroll with
 arrows and retain readable row sizes. Absent optional character modules are hidden.
 
-Character/background lists are discovered from actual PNGs under the dumped
-`sheets/Chara`, `frames/Chara`, `sheets/Map` and `screens/Map` paths when opening
-Mods. Empty folders do not count. Mixed packs appear in both lists. There is
-**one shared active graphics pack**: selecting a mixed house pack enables all
-its character and scenery replacements together. Categories do not introduce
-independent pack stacking. **Default folder** means `mods/graphics/`; it may
-contain earlier PNGs and does not necessarily mean unmodified artwork.
+Character/background lists are discovered from actual PNGs at dumped relative
+paths, including WorldMap sheets. Mixed packs appear in both relevant lists.
+Every installed graphics pack has an independent **On/Off** switch. Enable
+several with A, then fully close and restart. The Default folder is
+`mods/graphics/` and can be toggled separately. Later names in the ordered list
+win overlapping assets, while each pack retains its own location rules and
+lighting. See [multiple-pack settings, priority and migration](MODS-MULTIPLE-PACKS.md).
 
-Keep the same folder structure and PNG filenames. Selecting a pack or changing
-Texture mods requires a full app restart; HUD/redraw settings retain their
-existing live behavior. No configuration migration or pack reorganization is
-required. Existing active pack, HUD theme, controls, ROM and saves are preserved.
+Keep the same folder structure and PNG filenames. No registration or folder
+reorganization is required. Existing pack selection migrates on the first
+toggle; HUD/redraw settings retain their live behaviour and existing controls,
+ROM and saves are preserved.
 
 The same host skips room-only HD composition outside permitted locations,
 while retaining unrestricted PNGs, battle sprite modules and active redraws.
@@ -121,7 +121,7 @@ and faithful Crono/mum/cat sprite refinement under the independent named pack
 prevents shared sheets changing other locations, preserves native curtain
 animation, and keeps fully transparent sheet cells original.
 
-## 1000 AD world map (01.006.017)
+## 1000 AD world map (01.006.018)
 
 The private [1000 AD world-map pack](WORLD-MAP-1000AD.md) uses seven exact
 WorldMap/WorldBg dumped PNG sheet paths, 4× live-palette detail and a

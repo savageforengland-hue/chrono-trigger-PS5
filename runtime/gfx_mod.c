@@ -39,22 +39,33 @@
 
 /* Opt-in restrictions for Map/Bg and optionally Chara sheets. An invalid present file
  * fails closed for those images, rather than leaking room art globally. */
-static BgRules background_rules;
-static int background_mode; /* 0 absent, 1 valid, -1 invalid */
+static BgRules background_rules; /* rules of the root currently being loaded */
+static int background_mode,current_policy,policy_count;
+static BgRules policies[GFXMOD_POLICY_LIMIT+1]; /* 0: unrestricted */
 static atomic_int background_location=ATOMIC_VAR_INIT(-1);
 void gfxmod_background_location(int location){atomic_store(&background_location,location);}
-int gfxmod_background_allowed(void){return background_mode==1&&bg_rules_index(&background_rules,atomic_load(&background_location))>=0;}
+int gfxmod_policy_allowed(int policy){return policy>0&&policy<=policy_count&&bg_rules_index(policies+policy,atomic_load(&background_location))>=0;}
+int gfxmod_background_allowed(void){for(int i=1;i<=policy_count;i++)if(gfxmod_policy_allowed(i))return 1;return 0;}
+static void policy_gains(const BgRules*rules,const uint16_t*palette,uint16_t gains[32]){
+ int at=rules?bg_rules_index(rules,atomic_load(&background_location)):-1;
+ for(int row=0;row<32;row++){gains[row]=256;if(at<0||row>=16)continue;int reference=rules->locations[at].light[row];if(!reference)continue;int light=0;for(int i=1;i<16;i++){unsigned c=palette[row*16+i];light+=5*(c&31)+9*((c>>5)&31)+2*((c>>10)&31);}gains[row]=(uint16_t)SDL_clamp((light*256+reference/2)/reference,0,512);}
+}
 void gfxmod_background_gains(const uint16_t*palette,uint16_t gains[32]){
- int at=bg_rules_index(&background_rules,atomic_load(&background_location));
- for(int row=0;row<32;row++){gains[row]=256;if(background_mode!=1||at<0||row>=16)continue;int reference=background_rules.locations[at].light[row];if(!reference)continue;int light=0;for(int i=1;i<16;i++){unsigned c=palette[row*16+i];light+=5*(c&31)+9*((c>>5)&31)+2*((c>>10)&31);}gains[row]=(uint16_t)SDL_clamp((light*256+reference/2)/reference,0,512);}
+ const BgRules*rules=NULL;for(int i=1;i<=policy_count;i++)if(gfxmod_policy_allowed(i))rules=policies+i;policy_gains(rules,palette,gains);
+}
+void gfxmod_background_gains_all(const uint16_t*palette,uint16_t gains[(GFXMOD_POLICY_LIMIT+1)*32]){
+ for(int i=0;i<=GFXMOD_POLICY_LIMIT;i++)policy_gains(i>0&&i<=policy_count?policies+i:NULL,palette,gains+i*32);
+}
+static const BgWindow*window_rule(void){
+ for(int i=policy_count;i>0;i--)if(policies[i].window.enabled&&policies[i].window.location==atomic_load(&background_location))return &policies[i].window;return NULL;
 }
 static atomic_int window_gain=ATOMIC_VAR_INIT(256);
 static int window_active,window_target=256;static uint64_t window_frame;
-int gfxmod_window_probe(int*bg,int*x,int*y,int*control){const BgWindow*w=&background_rules.window;if(background_mode!=1||!w->enabled||atomic_load(&background_location)!=w->location)return 0;*bg=w->bg;*x=w->cell[0];*y=w->cell[1];*control=w->control;return 1;}
-int gfxmod_window_gain(void){const BgWindow*w=&background_rules.window;return background_mode==1&&w->enabled&&atomic_load(&background_location)==w->location?atomic_load(&window_gain):256;}
+int gfxmod_window_probe(int*bg,int*x,int*y,int*control){const BgWindow*w=window_rule();if(!w)return 0;*bg=w->bg;*x=w->cell[0];*y=w->cell[1];*control=w->control;return 1;}
+int gfxmod_window_gain(void){return window_rule()?atomic_load(&window_gain):256;}
 void gfxmod_window_state(int valid,int tile,uint64_t frame){
- const BgWindow*w=&background_rules.window;
- if(!valid||background_mode!=1||!w->enabled||atomic_load(&background_location)!=w->location){window_active=0;window_target=256;window_frame=frame;atomic_store(&window_gain,256);return;}
+ const BgWindow*w=window_rule();
+ if(!valid||!w){window_active=0;window_target=256;window_frame=frame;atomic_store(&window_gain,256);return;}
  if(frame<window_frame)window_active=0;
  int closed=(w->brightness*256+50)/100,target=tile==w->open?256:tile==w->closed?closed:-1;
  if(!window_active){window_target=target<0?256:target;window_active=1;window_frame=frame;atomic_store(&window_gain,window_target);return;}
@@ -66,7 +77,12 @@ void gfxmod_window_state(int valid,int tile,uint64_t frame){
 static int scoped_background(const char*rel){return !strncmp(rel,"sheets/Map/Bg/",14)||!strncmp(rel,"sheets/WorldMap/WorldBg_",24);}
 static int scoped_character(const char*rel){return background_rules.characters&&!strncmp(rel,"sheets/Chara/",13);}
 static void background_load_rules(const char*root){
- memset(&background_rules,0,sizeof background_rules);background_mode=0;char path[1200];snprintf(path,sizeof path,"%sbackgrounds.json",root);SDL_PathInfo info;if(!SDL_GetPathInfo(path,&info))return;background_mode=-1;if(info.type!=SDL_PATHTYPE_FILE||info.size>BG_RULE_BYTES){rt_log("gfxmod: backgrounds.json: invalid file; background PNGs skipped");return;}size_t n=0;char*data=SDL_LoadFile(path,&n);if(data&&bg_rules_parse(data,n,&background_rules))background_mode=1;SDL_free(data);rt_log("gfxmod: backgrounds.json: %s",background_mode==1?"location-scoped HD backgrounds; transparent tiles keep original assets":"invalid rules; background PNGs skipped");
+ memset(&background_rules,0,sizeof background_rules);background_mode=current_policy=0;
+ char path[1200];snprintf(path,sizeof path,"%sbackgrounds.json",root);SDL_PathInfo info;if(!SDL_GetPathInfo(path,&info))return;
+ background_mode=-1;if(info.type!=SDL_PATHTYPE_FILE||info.size>BG_RULE_BYTES){rt_log("gfxmod: backgrounds.json: invalid file; scoped PNGs skipped");return;}
+ size_t n=0;char*data=SDL_LoadFile(path,&n);
+ if(data&&bg_rules_parse(data,n,&background_rules)&&policy_count<GFXMOD_POLICY_LIMIT){background_mode=1;current_policy=++policy_count;policies[current_policy]=background_rules;}
+ SDL_free(data);rt_log("gfxmod: backgrounds.json: %s",background_mode==1?"independent location policy; transparent tiles retain originals":"invalid rules; scoped PNGs skipped");
 }
 
 /* ---- the HD tile table ---- */
@@ -116,13 +132,14 @@ static uint32_t scope_entry(uint32_t n,int scope){for(;n;n=entries[n].next)if(en
 /* Takes ownership of px. A later unrestricted PNG still overrides all scopes. */
 static int add_hd(const uint8_t*t,int bpp8,int scale,int indexed,void*px,int scope){
  uint64_t h=tile_hash(t,bpp8);uint32_t head=lookup(t,bpp8,h);
- GfxHdTile hd={scale,indexed,bpp8,px,scope,0};
+ GfxHdTile hd={scale,indexed,bpp8,px,scope,0,(scope==2||scope==3)?current_policy:0};
  if(head){
-  uint32_t target=scope?scope_entry(head,scope):head;
+  uint32_t target=head;
+  if(scope){for(target=head;target;target=entries[target].next)if(entries[target].hd.scope==scope&&entries[target].hd.policy==hd.policy)break;}
   if(target){free((void*)entries[target].hd.px);entries[target].hd=hd;return 0;}
   uint32_t alt=new_entry();if(!alt){free(px);return 0;}
-  if(entries[head].hd.scope==0){entries[alt]=entries[head];entries[alt].direct=1;entries[head].hd=hd;entries[head].next=alt;}
-  else{entries[alt].hd=hd;entries[alt].direct=1;entries[alt].next=entries[head].next;entries[head].next=alt;}
+  if(scope==1){uint32_t tail=head;while(entries[tail].next)tail=entries[tail].next;entries[alt].hd=hd;entries[alt].direct=1;entries[tail].next=alt;}
+  else{entries[alt]=entries[head];entries[alt].direct=1;entries[head].hd=hd;entries[head].next=alt;}
   return 1;
  }
  uint32_t n=new_entry();if(!n){free(px);return 0;}entries[n].hd=hd;entries[n].bpp8=bpp8;entries[n].hash=h;memcpy(entries[n].bytes,t,bpp8?64:32);
@@ -155,6 +172,8 @@ uint32_t gfxmod_add_direct(int scale,int indexed,void*px){
     uint32_t n=entry_count++;entries[n]=(Entry){.hd={scale,indexed,0,px,0,0},.direct=1};
     hd_scale=SDL_max(hd_scale,scale);return n;
 }
+
+void gfxmod_release_direct(uint32_t n){if(n&&n<entry_count&&entries[n].direct&&!entries[n].hash&&!entries[n].hd.scope){free((void*)entries[n].hd.px);entries[n].hd.px=NULL;}}
 
 /* ---- the images ---- */
 
@@ -635,15 +654,8 @@ static void inventory(const char*root,const List*list){
     for(int i=0;i<list->count;i++){if(i)fputc(',',f);fputs("\n    ",f);json_string(f,relative(list->paths[i],root));}fputs("\n  ]\n}\n",f);int good=!ferror(f);if(fclose(f))good=0;if(good&&rename(temp,path)==0)return;remove(temp);rt_log("gfxmod: could not update generated inventory; PNG discovery is unaffected");
 }
 
-void gfxmod_load(void) {
-    Uint64 t0 = SDL_GetTicks();
-    char root[1024];
-#ifdef EGG_PS5_CORE
-    extern const char *egg_ps5_graphics_root(void);
-    snprintf(root, sizeof root, "%s", egg_ps5_graphics_root());
-#else
-    snprintf(root, sizeof root, "%smods/graphics/", rt_data_dir());
-#endif
+static void load_root(const char*root) {
+    Uint64 t0=SDL_GetTicks();
     background_load_rules(root);
     List list = {0};
     static const char *const kinds[] = {"sheets", "frames", "screens", "fonts", "hud"};
@@ -657,11 +669,7 @@ void gfxmod_load(void) {
     if(list.count>1)qsort(list.paths,(size_t)list.count,sizeof *list.paths,by_path);
     inventory(root,&list);
     if (!list.count) {
-        background_rules.window.enabled=0; /* An empty PNG pack retains original lighting too. */
-#ifdef EGG_PS5_CORE
-        sprite_hd_load();
-        ct_redraw_load();
-#endif
+        if(current_policy)policies[current_policy].window.enabled=0;
         return;
     }
     if (!gfx_list_files()) return;
@@ -726,15 +734,25 @@ void gfxmod_load(void) {
         if (!pass && commit_edits()) gfx_list_files(); /* the files moved */
         if (!pass) t1 = SDL_GetTicks() - t1;
     }
-    if(!hd)background_rules.window.enabled=0;
+    if(!hd&&current_policy)policies[current_policy].window.enabled=0;
     for (int i = 0; i < list.count; i++) SDL_free(list.paths[i]);
     free(list.paths);
     free(scale);
     rt_log("gfxmod: %d files: %d same-size tiles changed, %d palette colours, %d HD tiles (up to %dx), %d glyphs and "
            "%d glyph widths changed in %.1f s (%.1f s writing the ROM)",
            images, same_tiles, colours, hd, hd_scale, glyphs, widths, (double)(SDL_GetTicks() - t0) / 1000, (double)t1 / 1000);
+}
+void gfxmod_load(void){
+#ifdef EGG_PS5_PACK_STACK
+    extern int egg_ps5_graphics_root_count(void);
+    extern const char*egg_ps5_graphics_root_at(int);
+    int roots=egg_ps5_graphics_root_count();for(int i=0;i<roots;i++)load_root(egg_ps5_graphics_root_at(i));
+#elif defined(EGG_PS5_CORE)
+    extern const char*egg_ps5_graphics_root(void);load_root(egg_ps5_graphics_root());
+#else
+    char root[1024];snprintf(root,sizeof root,"%smods/graphics/",rt_data_dir());load_root(root);
+#endif
 #ifdef EGG_PS5_CORE
-    sprite_hd_load();
-    ct_redraw_load();
+    sprite_hd_load();ct_redraw_load();
 #endif
 }

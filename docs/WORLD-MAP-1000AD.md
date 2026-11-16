@@ -1,6 +1,6 @@
 # 1000 AD world-map remaster test
 
-Private artwork pack **1000ad-remaster v0.1.0**, requiring mod host **01.006.017**.
+Private artwork pack **1000ad-remaster v0.1.0**, requiring mod host **01.006.018**.
 The port's original world-map tiles, map entries, collision, entrances and event
 code remain authoritative. The pack adds 4× palette-relative terrain/building
 detail while retaining native character sprites, clouds, moving map objects
@@ -11,10 +11,10 @@ and animation data. It is a faithful pixel-art enhancement of the initial
 
 Install the matching **PPSA90436** host update first, keeping `/data/eggoftime/`
 intact. Merge the mod ZIP's `eggoftime` folder into `/data/`. Then open
-**L3+R3 → Mods → Backgrounds**, turn Texture mods On and select
-**1000ad-remaster** with A. Fully close and restart the app to load it.
-The pack is also listed under Texture Packs. There is one active named
-pack; earlier house/character packs remain installed and selectable.
+**L3+R3 → Mods → Backgrounds**, turn Texture mods On and switch
+**1000ad-remaster** On with A. Fully close and restart the app to load it.
+The pack is also listed under Texture Packs. House and character packs can
+remain On at the same time; see [independent switches](MODS-MULTIPLE-PACKS.md).
 HUD configuration remains independent. No INI, ROM or save files are included.
 
 ```text

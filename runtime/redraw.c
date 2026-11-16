@@ -39,8 +39,13 @@ uint32_t ct_redraw_color(uint32_t texel,const uint16_t p[16]){
     return texel|0xff000000u;
 }
 static int load_pose(int module,int character,const char*folder,const char*file,int cell,int expected_scale,const GfxBlob*cb,const GfxTiles*t,const GfxPalette*pal){
-    for(int i=0;i<count;i++)if(poses[i].character==character&&poses[i].cell==cell)return 1;
-    if(count>=POSES)return 0;
+    int replace=-1;
+    for(int i=0;i<count;i++)if(poses[i].character==character&&poses[i].cell==cell){
+        if(module==CT_REDRAW_DROPIN&&poses[i].module==CT_REDRAW_DROPIN)replace=i;
+        else return 1;
+        break;
+    }
+    if(count>=POSES&&replace<0)return 0;
     Pose p={.cell=cell,.character=character,.module=module,.x0=999,.y0=999};GfxObject obj[REDRAW_OBJECTS];GfxLayout layout;
     int n=gfx_cell_objects(cb,(uint32_t)cell,obj,REDRAW_OBJECTS);
     if(!n||!gfx_cell_layout(cb,(uint32_t)cell,&layout))return 0;
@@ -99,7 +104,12 @@ static int load_pose(int module,int character,const char*folder,const char*file,
     }
     free(words);SDL_DestroySurface(s);
     for(int i=0;i<p.cols*rows;i++)if(!p.tile[i]){free(p.preview);free(p.original);free(p.representative);free(p.tile);return 0;}
-    poses[count++]=p;rt_log("redraw: loaded %s cell %d, %dx%d at %dx, %d nonblank original objects",characters[character],cell,p.w,p.h,p.scale,p.ref.count);return 1;
+    if(replace>=0){
+        Pose*old=poses+replace;free(old->preview);free(old->original);free(old->representative);
+        for(int i=0;i<old->cols*((old->h+7)/8);i++)gfxmod_release_direct(old->tile[i]);
+        free(old->tile);*old=p;
+    }else poses[count++]=p;
+    rt_log("redraw: loaded %s cell %d, %dx%d at %dx, %d nonblank original objects",characters[character],cell,p.w,p.h,p.scale,p.ref.count);return 1;
 }
 int ct_redraw_dropin(const char*path,const char*rel){
     int character,cell,used=0;if(sscanf(rel,"frames/Chara/Chara_%4d/%3d.png%n",&character,&cell,&used)!=2||rel[used]||character<0||character>6||cell<0)return 0;
@@ -108,7 +118,7 @@ int ct_redraw_dropin(const char*path,const char*rel){
     char name[128];snprintf(name,sizeof name,"Chara/Chara_%04d.NCGR",character);GfxBlob tb=gfx_open(gfx_find(name));snprintf(name,sizeof name,"Chara/Chara_%04d.NCER",character);GfxBlob cb=gfx_open(gfx_find(name));GfxTiles t;GfxPalette pal;snprintf(name,sizeof name,"Chara/ObjPlt_%04d.NCLR",character);
     int good=gfx_read_tiles(&tb,&t)&&!t.bpp8&&gfx_read_palette(gfx_find(name),&pal)&&pal.colors>=16&&(unsigned)cell<gfx_cell_count(&cb);
     if(good){for(int i=0;i<16;i++)canonical[character][i]=(pal.c[i].r>>3)|((pal.c[i].g>>3)<<5)|((pal.c[i].b>>3)<<10);good=load_pose(CT_REDRAW_DROPIN,character,NULL,path,cell,0,&cb,&t,&pal);}
-    if(!good)rt_log("PNG override: %s rejected or unsupported object layout; original retained",rel);
+    if(!good)rt_log("PNG override: %s rejected or unsupported object layout; earlier/original art retained",rel);
     SDL_SetAtomicInt(&gameplay[CT_REDRAW_DROPIN],1);gfx_close(&tb);gfx_close(&cb);return 1;
 }
 static void load_module(int module,int character,const char*folder,const char*ini,const char*prefix,const int*ids,int n){

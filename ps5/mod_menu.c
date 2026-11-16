@@ -4,6 +4,7 @@
 #include "hud_themes.h"
 #include "config.h"
 #include "config_file.h"
+#include "pack_state.h"
 #include "../runtime/display.h"
 #include "../runtime/redraw.h"
 #include "../runtime/sprite_hd.h"
@@ -15,7 +16,7 @@
 #define MAX_PACKS 64
 static char packs[MAX_PACKS][64];
 static unsigned char pack_flags[MAX_PACKS];
-static int count,selected,textures_changed,pack_changed,sprites_installed,sprites_enabled,sprites_changed;
+static int count,textures_changed,pack_changed,sprites_installed,sprites_enabled,sprites_changed;
 static int valid(const char*s){
     size_t n=strlen(s);if(!n||n>=64)return 0;
     for(size_t i=0;i<n;i++)if(!isalnum((unsigned char)s[i])&&s[i]!='-'&&s[i]!='_')return 0;
@@ -45,12 +46,13 @@ static int classify(const char*root){
 }
 void egg_ps5_mod_menu_refresh(void){
     ctps5_hud_themes_refresh();
+    ctps5_pack_states_refresh();
     sprites_installed=sprites_enabled=0;
     FILE*f=fopen("/data/eggoftime/mods/battle-sprites/sprites.ini","r");
     if(f){sprites_installed=1;char line[192];while(fgets(line,sizeof line,f)){int v;char extra;
         if(sscanf(line," enabled = %d %c",&v,&extra)==1)sprites_enabled=v==1;
     }fclose(f);}
-    strcpy(packs[0],"default");count=1;selected=0;
+    strcpy(packs[0],"default");count=1;
     DIR*d=opendir("/data/eggoftime/mods/packs");
     if(d){struct dirent*e;while((e=readdir(d))&&count<MAX_PACKS){
         if(!valid(e->d_name)||!strcmp(e->d_name,"default"))continue;
@@ -64,7 +66,6 @@ void egg_ps5_mod_menu_refresh(void){
         if(i)snprintf(root,sizeof root,"/data/eggoftime/mods/packs/%s/graphics",packs[i]);
         else snprintf(root,sizeof root,"/data/eggoftime/mods/graphics");
         pack_flags[i]=(unsigned char)classify(root);
-        if(!strcmp(packs[i],egg_ps5_config.active_pack))selected=i;
     }
 }
 int egg_ps5_mod_menu_count(void){return 10;}
@@ -85,7 +86,8 @@ const char *egg_ps5_mod_menu_value(int row){
     if(row==6)return !ct_redraw_module_count(CT_REDRAW_MARLE)?"Not installed":!display_setting_get(SET_MODS)?"Textures Off":ct_redraw_enabled()?"On (fear poses)":"Off";
     if(row==7)return ct_redraw_count()?"Open pilot":"Not installed";
     if(row==8){static char value[32];int n=ct_redraw_module_count(CT_REDRAW_CRONO);if(!n)return "Not installed";if(!display_setting_get(SET_MODS))return "Textures Off";if(!ct_redraw_module_enabled(CT_REDRAW_CRONO))return "Off";snprintf(value,sizeof value,"On (%d poses)",n);return value;}
-    return row==4?packs[selected]:"";
+    if(row==4){static char value[32];int on=0;for(int i=0;i<count;i++)on+=ctps5_pack_enabled(packs[i]);snprintf(value,sizeof value,"%d enabled",on);return value;}
+    return "";
 }
 const char *egg_ps5_mod_menu_description(int row){
     if(row==9)return "Left/Right: theme. A: reload PNGs and JSON.";
@@ -113,9 +115,6 @@ void egg_ps5_mod_menu_change(int row,int direction){
     }else if(row==3){
         display_setting_set(SET_MODS,!display_setting_get(SET_MODS));textures_changed=1;
         ct_redraw_set_visible(display_setting_get(SET_MODS));
-    }else if(row==4&&count>0){
-        int next=(selected+count+(direction<0?-1:1))%count;
-        egg_ps5_mod_pack_select(next);
     }else if(row==5&&sprites_installed){
         if(!egg_ps5_ini_set("/data/eggoftime/mods/battle-sprites/sprites.ini","enabled",sprites_enabled?"0":"1")){
             display_message("Sprite setting could not be saved.",3000);return;
@@ -137,13 +136,11 @@ void egg_ps5_mod_menu_change(int row,int direction){
 int egg_ps5_mod_pack_count(void){return count;}
 const char *egg_ps5_mod_pack_name(int pack){return pack>=0&&pack<count?pack?packs[pack]:"Default folder":"";}
 int egg_ps5_mod_pack_flags(int pack){return pack>=0&&pack<count?pack_flags[pack]:0;}
-int egg_ps5_mod_pack_selected(int pack){return pack>=0&&pack<count&&pack==selected;}
+int egg_ps5_mod_pack_selected(int pack){return pack>=0&&pack<count&&ctps5_pack_enabled(packs[pack]);}
 void egg_ps5_mod_pack_select(int pack){
-    if(pack<0||pack>=count||pack==selected)return;
-    if(!egg_ps5_ini_set("/data/eggoftime/ps5.ini","active_pack",packs[pack])){
-        display_message("Texture pack choice could not be saved.",3000);return;
-    }
-    selected=pack;snprintf(egg_ps5_config.active_pack,sizeof egg_ps5_config.active_pack,"%s",packs[selected]);pack_changed=1;
+    if(pack<0||pack>=count)return;
+    if(!ctps5_pack_set_enabled(packs[pack],!ctps5_pack_enabled(packs[pack]))){display_message("Pack switch could not be saved.",3000);return;}
+    pack_changed=1;
 }
 int egg_ps5_mod_option_available(int setting){
     return setting==5?sprites_installed:setting==6?ct_redraw_module_count(CT_REDRAW_MARLE)>0:setting==7?ct_redraw_count()>0:setting==8?ct_redraw_module_count(CT_REDRAW_CRONO)>0:1;

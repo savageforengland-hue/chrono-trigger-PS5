@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #define BASE "/data/eggoftime/mods/battle-hud"
-extern const char *egg_ps5_graphics_root(void);
+#include "config.h"
 static char ids[64][64],chosen[64]="classic";
 static int count;
 static CtHudTheme *current;
@@ -22,8 +22,15 @@ void ctps5_hud_themes_refresh(void){
 static int apply(const char*requested_id,int save){
  char id[64];snprintf(id,sizeof id,"%s",requested_id);
  char root[512],fallback[512],error[192];int classic=!strcmp(id,"classic");
- snprintf(root,sizeof root,BASE "/themes/%s",id);snprintf(fallback,sizeof fallback,"%shud",egg_ps5_graphics_root());
+ snprintf(root,sizeof root,BASE "/themes/%s",id);
+#ifdef EGG_PS5_PACK_STACK
+ char paths[64][512];const char*fallbacks[64];int n=egg_ps5_graphics_root_count();if(n>64)n=64;
+ for(int i=0;i<n;i++){snprintf(paths[i],sizeof paths[i],"%shud",egg_ps5_graphics_root_at(n-1-i));fallbacks[i]=paths[i];}
+ CtHudTheme*next=ct_hud_theme_load_stack(classic?NULL:root,fallbacks,n,error,sizeof error,log_message);
+#else
+ snprintf(fallback,sizeof fallback,"%shud",egg_ps5_graphics_root());
  CtHudTheme*next=ct_hud_theme_load(classic?fallback:root,classic?NULL:fallback,error,sizeof error,log_message);
+#endif
  if(error[0]){rt_log("HUD theme '%s' rejected: %s; current appearance retained",id,error);return 0;}
  if(save){mkdir(BASE,0777);if(!egg_ps5_ini_set(BASE "/hud.ini","theme",id)){ct_hud_theme_free(next);return 0;}}
  ct_hud_theme_free(current);current=next;snprintf(chosen,sizeof chosen,"%s",id);

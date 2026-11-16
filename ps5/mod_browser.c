@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "mod_menu.h"
-/* One shared active graphics pack. Categories filter discovery, not loading. */
+/* Packs are independent toggles. Categories share the same saved state. */
 static int pack_at(int page,int row){
     int mask=page==MOD_CHARACTER_PACKS?MOD_PACK_CHARACTERS:page==MOD_BACKGROUNDS?MOD_PACK_BACKGROUNDS:0;
     for(int i=0;i<egg_ps5_mod_pack_count();i++)if(!i||!mask||(egg_ps5_mod_pack_flags(i)&mask)){if(!row--)return i;}
@@ -37,13 +37,13 @@ const char *egg_ps5_mod_page_label(int page,int row){
 const char *egg_ps5_mod_page_value(int page,int row){
     if(egg_ps5_mod_page_target(page,row)>=0)return "Open >";
     int setting=setting_at(page,row);if(setting>=0)return egg_ps5_mod_menu_value(setting);
-    return egg_ps5_mod_pack_selected(pack_at(page,row-1))?"Selected":"Choose";
+    return egg_ps5_mod_pack_selected(pack_at(page,row-1))?"On":"Off";
 }
 const char *egg_ps5_mod_page_description(int page,int row){
     if(page==MOD_ROOT){static const char*d[]={"Character packs, redraws and sprite options.","Room, scenery and background packs.","Portraits, colours, sizing and HUD themes.","Browse every installed graphics pack."};return row>=0&&row<4?d[row]:"";}
     if(egg_ps5_mod_page_target(page,row)>=0)return "Browse packs containing character PNGs.";
     int setting=setting_at(page,row);if(setting>=0)return egg_ps5_mod_menu_description(setting);
-    return "A: select whole pack. Restart to load. Mixed packs include scenery + characters.";
+    return "A: On/Off. Restart to apply. Later names win overlaps.";
 }
 void egg_ps5_mod_page_change(int page,int row,int direction){
     if(egg_ps5_mod_page_target(page,row)>=0)return;

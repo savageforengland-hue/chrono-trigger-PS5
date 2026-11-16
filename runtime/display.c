@@ -698,7 +698,7 @@ static void compose_rows(const HdJob *j) {
                     }
                 } else if(t->indexed==4){
                     const uint32_t*texels=(const uint32_t*)t->px+v*n+tx*es;
-                    int gain=t->scope!=3&&j->background_gains?j->background_gains[r->pal&31]:256;
+                    int gain=t->scope!=3&&j->background_gains?j->background_gains[t->policy*32+(r->pal&31)]:256;
                     for(int sx=0;sx<k;sx++){uint32_t a=texels[hflip?es-1-col[sx]:col[sx]],c=0xff000000u;for(int sh=0;sh<24;sh+=8)c|=(uint32_t)SDL_min(255,(((a>>sh)&255)*(unsigned)gain+128)>>8)<<sh;line[sx]=a>>24?hd_mix(c,r->weight,add,j->lut):below;}
                 } else if (t->indexed) {
                     const uint8_t *texels = (const uint8_t *)t->px + v * n + tx * es;
@@ -790,7 +790,7 @@ static int upload_hd(View *v, int tex, const uint32_t *px, const VideoHd *src, i
         have = hd_px ? need : 0;
         if (!hd_px) return 0;
     }
-    uint16_t background_gains[32];gfxmod_background_gains(hd_frame->palette,background_gains);
+    uint16_t background_gains[(GFXMOD_POLICY_LIMIT+1)*32];gfxmod_background_gains_all(hd_frame->palette,background_gains);
     compose_hd(&(HdJob){px, src, hd_frame->palette, SETTING(SET_COLOR) ? gamma_lut : NULL, hd_px, w, k, 0, h,background_gains});
     SDL_UpdateTexture(hd_tex[tex], &(SDL_Rect){0, 0, ow, oh}, hd_px, ow * 4);
     return 1;
