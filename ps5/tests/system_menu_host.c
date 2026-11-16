@@ -74,8 +74,8 @@ void egg_ps5_mod_pack_select(int pack){mod_change=100+pack;}
 static void step(unsigned keys){ticks+=120;sysmenu_input(keys);}
 static void tap(unsigned keys){step(keys);step(0);}
 static void shot(const char*directory,const char*name){
- if(!directory)return;char path[1024];snprintf(path,sizeof path,"%s/%s.ppm",directory,name);
- uint32_t p[256*192];sysmenu_draw(p);FILE*f=fopen(path,"wb");assert(f);fprintf(f,"P6\n256 192\n255\n");
+ uint32_t p[256*192];sysmenu_draw(p);if(!directory)return;char path[1024];snprintf(path,sizeof path,"%s/%s.ppm",directory,name);
+ FILE*f=fopen(path,"wb");assert(f);fprintf(f,"P6\n256 192\n255\n");
  for(int i=0;i<256*192;i++){fputc(p[i]&255,f);fputc((p[i]>>8)&255,f);fputc((p[i]>>16)&255,f);}fclose(f);
 }
 int main(int argc,char**argv){

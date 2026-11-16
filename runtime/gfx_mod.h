@@ -12,7 +12,7 @@ void gfxmod_load(void);
 typedef struct GfxHdTile { int scale, indexed, bpp8; const void *px; int scope; unsigned characters; } GfxHdTile;
 /* Authored palette-relative sprite texels (indexed=2). Scope 1 additionally
  * requires a battle, sprite layer and matching player palette/character mask.
- * Scope 2 is a room background; scope 3 a room actor. Indexed=4 is painted
+ * Scope 2 is a location background (Map/Bg or WorldMap/WorldBg); scope 3 a room actor. Indexed=4 is painted
  * room RGBA with optional native palette brightness response. */
 int gfxmod_add_sprite(const uint8_t tile[32],int scale,uint32_t *pixels,int character);
 void gfxmod_sprite_character(const uint8_t tile[32],int character);
@@ -30,7 +30,7 @@ int gfxmod_hd_active(int battle);
 uint32_t gfxmod_find(const uint8_t *tile, int bpp8);
 const GfxHdTile *gfxmod_tile(uint32_t n);
 uint32_t gfxmod_fallback(uint32_t n);
-/* Optional backgrounds.json limits Map/Bg and opted-in Chara sheets to listed locations. */
+/* Optional backgrounds.json limits Map/Bg, WorldMap/WorldBg and opted-in Chara sheets to listed locations. */
 void gfxmod_background_location(int location);
 int gfxmod_background_allowed(void);
 int gfxmod_window_probe(int *bg,int *x,int *y,int *control);

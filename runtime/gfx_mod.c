@@ -63,10 +63,10 @@ void gfxmod_window_state(int valid,int tile,uint64_t frame){
  int move=delta*step;if(current<window_target)current=SDL_min(window_target,current+move);else if(current>window_target)current=SDL_max(window_target,current-move);
  window_frame=frame;atomic_store(&window_gain,current);
 }
-static int scoped_background(const char*rel){return !strncmp(rel,"sheets/Map/Bg/",14);}
+static int scoped_background(const char*rel){return !strncmp(rel,"sheets/Map/Bg/",14)||!strncmp(rel,"sheets/WorldMap/WorldBg_",24);}
 static int scoped_character(const char*rel){return background_rules.characters&&!strncmp(rel,"sheets/Chara/",13);}
 static void background_load_rules(const char*root){
- memset(&background_rules,0,sizeof background_rules);background_mode=0;char path[1200];snprintf(path,sizeof path,"%sbackgrounds.json",root);SDL_PathInfo info;if(!SDL_GetPathInfo(path,&info))return;background_mode=-1;if(info.type!=SDL_PATHTYPE_FILE||info.size>BG_RULE_BYTES){rt_log("gfxmod: backgrounds.json: invalid file; background PNGs skipped");return;}size_t n=0;char*data=SDL_LoadFile(path,&n);if(data&&bg_rules_parse(data,n,&background_rules))background_mode=1;SDL_free(data);rt_log("gfxmod: backgrounds.json: %s",background_mode==1?"room-scoped HD backgrounds; transparent tiles keep original assets":"invalid rules; background PNGs skipped");
+ memset(&background_rules,0,sizeof background_rules);background_mode=0;char path[1200];snprintf(path,sizeof path,"%sbackgrounds.json",root);SDL_PathInfo info;if(!SDL_GetPathInfo(path,&info))return;background_mode=-1;if(info.type!=SDL_PATHTYPE_FILE||info.size>BG_RULE_BYTES){rt_log("gfxmod: backgrounds.json: invalid file; background PNGs skipped");return;}size_t n=0;char*data=SDL_LoadFile(path,&n);if(data&&bg_rules_parse(data,n,&background_rules))background_mode=1;SDL_free(data);rt_log("gfxmod: backgrounds.json: %s",background_mode==1?"location-scoped HD backgrounds; transparent tiles keep original assets":"invalid rules; background PNGs skipped");
 }
 
 /* ---- the HD tile table ---- */
@@ -409,7 +409,8 @@ static int same_size(const Png *png, Item *it) {
 static int hd_tiles(const Png *png, const Item *it, int s) {
     int actor=background_mode==1&&scoped_character(it->rel);
     int scoped=background_mode==1&&(scoped_background(it->rel)||actor);
-    int blended=actor&&png->indexed&&background_rules.sprite_blend&&!it->tiles.bpp8;
+    int blend_weight=actor?background_rules.sprite_blend:background_rules.background_blend;
+    int blended=scoped&&png->indexed&&blend_weight&&!it->tiles.bpp8;
     const GfxLayout *l = &it->layout;
     int added = 0, n = 8 * s;
     for (int i = 0; i < l->count; i++) {
@@ -436,7 +437,7 @@ static int hd_tiles(const Png *png, const Item *it, int s) {
                 if(blended){
                     int val=own?png->idx[y*png->w+x]:nat;
                     if(val<16)cx[v*n+u]=(uint32_t)val;
-                    else if(val<=240){int pair=val-16;cx[v*n+u]=(uint32_t)(1+pair/15)|(uint32_t)(1+pair%15)<<8|(uint32_t)background_rules.sprite_blend<<16;}
+                    else if(val<=240){int pair=val-16;cx[v*n+u]=(uint32_t)(1+pair/15)|(uint32_t)(1+pair%15)<<8|(uint32_t)blend_weight<<16;}
                     else cx[v*n+u]=(uint32_t)nat;
                 } else if (png->indexed) {
                     int val = own ? png->idx[y * png->w + x] : nat;

@@ -39,8 +39,8 @@ static int contains_png(const char *path,int depth){
     closedir(d);return found;
 }
 static int classify(const char*root){
-    static const char*paths[]={"sheets/Chara","frames/Chara","sheets/Map","screens/Map"};
-    int flags=0;for(int i=0;i<4;i++){char p[512];snprintf(p,sizeof p,"%s/%s",root,paths[i]);if(contains_png(p,0))flags|=i<2?MOD_PACK_CHARACTERS:MOD_PACK_BACKGROUNDS;}
+    static const char*paths[]={"sheets/Chara","frames/Chara","sheets/Map","screens/Map","sheets/WorldMap","screens/WorldMap"};
+    int flags=0;for(int i=0;i<6;i++){char p[512];snprintf(p,sizeof p,"%s/%s",root,paths[i]);if(contains_png(p,0))flags|=i<2?MOD_PACK_CHARACTERS:MOD_PACK_BACKGROUNDS;}
     return flags;
 }
 void egg_ps5_mod_menu_refresh(void){

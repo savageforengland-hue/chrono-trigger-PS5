@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory() as tmp:
   if name=='mod_settings':
    for pack in ['a-pack','z-pack','invalid.name']:(Path(tmp)/'mods/packs'/pack/'graphics').mkdir(parents=True)
    (Path(tmp)/'mods/packs/without-graphics').mkdir()
-   for pack,kind in [('a-pack','sheets/Chara'),('z-pack','screens/Map'),('z-pack','frames/Chara')]:
+   for pack,kind in [('a-pack','sheets/Chara'),('z-pack','sheets/WorldMap'),('z-pack','frames/Chara')]:
     folder=Path(tmp)/'mods/packs'/pack/'graphics'/kind;folder.mkdir(parents=True);(folder/'fixture.PNG').write_bytes(b'fixture')
    (Path(tmp)/'mods/packs/a-pack/graphics/sheets/Map').mkdir() # empty is not a background pack
   subprocess.run([str(exe),*([tmp] if name=='mod_settings' else []),*([str(a.preview_dir)] if a.preview_dir and name=='system_menu_host' else [])],check=True,timeout=10)

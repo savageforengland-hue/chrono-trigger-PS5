@@ -120,3 +120,12 @@ and faithful Crono/mum/cat sprite refinement under the independent named pack
 `crono-house-hd2d`. Exact dump names are retained. An optional room policy
 prevents shared sheets changing other locations, preserves native curtain
 animation, and keeps fully transparent sheet cells original.
+
+## 1000 AD world map (01.006.017)
+
+The private [1000 AD world-map pack](WORLD-MAP-1000AD.md) uses seven exact
+WorldMap/WorldBg dumped PNG sheet paths, 4× live-palette detail and a
+location-496 restriction. It appears under Backgrounds in the categorized
+menu. The compatible host is required for the optional background blend
+encoding and WorldBg scoping; existing house, character and HUD configuration
+remain supported.

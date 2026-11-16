@@ -1,5 +1,18 @@
 # Release notes and validation
 
+## Private mod host 01.006.017 — 16 November 2026
+
+Adds WorldMap/WorldBg support to location-scoped PNG loading and Backgrounds
+menu discovery. Optional background palette-pair detail uses its own bounded
+JSON setting; absent settings retain existing indexed behaviour. The private
+[1000 AD remaster test](WORLD-MAP-1000AD.md) keeps native map geometry, live
+colours and non-background objects, with seven 4× replacement sheets. Existing
+house lighting, characters, HUD, controls and saved pack settings are retained.
+
+Actual desktop port captures include 3840×2160 output. Loader, palette/mask,
+legacy room, menu and native-package checks are recorded in the private test
+report. Console testing remains pending; music-stutter resolution is not claimed.
+
 ## Private mod host 01.006.016 — 16 November 2026
 
 Replaces the crowded flat Mods page with Characters, Backgrounds, Battle HUD
