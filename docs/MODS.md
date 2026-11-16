@@ -59,3 +59,7 @@ older builds.
 Host 01.006.007 lists **Sprite smoothing** and **Marle redraw** separately. The latter toggles the illustrated fear poses live; the reported crossbow pose is comparison-only. See [HUD fixes](HUD-FIXES-007.md).
 
 For extracted PNGs and FTP access, see the [graphics dumper guide](GRAPHICS-DUMP.md). Host 01.006.010 uses explicit PS5 kernel paths for dump output and reports, writes and decodes one real sprite at startup, and uses `graphics-export/` for full exports.
+
+## PNG-only graphics and HUD themes (01.006.012)
+
+Use the same dumped relative PNG paths under `mods/graphics/`. No hand-written manifest is required. An empty folder retains original assets; individual missing/invalid replacements fall back. HUD themes extend the existing `mods/battle-hud/` and preserve its settings. See [the paths, local editor and theme reference](HUD-THEMES-AND-PNG-MODS.md).

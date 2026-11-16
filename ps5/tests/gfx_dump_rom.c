@@ -16,6 +16,7 @@ int main(int argc,char**argv){
     assert(argc==3||argc==4);int repair=argc==4&&!strcmp(argv[3],"repair"),check=argc==4&&(!strcmp(argv[3],"check")||!strcmp(argv[3],"check-fail"));int expect_fail=argc==4&&(!strcmp(argv[3],"expect-fail")||!strcmp(argv[3],"check-fail"));umask(0077);snprintf(root,sizeof root,"%s/",argv[2]);
     FILE*f=fopen(argv[1],"rb");assert(f);fseek(f,0,SEEK_END);long n=ftell(f);assert(n>512&&n<=512*1024*1024L);rewind(f);
     rt_rom.size=(size_t)n;rt_rom.data=malloc((size_t)n);assert(rt_rom.data);assert(fread(rt_rom.data,1,(size_t)n,f)==(size_t)n);fclose(f);
+    memcpy(rt_rom.code,rt_rom.data+12,4);rt_rom.code[4]=0;
     uint8_t*copy=malloc((size_t)n);assert(copy);memcpy(copy,rt_rom.data,(size_t)n);
     assert(SDL_Init(0));if(repair)gfxdump_repair_start();else if(check)gfxdump_check_start();else gfxdump_start();Uint64 begin=SDL_GetTicks(),log_at=begin;
     while(gfxdump_running()){

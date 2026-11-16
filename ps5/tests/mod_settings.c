@@ -45,11 +45,14 @@ int display_setting_get(int id){assert(id==SET_MODS);return texture;}
 void display_setting_set(int id,int v){assert(id==SET_MODS);texture=v;}
 void display_message(const char*p,unsigned ms){(void)p;(void)ms;assert(0);}
 static void read_ini(char b[4096]){FILE*f=fopen("/data/eggoftime/ps5.ini","r");assert(f);size_t n=fread(b,1,4095,f);b[n]=0;fclose(f);}
+void ctps5_hud_themes_refresh(void){}
+const char*ctps5_hud_theme_name(void){return "classic";}
+int ctps5_hud_theme_change(int direction){return direction>=-1&&direction<=1;}
 int main(int argc,char**argv){
  assert(argc==2);root=argv[1];char b[4096];
  FILE*f=fopen("/data/eggoftime/ps5.ini","w");assert(f);fputs("# Keep comment\noutput_height=2160\nactive_pack=default\ntarget_fps=60\nunknown=keep\n",f);fclose(f);
  egg_ps5_mod_menu_refresh();assert(!strcmp(egg_ps5_mod_menu_value(4),"default"));
- assert(egg_ps5_mod_menu_count()==9&&!strcmp(egg_ps5_mod_menu_value(5),"Not installed"));
+ assert(egg_ps5_mod_menu_count()==10&&!strcmp(egg_ps5_mod_menu_value(5),"Not installed"));
  assert(!strcmp(egg_ps5_mod_menu_value(7),"Open pilot"));
  assert(!strcmp(egg_ps5_mod_menu_title(5),"Sprite smoothing"));
  assert(!strcmp(egg_ps5_mod_menu_value(6),"On (fear poses)"));

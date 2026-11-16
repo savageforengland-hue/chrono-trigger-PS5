@@ -164,3 +164,7 @@ fixtures, generated game C and game executables out of the public repository.
 The user confirmed that the previous host displays this HUD on PS5.
 **The v0.3.1 restyle still needs a PS5 visual check.**
 Native package checks do not establish sustained 4K60 performance.
+
+## Themes and drag-and-drop graphics (01.006.012)
+
+The existing HUD now supports optional PNG portraits/icons/backgrounds and JSON colours/layout. Its current enable/size settings are preserved. See [HUD themes and PNG replacements](HUD-THEMES-AND-PNG-MODS.md) for the offline editor, full paths, fallback rules and examples.

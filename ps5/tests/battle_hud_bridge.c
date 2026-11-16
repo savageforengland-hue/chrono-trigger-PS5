@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "ps5/battle_hud.h"
+#include "ps5/hud_themes.h"
 #include "runtime/battle_hud_state.h"
 #include "runtime/rt.h"
 #include <assert.h>
@@ -26,10 +27,19 @@ int SDL_SetAtomicInt(SDL_AtomicInt*a,int v){int old=a->value;a->value=v;return o
 SDL_Mutex *SDL_CreateMutex(void){return (SDL_Mutex*)1;}
 void SDL_LockMutex(SDL_Mutex*m){assert(m);}
 void SDL_UnlockMutex(SDL_Mutex*m){assert(m);}
-SDL_Texture *SDL_CreateTexture(SDL_Renderer*r,SDL_PixelFormat f,SDL_TextureAccess a,int w,int h){(void)r;assert(f==SDL_PIXELFORMAT_ABGR8888&&a==SDL_TEXTUREACCESS_STREAMING&&((w==CT_HUD_W&&h==CT_HUD_H)||(w==CT_CMD_W&&h==CT_CMD_H)));return fail_texture?NULL:(SDL_Texture*)2;}
-bool SDL_SetTextureScaleMode(SDL_Texture*t,SDL_ScaleMode m){assert(t&&m==SDL_SCALEMODE_NEAREST);return true;}
+typedef struct MockTexture{int w,h;}MockTexture;
+static CtHudTheme*active_theme;
+static int created,destroyed;
+SDL_Texture *SDL_CreateTexture(SDL_Renderer*r,SDL_PixelFormat f,SDL_TextureAccess a,int w,int h){(void)r;assert(f==SDL_PIXELFORMAT_ABGR8888&&a==SDL_TEXTUREACCESS_STREAMING);if(fail_texture)return NULL;MockTexture*t=malloc(sizeof *t);assert(t);t->w=w;t->h=h;created++;return (SDL_Texture*)t;}
+bool SDL_SetTextureScaleMode(SDL_Texture*t,SDL_ScaleMode m){assert(t&&(m==SDL_SCALEMODE_NEAREST||m==SDL_SCALEMODE_LINEAR));return true;}
 bool SDL_SetTextureBlendMode(SDL_Texture*t,SDL_BlendMode m){assert(t&&(m==SDL_BLENDMODE_BLEND||m==SDL_BLENDMODE_NONE));return true;}
-bool SDL_UpdateTexture(SDL_Texture*t,const SDL_Rect*r,const void*p,int pitch){assert(t&&!r&&p&&(pitch==CT_HUD_W*4||pitch==CT_CMD_W*4));return !fail_upload;}
+bool SDL_UpdateTexture(SDL_Texture*t,const SDL_Rect*r,const void*p,int pitch){assert(t&&!r&&p&&pitch==((MockTexture*)t)->w*4);return !fail_upload;}
+void ctps5_hud_themes_init(void){}
+CtHudTheme*ctps5_hud_theme(void){return active_theme;}
+const uint32_t*ct_hud_theme_draw(CtHudTheme*t,const CtHudState*s,const uint32_t f[7][48*48],const uint32_t*k){(void)s;(void)f;(void)k;return t->pixels;}
+const uint32_t*ct_hud_theme_commands(CtHudTheme*t,int s,const uint32_t i[3][32*32]){(void)s;(void)i;return t->commands;}
+bool SDL_GetTextureSize(SDL_Texture*t,float*w,float*h){assert(t);*w=(float)((MockTexture*)t)->w;*h=(float)((MockTexture*)t)->h;return true;}
+void SDL_DestroyTexture(SDL_Texture*t){assert(t);destroyed++;free(t);}
 static void w8(unsigned a,unsigned v){rt_main_ram[a-0x2000000]=(uint8_t)v;}
 static void w16(unsigned a,unsigned v){w8(a,v);w8(a+1,v>>8);}
 static void w32(unsigned a,unsigned v){w16(a,v);w16(a+2,v>>16);}
@@ -95,5 +105,10 @@ int main(void){
  assert(ctps5_battle_hud_set_enabled(0)&&!ctps5_battle_hud_enabled());
  save_ok=0;assert(!ctps5_battle_hud_set_enabled(1)&&!ctps5_battle_hud_enabled());
  save_ok=1;assert(ctps5_battle_hud_set_enabled(1)&&ctps5_battle_hud_enabled());
+ CtHudTheme theme={.cfg={.width=600,.height=100,.max_width_percent=94,.show_commands=1,.linear=1,.command_gap=4,.offset_x=256,.offset_y=-192},.pixel_w=1200,.pixel_h=200,.command_w=480,.command_h=108};
+ theme.pixels=calloc(1200*200,4);theme.commands=calloc(480*108,4);assert(theme.pixels&&theme.commands);active_theme=&theme;
+ int previous=created;observe(146,1);assert(PREP(340,192,0));assert(created==previous+2&&destroyed>=2);assert(((MockTexture*)texture)->w==1200&&((MockTexture*)texture)->h==200);assert(!memcmp(&rect,&before,sizeof rect));assert(layout.hud.x>=rect.x&&layout.hud.x+layout.hud.w<=rect.x+rect.w+.001&&layout.hud.y>=rect.y&&layout.hud.y+layout.hud.h<=rect.y+rect.h+.001);
+ theme.cfg.show_commands=0;assert(PREP(340,192,0)&&layout.commands.w==0);active_theme=NULL;assert(PREP(340,192,0)&&((MockTexture*)texture)->w==CT_HUD_W&&((MockTexture*)commands)->w==CT_CMD_W);free(theme.pixels);free(theme.commands);SDL_DestroyTexture(texture);SDL_DestroyTexture(commands);
+ puts("PASS: live theme changes resize HUD/command textures, linear sampling, bounded custom anchors, hidden commands and original renderer restoration");
  puts("PASS: switch/ROM guards, actual stock-header/digit visibility, Tech/Item yield, stale-frame/battle-exit cleanup, texture fallbacks, immutable game view, no opaque cover, immutable frame snapshot, centered portrait/action row, command/party remapping, live/persisted HUD toggle, top/bottom/zoom/4K geometry and portrait proportions");
 }

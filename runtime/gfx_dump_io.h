@@ -12,6 +12,7 @@
 int gfxdump_mkdirs(const char *path,char *error,size_t capacity);
 int gfxdump_write_png(const char *path,int w,int h,const uint8_t *pixels,
                      int bpp8,const SDL_Color colors[256],char *error,size_t capacity);
+int gfxdump_write_rgba(const char *path,int w,int h,const uint32_t *pixels,char *error,size_t capacity);
 int gfxdump_verify_png(const char *path,int w,int h,char *error,size_t capacity);
 
 /* Dump-only paths, including reports and metadata. */

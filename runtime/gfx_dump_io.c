@@ -91,23 +91,15 @@ int gfxdump_verify_png(const char*path,int w,int h,char*error,size_t capacity){
     FILE*f=gfxdump_fopen(path,"rb");if(!f)return error_text(error,capacity,"Verify PNG",path);
     int okay=fread(head,1,sizeof head,f)==sizeof head && !memcmp(head,signature,8) &&
         !memcmp(head+12,"IHDR",4) && (w==0||!memcmp(head+16,width,4)) && (h==0||!memcmp(head+20,height,4)) &&
-        head[24]==8 && head[25]==3 && fseek(f,-12,SEEK_END)==0 &&
+        head[24]==8 && (head[25]==3||head[25]==6) && fseek(f,-12,SEEK_END)==0 &&
         fread(tail,1,sizeof tail,f)==sizeof tail && !memcmp(tail,iend,12);
     if(fclose(f))okay=0;
     if(okay)return 1;
     errno=EIO;return error_text(error,capacity,"Invalid or incomplete PNG",path);
 }
-int gfxdump_write_png(const char*path,int w,int h,const uint8_t*pixels,int bpp8,const SDL_Color colors[256],char*error,size_t capacity){
-    if(!pixels||!colors||w<=0||h<=0||(size_t)h>SIZE_MAX/((size_t)w+1)){
-        errno=EINVAL;return error_text(error,capacity,"PNG dimensions",path);
-    }
+static int write_surface(const char*path,SDL_Surface*s,int w,int h,char*error,size_t capacity){
     char temp[1100];if(snprintf(temp,sizeof temp,"%s.tmp",path)>=(int)sizeof temp){errno=ENAMETOOLONG;return error_text(error,capacity,"PNG path",path);}
-    SDL_Surface*s=SDL_CreateSurfaceFrom(w,h,SDL_PIXELFORMAT_INDEX8,(void*)pixels,w);
-    SDL_Palette*p=s?SDL_CreateSurfacePalette(s):NULL;SDL_Color c[256];
-    for(int i=0;i<256;i++){c[i]=colors[i];c[i].a=(bpp8?i==0:(i&15)==0)?0:255;}
-    SDL_IOStream*encoded=SDL_IOFromDynamicMem();
-    errno=0;int okay=p&&encoded&&SDL_SetPaletteColors(p,c,0,256)&&SDL_SavePNG_IO(s,encoded,false);
-    SDL_DestroySurface(s);int e=errno;
+    SDL_IOStream*encoded=SDL_IOFromDynamicMem();errno=0;int okay=encoded&&SDL_SavePNG_IO(s,encoded,false),e=errno;
     if(!okay){if(encoded)SDL_CloseIO(encoded);errno=e?e:EIO;return error_text(error,capacity,"Encode PNG",path);}
     Sint64 length=SDL_GetIOSize(encoded);
     const uint8_t*bytes=SDL_GetPointerProperty(SDL_GetIOProperties(encoded),SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER,NULL);
@@ -131,6 +123,17 @@ int gfxdump_write_png(const char*path,int w,int h,const uint8_t*pixels,int bpp8,
     if(!gfxdump_verify_png(temp,w,h,error,capacity)){remove_temp(temp);return 0;}
     if(publish(temp,path)!=0){e=errno;remove_temp(temp);errno=e;return error_text(error,capacity,"Publish PNG",path);}
     return gfxdump_verify_png(path,w,h,error,capacity);
+}
+
+int gfxdump_write_png(const char*path,int w,int h,const uint8_t*pixels,int bpp8,const SDL_Color colors[256],char*error,size_t capacity){
+    if(!pixels||!colors||w<=0||h<=0||(size_t)h>SIZE_MAX/((size_t)w+1)){errno=EINVAL;return error_text(error,capacity,"PNG dimensions",path);}
+    SDL_Surface*s=SDL_CreateSurfaceFrom(w,h,SDL_PIXELFORMAT_INDEX8,(void*)pixels,w);SDL_Palette*p=s?SDL_CreateSurfacePalette(s):NULL;SDL_Color c[256];
+    for(int i=0;i<256;i++){c[i]=colors[i];c[i].a=(bpp8?i==0:(i&15)==0)?0:255;}
+    int good=p&&SDL_SetPaletteColors(p,c,0,256)&&write_surface(path,s,w,h,error,capacity);SDL_DestroySurface(s);return good;
+}
+int gfxdump_write_rgba(const char*path,int w,int h,const uint32_t*pixels,char*error,size_t capacity){
+    if(!pixels||w<1||h<1||w>2048||h>2048){errno=EINVAL;return error_text(error,capacity,"RGBA dimensions",path);}
+    SDL_Surface*s=SDL_CreateSurfaceFrom(w,h,SDL_PIXELFORMAT_ABGR8888,(void*)pixels,w*4);int good=s&&write_surface(path,s,w,h,error,capacity);SDL_DestroySurface(s);return good;
 }
 
 /* Decode using bytes read via the dump adapter, not SDL_LoadPNG(path). */

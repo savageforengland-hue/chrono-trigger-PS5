@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "name": "Timepiece",
+  "canvas": [
+    600,
+    100
+  ],
+  "pixel_scale": 2,
+  "colors": {
+    "background": "#101831",
+    "text": "#F4E7C4",
+    "labels": "#BFC9D7",
+    "border": "#BA955D",
+    "divider": "#4F5875",
+    "portrait_border": "#CFAD74",
+    "selected": "#FFE5A1",
+    "bar_track": "#090E20",
+    "hp": "#6DB58B",
+    "mp": "#739DD7",
+    "atb": "#DAA95A",
+    "atb_ready": "#F6DA91",
+    "low_hp": "#F09A71",
+    "outline": "#080D19",
+    "ko": "#9296A6"
+  },
+  "layout": {
+    "portrait": [
+      8,
+      15,
+      60,
+      64
+    ],
+    "name": [
+      80,
+      10
+    ],
+    "hp_label": [
+      78,
+      34
+    ],
+    "hp_value": [
+      100,
+      34
+    ],
+    "hp_bar": [
+      78,
+      46,
+      112,
+      5
+    ],
+    "mp_label": [
+      78,
+      57
+    ],
+    "mp_value": [
+      100,
+      57
+    ],
+    "mp_bar": [
+      78,
+      69,
+      112,
+      5
+    ],
+    "atb_label": [
+      8,
+      88
+    ],
+    "atb_bar": [
+      38,
+      89,
+      152,
+      5
+    ]
+  },
+  "style": {
+    "border_width": 1,
+    "grain": 1,
+    "clocks": true,
+    "portrait_fit": "contain",
+    "linear_sampling": false
+  },
+  "text": {
+    "name_size": 3,
+    "value_size": 2,
+    "label_size": 2
+  }
+}

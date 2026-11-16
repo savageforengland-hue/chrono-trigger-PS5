@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "mod_menu.h"
 #include "battle_hud.h"
+#include "hud_themes.h"
 #include "config.h"
 #include "config_file.h"
 #include "../runtime/display.h"
@@ -21,6 +22,7 @@ static int valid(const char*s){
 }
 static int compare(const void*a,const void*b){return strcmp(a,b);}
 void egg_ps5_mod_menu_refresh(void){
+    ctps5_hud_themes_refresh();
     sprites_installed=sprites_enabled=0;
     FILE*f=fopen("/data/eggoftime/mods/battle-sprites/sprites.ini","r");
     if(f){sprites_installed=1;char line[192];while(fgets(line,sizeof line,f)){int v;char extra;
@@ -37,11 +39,12 @@ void egg_ps5_mod_menu_refresh(void){
     qsort(packs+1,(size_t)(count-1),64,compare);
     for(int i=0;i<count;i++)if(!strcmp(packs[i],egg_ps5_config.active_pack))selected=i;
 }
-int egg_ps5_mod_menu_count(void){return 9;}
+int egg_ps5_mod_menu_count(void){return 10;}
 const char *egg_ps5_mod_menu_title(int row){
-    static const char*names[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","Sprite smoothing","Marle redraw","Detailed pose test","Crono redraw"};return row>=0&&row<9?names[row]:"";
+    static const char*names[]={"Portrait battle HUD","HUD size","Symbol size","Texture mods","Texture pack","Sprite smoothing","Marle redraw","Detailed pose test","Crono redraw","HUD theme"};return row>=0&&row<10?names[row]:"";
 }
 const char *egg_ps5_mod_menu_value(int row){
+    if(row==9)return ctps5_hud_theme_name();
     if(row==0)return !ctps5_battle_hud_available()?"Unavailable":ctps5_battle_hud_enabled()?"On":"Off";
     if(row==1||row==2){static char value[16];snprintf(value,sizeof value,"%d%%",ctps5_battle_hud_scale(row==2));return value;}
     if(row==3)return display_setting_get(SET_MODS)?"On":"Off";
@@ -57,6 +60,7 @@ const char *egg_ps5_mod_menu_value(int row){
     return row==4?packs[selected]:"";
 }
 const char *egg_ps5_mod_menu_description(int row){
+    if(row==9)return "Left/Right: theme. A: reload PNGs and JSON.";
     if(row==0)return "Menu portraits and action icons. Applies now.";
     if(row==1)return "Portrait HUD size. Applies now.";
     if(row==2)return "Transparent action symbols. Applies now.";
@@ -69,7 +73,8 @@ const char *egg_ps5_mod_menu_description(int row){
     return "";
 }
 void egg_ps5_mod_menu_change(int row,int direction){
-    if(row==0){
+    if(row==9){if(!ctps5_hud_theme_change(direction))display_message("Theme could not load; check eggoftime.log.",3000);}
+    else if(row==0){
         if(!ctps5_battle_hud_set_enabled(!ctps5_battle_hud_enabled()))display_message("HUD setting could not be saved.",3000);
     }else if(row==1||row==2){
         int commands=row==2,lo=commands?50:75,hi=commands?100:125,step=commands?10:5;

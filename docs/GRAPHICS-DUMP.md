@@ -87,3 +87,7 @@ unchanged. Native container/runtime/import validation is separate from
 Original PC source and notices remain under `upstream/`: **Egg of Time
 v1.3.5 by Power Pudu**. See [credits](CREDITS.md). Players supply their own
 supported USA/YQUE NDS; no ROM or extracted PNGs are distributed.
+
+## HUD aliases (01.006.012)
+
+Full exports now also include 13 RGBA HUD PNGs under `hud/`: seven named portraits, three command icons, the original window skin, an optional transparent-centre frame and a font atlas. An optional `hud/theme.json` template accompanies them. The existing indexed sprite/background exports are unchanged. See [HUD themes and PNG replacement paths](HUD-THEMES-AND-PNG-MODS.md). The own-ROM full export test now verifies 30,590 PNGs and preserves ROM memory.

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "battle_hud.h"
+#include "hud_themes.h"
 #include "config_file.h"
 #include <sys/stat.h>
 #include "../runtime/battle_hud_state.h"
@@ -70,7 +71,7 @@ void ctps5_battle_hud_init(void){
     has_window_skin=ct_hud_load_window_skin(window_skin);
     rt_log("portrait HUD: %s window styling",has_window_skin?"original battle":"soft fallback");
     lock=SDL_CreateMutex();if(!lock)return;
-    available=1;SDL_SetAtomicInt(&enabled,requested());
+    available=1;SDL_SetAtomicInt(&enabled,requested());ctps5_hud_themes_init();
     rt_log("portrait HUD: %s (centered, original menu icons, live HP/MP/ATB)",on()?"enabled":"off");
 }
 int ctps5_battle_hud_available(void){return available;}
@@ -118,13 +119,11 @@ uint32_t ctps5_battle_hud_input(uint32_t keys){
     if(keys&KEY_R)result|=KEY_RIGHT;
     return result;
 }
-static int upload(SDL_Renderer*ren,SDL_Texture**tex,int w,int h,const uint32_t*p){
-    if(!*tex){
-        *tex=SDL_CreateTexture(ren,SDL_PIXELFORMAT_ABGR8888,SDL_TEXTUREACCESS_STREAMING,w,h);
-        if(!*tex)return 0;
-        SDL_SetTextureScaleMode(*tex,SDL_SCALEMODE_NEAREST);
-        SDL_SetTextureBlendMode(*tex,w==CT_CMD_W?SDL_BLENDMODE_BLEND:SDL_BLENDMODE_NONE);
-    }
+static int upload(SDL_Renderer*ren,SDL_Texture**tex,int w,int h,const uint32_t*p,int linear){
+    if(*tex){float tw,th;if(!SDL_GetTextureSize(*tex,&tw,&th)||tw!=w||th!=h){SDL_DestroyTexture(*tex);*tex=NULL;}}
+    if(!*tex){*tex=SDL_CreateTexture(ren,SDL_PIXELFORMAT_ABGR8888,SDL_TEXTUREACCESS_STREAMING,w,h);if(!*tex)return 0;}
+    SDL_SetTextureScaleMode(*tex,linear?SDL_SCALEMODE_LINEAR:SDL_SCALEMODE_NEAREST);
+    SDL_SetTextureBlendMode(*tex,SDL_BLENDMODE_BLEND);
     return SDL_UpdateTexture(*tex,NULL,p,w*4);
 }
 int ctps5_battle_hud_prepare(SDL_Renderer*ren,SDL_Texture**texture,SDL_Texture**commands,
@@ -133,11 +132,19 @@ int ctps5_battle_hud_prepare(SDL_Renderer*ren,SDL_Texture**texture,SDL_Texture**
     if(!snapshot)return 0;
     CtHudState s=snapshot->state;int show=snapshot->active,y=snapshot->row;
     if(!show||game->w<=0||game->h<=0||columns<256||rows<192)return 0;
-    uint32_t pixels[CT_HUD_W*CT_HUD_H];ct_hud_draw(pixels,&s,portraits,has_window_skin?window_skin:NULL);
-    if(!upload(ren,texture,CT_HUD_W,CT_HUD_H,pixels))return 0;
+    CtHudTheme*t=ctps5_hud_theme();
+    int w=t?t->cfg.width:CT_HUD_W,h=t?t->cfg.height:CT_HUD_H;
+    int pw=t?t->pixel_w:w,ph=t?t->pixel_h:h,linear=t?t->cfg.linear:0;
+    uint32_t pixels[CT_HUD_W*CT_HUD_H];const uint32_t*p;
+    if(t)p=ct_hud_theme_draw(t,&s,portraits,has_window_skin?window_skin:NULL);
+    else{ct_hud_draw(pixels,&s,portraits,has_window_skin?window_skin:NULL);p=pixels;}
+    if(!upload(ren,texture,pw,ph,p,linear))return 0;
+    if(t&&!t->cfg.show_commands)s.command=-1;
     if(s.command>=0){
-        uint32_t p[CT_CMD_W*CT_CMD_H];ct_hud_draw_commands(p,s.command,icons);
-        if(!upload(ren,commands,CT_CMD_W,CT_CMD_H,p))return 0;
+        uint32_t cmds[CT_CMD_W*CT_CMD_H];
+        if(t)p=ct_hud_theme_commands(t,s.command,icons);
+        else{ct_hud_draw_commands(cmds,s.command,icons);p=cmds;}
+        if(!upload(ren,commands,t?t->command_w:CT_CMD_W,t?t->command_h:CT_CMD_H,p,linear))return 0;
     }
     float ui_scale=zoom_ui==1?(float)rows/192:1;
     float top=zoom_ui==1?y*ui_scale:y+(zoom_ui==2&&y>=96?rows-192:0);
@@ -145,15 +152,22 @@ int ctps5_battle_hud_prepare(SDL_Renderer*ren,SDL_Texture**texture,SDL_Texture**
      * the resized card. No opaque cover or previous-frame patch is drawn. */
     float panel_top=game->y+top*game->h/rows;
     float card_height=44*ui_scale*game->h/rows;
-    float k=card_height/CT_HUD_H*ctps5_battle_hud_scale(0)/100;
-    if(k>game->w*.94f/CT_HUD_W)k=game->w*.94f/CT_HUD_W;
-    float hud_y=panel_top+card_height-CT_HUD_H*k;
+    float k=card_height/h*ctps5_battle_hud_scale(0)/100;
+    float max_width=game->w*(t?t->cfg.max_width_percent:94)/100;
+    if(k>max_width/w)k=max_width/w;
+    if(k>game->h/h)k=game->h/h;
+    float hud_y=panel_top+card_height-h*k+(t?t->cfg.offset_y*k:0);
     if(hud_y<game->y)hud_y=game->y;
-    if(hud_y+CT_HUD_H*k>game->y+game->h)hud_y=game->y+game->h-CT_HUD_H*k;
-    layout->hud=(SDL_FRect){game->x+(game->w-CT_HUD_W*k)/2,hud_y,CT_HUD_W*k,CT_HUD_H*k};
+    if(hud_y+h*k>game->y+game->h)hud_y=game->y+game->h-h*k;
+    float hud_x=game->x+(game->w-w*k)/2+(t?t->cfg.offset_x*k:0);
+    if(hud_x<game->x)hud_x=game->x;
+    if(hud_x+w*k>game->x+game->w)hud_x=game->x+game->w-w*k;
+    layout->hud=(SDL_FRect){hud_x,hud_y,w*k,h*k};
     float command_scale=k*ctps5_battle_hud_scale(1)/100;
-    float cmd_y=hud_y-CT_CMD_H*command_scale-2*k;
-    if(cmd_y<game->y)cmd_y=hud_y+layout->hud.h+2*k;
+    float gap=(t?t->cfg.command_gap:2)*k;
+    float cmd_y=hud_y-CT_CMD_H*command_scale-gap;
+    if(cmd_y<game->y)cmd_y=hud_y+layout->hud.h+gap;
+    if(cmd_y+CT_CMD_H*command_scale>game->y+game->h)s.command=-1;
     layout->commands=(SDL_FRect){game->x+(game->w-CT_CMD_W*command_scale)/2,cmd_y,
         s.command>=0?CT_CMD_W*command_scale:0,s.command>=0?CT_CMD_H*command_scale:0};
     return 1;

@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define POSES 516
+#define POSES 4096
 typedef struct Pose {
     int cell,character,module,w,h,x0,y0,scale,cols,top,seen;
     RedrawReference ref;
@@ -19,24 +19,28 @@ typedef struct Pose {
     SDL_Texture *old_texture,*new_texture;
 } Pose;
 static Pose poses[POSES];static int count,viewer,selected;
-static uint16_t canonical[2][16];static SDL_AtomicInt visible,gameplay[CT_REDRAW_MODULES];
+static const char*characters[]={"Crono","Marle","Lucca","Robo","Frog","Ayla","Magus"};
+static uint16_t canonical[7][16];static SDL_AtomicInt visible,gameplay[CT_REDRAW_MODULES];
 static RedrawBinding bindings[2][128];
 static uint32_t rgb(SDL_Color c){return c.r|((uint32_t)c.g<<8)|((uint32_t)c.b<<16);}
 static uint32_t bgr(uint16_t c){
     unsigned r=c&31,g=(c>>5)&31,b=(c>>10)&31;
     return 0xff000000u|(r<<3|r>>2)|((g<<3|g>>2)<<8)|((b<<3|b>>2)<<16);
 }
-uint32_t ct_redraw_color(uint32_t texel,const uint16_t*p){
+uint32_t ct_redraw_color(uint32_t texel,const uint16_t p[16]){
     if(!texel)return 0;
+    if((texel>>24)==246)return (texel&15)?bgr(p[texel&15]):0;
     int flat=1;for(int k=3;k<=11;k++)flat&=(p[k]&0x7fff)==(p[2]&0x7fff);
     if(flat)return bgr(p[2]);
     /* Character outline entries and weapon slots are runtime-controlled.
      * Keep the illustration's RGB body colours; transfer a changed outline. */
-    unsigned tag=texel>>24;int character=tag==253?0:1;
-    if((tag==253||tag==254)&&(p[1]&0x7fff)!=canonical[character][1])return bgr(p[1]);
+    unsigned tag=texel>>24;int character=tag==253?0:tag==254?1:tag>=247&&tag<=251?253-(int)tag:-1;
+    if(character>=0&&(p[1]&0x7fff)!=canonical[character][1])return bgr(p[1]);
     return texel|0xff000000u;
 }
 static int load_pose(int module,int character,const char*folder,const char*file,int cell,int expected_scale,const GfxBlob*cb,const GfxTiles*t,const GfxPalette*pal){
+    for(int i=0;i<count;i++)if(poses[i].character==character&&poses[i].cell==cell)return 1;
+    if(count>=POSES)return 0;
     Pose p={.cell=cell,.character=character,.module=module,.x0=999,.y0=999};GfxObject obj[REDRAW_OBJECTS];GfxLayout layout;
     int n=gfx_cell_objects(cb,(uint32_t)cell,obj,REDRAW_OBJECTS);
     if(!n||!gfx_cell_layout(cb,(uint32_t)cell,&layout))return 0;
@@ -54,11 +58,18 @@ static int load_pose(int module,int character,const char*folder,const char*file,
         if(obj[k].y<p.ref.object[p.top].y)p.top=at;
     }
     if(!p.ref.count){free(layout.tiles);return 0;}
-    char path[1024];snprintf(path,sizeof path,"%smods/%s/%s",rt_data_dir(),folder,file);
+    char path[1024];if(folder)snprintf(path,sizeof path,"%smods/%s/%s",rt_data_dir(),folder,file);else snprintf(path,sizeof path,"%s",file);
+    FILE*check=fopen(path,"rb");unsigned char head[24];int valid=check&&fread(head,1,24,check)==24&&!memcmp(head,"\211PNG\r\n\032\n",8);if(check)fclose(check);
+    unsigned iw=valid?(unsigned)head[16]<<24|(unsigned)head[17]<<16|(unsigned)head[18]<<8|head[19]:0,ih=valid?(unsigned)head[20]<<24|(unsigned)head[21]<<16|(unsigned)head[22]<<8|head[23]:0;
+    if(!valid||!iw||!ih||iw>768||ih>768){free(layout.tiles);return 0;}
     SDL_Surface*raw=SDL_LoadPNG(path);if(!raw){free(layout.tiles);rt_log("redraw pilot: %s: %s",path,SDL_GetError());return 0;}
     p.scale=raw->w/p.w;
-    if((expected_scale&&p.scale!=expected_scale)||(p.scale!=2&&p.scale!=4&&p.scale!=8)||raw->w!=p.w*p.scale||raw->h!=p.h*p.scale){SDL_DestroySurface(raw);free(layout.tiles);rt_log("redraw pilot: cell %d has wrong canvas; original retained",cell);return 0;}
-    SDL_Surface*s=SDL_ConvertSurface(raw,SDL_PIXELFORMAT_ABGR8888);SDL_DestroySurface(raw);
+    if((expected_scale&&p.scale!=expected_scale)||(folder?(p.scale!=2&&p.scale!=4&&p.scale!=8):(p.scale<1||p.scale>8))||raw->w!=p.w*p.scale||raw->h!=p.h*p.scale){SDL_DestroySurface(raw);free(layout.tiles);rt_log("redraw pilot: cell %d has wrong canvas; original retained",cell);return 0;}
+    int indexed=!folder&&raw->format==SDL_PIXELFORMAT_INDEX8;
+    SDL_Surface*s=SDL_ConvertSurface(raw,SDL_PIXELFORMAT_ABGR8888);
+    if(s&&indexed)for(int y=0;y<s->h;y++)for(int x=0;x<s->w;x++){unsigned index=((uint8_t*)raw->pixels)[y*raw->pitch+x]&15;((uint32_t*)((uint8_t*)s->pixels+y*s->pitch))[x]=index?(0xf6000000u|index):0;}
+    SDL_DestroySurface(raw);
+    if(s&&p.scale==1){SDL_Surface*large=SDL_CreateSurface(s->w*2,s->h*2,SDL_PIXELFORMAT_ABGR8888);if(large)for(int y=0;y<large->h;y++)for(int x=0;x<large->w;x++)((uint32_t*)((uint8_t*)large->pixels+y*large->pitch))[x]=((uint32_t*)((uint8_t*)s->pixels+(y/2)*s->pitch))[x/2];SDL_DestroySurface(s);s=large;p.scale=2;}
     if(!s){free(layout.tiles);return 0;}
     size_t pixels=(size_t)s->w*s->h;
     uint32_t*words=calloc(pixels,4);p.preview=calloc(pixels,4);p.original=calloc((size_t)p.w*p.h,4);p.representative=calloc((size_t)p.w*p.h,4);
@@ -71,11 +82,11 @@ static int load_pose(int module,int character,const char*folder,const char*file,
         uint32_t c=((uint32_t*)((uint8_t*)s->pixels+y*s->pitch))[x];
         if((c>>24)<128)continue;opaque_pixels++;
         int edge=0;
-        if((c&255)+((c>>8)&255)+((c>>16)&255)<288)for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){
+        if(!indexed&&(c&255)+((c>>8)&255)+((c>>16)&255)<288)for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){
             int xx=x+dx,yy=y+dy;
             if(xx<0||yy<0||xx>=s->w||yy>=s->h||(((uint32_t*)((uint8_t*)s->pixels+yy*s->pitch))[xx]>>24)<128)edge=1;
         }
-        size_t i=(size_t)y*s->w+x;words[i]=(c&0xffffffu)|((edge?(character==0?253u:254u):255u)<<24);p.preview[i]=c|0xff000000u;
+        size_t i=(size_t)y*s->w+x;words[i]=indexed?c:(c&0xffffffu)|((edge?(character==0?253u:character==1?254u:253u-(unsigned)character):255u)<<24);p.preview[i]=indexed?0xff000000u|rgb(pal->c[c&15]):c|0xff000000u;
         p.representative[(y/p.scale)*p.w+x/p.scale]=words[i];
     }
     if(!opaque_pixels){rt_log("redraw: %s is empty; original retained",path);free(words);free(p.preview);free(p.original);free(p.representative);free(p.tile);SDL_DestroySurface(s);return 0;}
@@ -88,7 +99,17 @@ static int load_pose(int module,int character,const char*folder,const char*file,
     }
     free(words);SDL_DestroySurface(s);
     for(int i=0;i<p.cols*rows;i++)if(!p.tile[i]){free(p.preview);free(p.original);free(p.representative);free(p.tile);return 0;}
-    poses[count++]=p;rt_log("redraw: loaded %s cell %d, %dx%d at %dx, %d nonblank original objects",character?"Marle":"Crono",cell,p.w,p.h,p.scale,p.ref.count);return 1;
+    poses[count++]=p;rt_log("redraw: loaded %s cell %d, %dx%d at %dx, %d nonblank original objects",characters[character],cell,p.w,p.h,p.scale,p.ref.count);return 1;
+}
+int ct_redraw_dropin(const char*path,const char*rel){
+    int character,cell,used=0;if(sscanf(rel,"frames/Chara/Chara_%4d/%3d.png%n",&character,&cell,&used)!=2||rel[used]||character<0||character>6||cell<0)return 0;
+    char expected[96];snprintf(expected,sizeof expected,"frames/Chara/Chara_%04d/%03d.png",character,cell);if(strcmp(expected,rel))return 0;
+    if(strcmp(rt_rom.code,"YQUE")||!gfx_list_files())return 1;
+    char name[128];snprintf(name,sizeof name,"Chara/Chara_%04d.NCGR",character);GfxBlob tb=gfx_open(gfx_find(name));snprintf(name,sizeof name,"Chara/Chara_%04d.NCER",character);GfxBlob cb=gfx_open(gfx_find(name));GfxTiles t;GfxPalette pal;snprintf(name,sizeof name,"Chara/ObjPlt_%04d.NCLR",character);
+    int good=gfx_read_tiles(&tb,&t)&&!t.bpp8&&gfx_read_palette(gfx_find(name),&pal)&&pal.colors>=16&&(unsigned)cell<gfx_cell_count(&cb);
+    if(good){for(int i=0;i<16;i++)canonical[character][i]=(pal.c[i].r>>3)|((pal.c[i].g>>3)<<5)|((pal.c[i].b>>3)<<10);good=load_pose(CT_REDRAW_DROPIN,character,NULL,path,cell,0,&cb,&t,&pal);}
+    if(!good)rt_log("PNG override: %s rejected or unsupported object layout; original retained",rel);
+    SDL_SetAtomicInt(&gameplay[CT_REDRAW_DROPIN],1);gfx_close(&tb);gfx_close(&cb);return 1;
 }
 static void load_module(int module,int character,const char*folder,const char*ini,const char*prefix,const int*ids,int n){
     char path[1024];snprintf(path,sizeof path,"%smods/%s/%s",rt_data_dir(),folder,ini);
@@ -161,13 +182,13 @@ int ct_redraw_prepare(int e,const RedrawObject live[128],const uint16_t palette[
         Pose*f=poses+p;
         if(!ct_redraw_module_enabled(f->module)||bindings[e][a].action||!live[a].valid||live[a].palette<0||live[a].palette>15||!palette_ok(f->character,palette+live[a].palette*16))continue;
         int slots[REDRAW_OBJECTS];
-        if(f->character==1&&f->cell==211)continue; /* Reported waiting/hit mismatch: comparison only until redrawn. */
+        if(f->module==CT_REDRAW_MARLE&&f->character==1&&f->cell==211)continue; /* Reported waiting/hit mismatch: comparison only until redrawn. */
         if(!redraw_match(&f->ref,live,a,slots))continue;
         int used=0,draw=slots[0];for(int k=0;k<f->ref.count;k++){used|=bindings[e][slots[k]].action;if(slots[k]<draw)draw=slots[k];}
         if(used)continue;
         for(int k=0;k<f->ref.count;k++)bindings[e][slots[k]].action=1;
         bindings[e][draw]=(RedrawBinding){2,p,(live[a].x-f->ref.object[0].x+f->x0)&511,(live[a].y-f->ref.object[0].y+f->y0)&255,f->w,f->h,live[slots[f->top]].above};groups++;
-        if(!f->seen){f->seen=1;rt_log("redraw: matched authored %s cell %d in engine %d",f->character?"Marle":"Crono",f->cell,e);}
+        if(!f->seen){f->seen=1;rt_log("redraw: matched authored %s cell %d in engine %d",characters[f->character],f->cell,e);}
     }return groups;
 }
 const RedrawBinding*ct_redraw_binding(int e,int slot){return e>=0&&e<2&&slot>=0&&slot<128&&bindings[e][slot].action?&bindings[e][slot]:NULL;}
@@ -180,7 +201,7 @@ int ct_redraw_viewer_open(void){if(!count)return 0;viewer=1;selected=0;return 1;
 int ct_redraw_viewer_active(void){return viewer;}
 void ct_redraw_viewer_close(void){viewer=0;}
 void ct_redraw_viewer_step(int d){if(count)selected=(selected+count+(d<0?-1:1))%count;}
-const char*ct_redraw_viewer_title(void){static char title[64];snprintf(title,sizeof title,"%s cell %03d - art pilot",count&&poses[selected].character==0?"Crono":"Marle",count?poses[selected].cell:0);return title;}
+const char*ct_redraw_viewer_title(void){static char title[64];snprintf(title,sizeof title,"%s cell %03d - art pilot",count?characters[poses[selected].character]:"Character",count?poses[selected].cell:0);return title;}
 void ct_redraw_viewer_draw(SDL_Renderer*ren,const SDL_FRect*v){
     if(!viewer||!count)return;
     Pose*f=poses+selected;

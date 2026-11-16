@@ -26,6 +26,8 @@
 #include "gfx_dump.h"
 #include "gfx_dump_io.h"
 #include "gfx_rom.h"
+#include "battle_hud_faces.h"
+#include "ui_font.h"
 #include "rt.h"
 
 static SDL_AtomicInt running, finished, done_count, total_count, image_count;
@@ -69,6 +71,19 @@ static void save_png(const char*kind,const char*name,int w,int h,uint8_t*px,int 
     int count=SDL_AddAtomicInt(&image_count,1)+1;
     if(count==1||count%128==0)rt_log("gfxdump: saved and reopened PNG %d: %s",count,path);
     if(palette_log&&fprintf(palette_log,"%s/%s.png\t%s\t%s\n",kind,name,from,p->from?p->from->path:"-")<0)failed("Cannot write palettes.txt");
+}
+
+/* Friendly aliases for the existing portrait HUD. Original game artwork is
+ * exported locally only, through the same verified kernel file route. */
+static void save_hud(const char*name,int w,int h,const uint32_t*px){char path[1024],error[640];if(abort_dump||!output_path("hud",name,".png",path,sizeof path))return;if(!gfxdump_write_rgba(path,w,h,px,error,sizeof error))failed(error);else SDL_AddAtomicInt(&image_count,1);}
+static void dump_hud(void){
+    if(strcmp(rt_rom.code,"YQUE"))return;
+    uint32_t faces[7][48*48],icons[3][32*32],skin[80*32];const char*names[]={"crono","marle","lucca","robo","frog","ayla","magus"};
+    if(ct_hud_load_faces(faces))for(int i=0;i<7;i++){char name[64];snprintf(name,sizeof name,"portraits/%s",names[i]);save_hud(name,48,48,faces[i]);}
+    if(ct_hud_load_command_icons(icons)){const char*items[]={"attack","tech","item"};for(int i=0;i<3;i++){char name[64];snprintf(name,sizeof name,"icons/%s",items[i]);save_hud(name,32,32,icons[i]);}}
+    if(ct_hud_load_window_skin(skin)){save_hud("background",80,32,skin);for(int y=8;y<24;y++)for(int x=8;x<72;x++)skin[y*80+x]=0;save_hud("frame",80,32,skin);}
+    uint32_t font[128*60]={0};for(int ch=32;ch<128;ch++){uint32_t glyph[256*16]={0};char str[2]={(char)ch,0};ui_draw_text_flat(glyph,str,0,0,0xffffffffu);int cell=ch-32;for(int y=0;y<10;y++)for(int x=0;x<8;x++)font[(cell/16*10+y)*128+cell%16*8+x]=glyph[y*256+x];}save_hud("font",128,60,font);
+    char path[1024];FILE*f=create("hud","theme",".json",path,sizeof path,"w");if(f){fputs("{\n  \"schema\": 1,\n  \"name\": \"Original + PNGs\",\n  \"pixel_scale\": 3,\n  \"font\": {\"columns\":16,\"rows\":6,\"first\":32,\"count\":96},\n  \"assets\": {\"frame\":null}\n}\n",f);int good=!ferror(f);if(fclose(f))good=0;if(!good)failed("Cannot finish HUD template JSON");}
 }
 
 static void save(const char *kind, const char *name, const GfxLayout *l, const GfxTiles *t, const GfxPalette *p,
@@ -259,7 +274,7 @@ static int worker(void *arg) {
     const char*action=operation==REPAIR?"repair existing permissions; no re-export":operation==WRITE_CHECK?"single-sprite write check":"export";
     rt_log("gfxdump: filesystem route: explicit sceKernel APIs on PS5; encoder uses memory");
     rt_log("gfxdump: worker entered: %s; output %s; report %s",action,out_root,log_path);
-    if(dump_log){fprintf(dump_log,"CTPS5 graphics dump 01.006.010\nOutput: %s\nAction: %s\nState: running\n",out_root,action);fflush(dump_log);}
+    if(dump_log){fprintf(dump_log,"CTPS5 graphics dump 01.006.012\nOutput: %s\nAction: %s\nState: running\n",out_root,action);fflush(dump_log);}
     if(operation==REPAIR){repair_tree(out_root,0);goto finished_dump;}
     if(!gfxdump_mkdirs(out_root,error,sizeof error)){failed(error);goto finished_dump;}
     if(operation==WRITE_CHECK){write_check();goto finished_dump;}
@@ -285,6 +300,7 @@ static int worker(void *arg) {
         SDL_AddAtomicInt(&done_bytes, unit_bytes(f));
         SDL_AddAtomicInt(&done_count, 1);
     }
+    if(operation==EXPORT&&!abort_dump)dump_hud();
 finished_dump:
     if(palette_log){int okay=!ferror(palette_log);if(fclose(palette_log))okay=0;palette_log=NULL;if(!okay)failed("Cannot finish palettes.txt");}
     if(!SDL_GetAtomicInt(&image_count)&&!SDL_GetAtomicInt(&error_count))failed("No PNG files were produced");
@@ -297,7 +313,7 @@ finished_dump:
 }
 
 static void start(int mode) {
-    rt_log("gfxdump: requested %s (01.006.010)",mode==WRITE_CHECK?"startup single-sprite write check":mode==REPAIR?"legacy access repair":"full export");
+    rt_log("gfxdump: requested %s (01.006.012)",mode==WRITE_CHECK?"startup single-sprite write check":mode==REPAIR?"legacy access repair":"full export");
     if (!SDL_CompareAndSwapAtomicInt(&running, 0, 1)){rt_log("gfxdump: request ignored: another operation is running");return;}
     SDL_SetAtomicInt(&finished,0);SDL_SetAtomicInt(&error_count,0);first_error[0]=0;last_directory[0]=0;abort_dump=0;operation=mode;
     snprintf(out_root,sizeof out_root,"%s%s",rt_data_dir(),mode==REPAIR?"mods/graphics/dump/":"graphics-export/");

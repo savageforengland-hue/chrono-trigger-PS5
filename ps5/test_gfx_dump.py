@@ -55,7 +55,7 @@ with tempfile.TemporaryDirectory() as tmp:
     if a.rom:
         if not (a.sdl_library and a.output):p.error('--rom needs --sdl-library and --output')
         a.output.mkdir(parents=True,exist_ok=True);exe=d/'rom'
-        subprocess.run([*flags,str(root/'ps5/tests/gfx_dump_rom.c'),*[str(root/'runtime'/s) for s in ['gfx_dump.c','gfx_dump_io.c','gfx_rom.c']],str(a.sdl_library),'-lm','-ldl','-pthread','-o',str(exe)],check=True)
+        subprocess.run([*flags,str(root/'ps5/tests/gfx_dump_rom.c'),*[str(root/'runtime'/s) for s in ['gfx_dump.c','gfx_dump_io.c','gfx_rom.c','battle_hud_faces.c','ui_font.c']],str(a.sdl_library),'-lm','-ldl','-pthread','-o',str(exe)],check=True)
         no_report=d/'no-report';no_report.mkdir();(no_report/'graphics-dump.log').mkdir()
         result=subprocess.run([str(exe),str(a.rom),str(no_report),'check'],check=True,timeout=30,capture_output=True,text=True)
         assert 'cannot open report' in result.stderr and 'write check decoded all original sprite pixels' in result.stderr
@@ -70,7 +70,11 @@ with tempfile.TemporaryDirectory() as tmp:
         png(sample);assert 'single-sprite write check' in (a.output/'graphics-dump.log').read_text()
         subprocess.run([str(exe),str(a.rom),str(a.output)],check=True,timeout=300)
         images=list((a.output/'graphics-export').rglob('*.png'));assert images
-        for path in images:png(path)
+        for path in images:
+            if '/hud/' in str(path):
+                from PIL import Image
+                with Image.open(path) as im:im.load();assert im.mode=='RGBA'
+            else:png(path)
         report=(a.output/'graphics-dump.log').read_text();assert f'Verified PNG files: {len(images)}\n' in report and 'State: complete\n' in report
         dump=a.output/'graphics-export'
         witness=dump/'frames/Chara/Chara_0000/199.png';digest=hashlib.sha256(witness.read_bytes()).hexdigest()

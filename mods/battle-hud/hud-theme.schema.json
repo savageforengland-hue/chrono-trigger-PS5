@@ -1,0 +1,833 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://savageforengland-hue.github.io/chrono-trigger-PS5/hud-theme.schema.json",
+  "title": "CTPS5 portrait HUD theme schema 1",
+  "description": "Native host also checks card geometry, font range/grid, JSON token/depth limits, printable labels and total rendered/decoded memory bounds.",
+  "required": [
+    "schema"
+  ],
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 47,
+      "pattern": "^[ -~]*$"
+    },
+    "canvas": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer",
+          "minimum": 480,
+          "maximum": 1200
+        },
+        {
+          "type": "integer",
+          "minimum": 80,
+          "maximum": 240
+        }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "pixel_scale": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "opacity": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "colors": {
+      "type": "object",
+      "properties": {
+        "background": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "text": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "labels": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "border": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "divider": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "portrait_border": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "selected": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "bar_track": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "hp": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "mp": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "atb": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "atb_ready": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "low_hp": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "outline": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        },
+        "ko": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "gap": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 40
+        },
+        "padding": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 40
+        },
+        "portrait": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1200
+            }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "hp_bar": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1200
+            }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "mp_bar": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1200
+            }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "atb_bar": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1200
+            }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "name": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "hp_label": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "hp_value": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "mp_label": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "mp_value": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "atb_label": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1200
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "text": {
+      "type": "object",
+      "properties": {
+        "name_size": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 8
+        },
+        "value_size": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 8
+        },
+        "label_size": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 8
+        },
+        "hp": {
+          "type": "string",
+          "maxLength": 15,
+          "pattern": "^[ -~]*$"
+        },
+        "mp": {
+          "type": "string",
+          "maxLength": 15,
+          "pattern": "^[ -~]*$"
+        },
+        "atb": {
+          "type": "string",
+          "maxLength": 15,
+          "pattern": "^[ -~]*$"
+        },
+        "attack": {
+          "type": "string",
+          "maxLength": 15,
+          "pattern": "^[ -~]*$"
+        },
+        "tech": {
+          "type": "string",
+          "maxLength": 15,
+          "pattern": "^[ -~]*$"
+        },
+        "item": {
+          "type": "string",
+          "maxLength": 15,
+          "pattern": "^[ -~]*$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "show": {
+      "type": "object",
+      "properties": {
+        "portraits": {
+          "type": "boolean"
+        },
+        "names": {
+          "type": "boolean"
+        },
+        "labels": {
+          "type": "boolean"
+        },
+        "numbers": {
+          "type": "boolean"
+        },
+        "hp": {
+          "type": "boolean"
+        },
+        "mp": {
+          "type": "boolean"
+        },
+        "atb": {
+          "type": "boolean"
+        },
+        "dividers": {
+          "type": "boolean"
+        },
+        "selection": {
+          "type": "boolean"
+        },
+        "commands": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "style": {
+      "type": "object",
+      "properties": {
+        "border_width": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "grain": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 24
+        },
+        "clocks": {
+          "type": "boolean"
+        },
+        "linear_sampling": {
+          "type": "boolean"
+        },
+        "portrait_fit": {
+          "enum": [
+            "cover",
+            "contain"
+          ]
+        },
+        "background_mode": {
+          "enum": [
+            "auto",
+            "tile",
+            "stretch",
+            "window"
+          ]
+        },
+        "background_tint": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      },
+      "additionalProperties": false
+    },
+    "font": {
+      "type": "object",
+      "properties": {
+        "columns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "first": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "tint": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "anchor": {
+      "type": "object",
+      "properties": {
+        "max_width_percent": {
+          "type": "integer",
+          "minimum": 40,
+          "maximum": 100
+        },
+        "offset_x": {
+          "type": "integer",
+          "minimum": -256,
+          "maximum": 256
+        },
+        "offset_y": {
+          "type": "integer",
+          "minimum": -192,
+          "maximum": 192
+        },
+        "command_gap": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        }
+      },
+      "additionalProperties": false
+    },
+    "assets": {
+      "type": "object",
+      "properties": {
+        "background": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "card": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "frame": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "overlay": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "portrait_frame": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "font": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "bar_track": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "hp_bar": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "mp_bar": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "atb_bar": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "atb_ready": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "attack": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "tech": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "item": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "crono": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "marle": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "lucca": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "robo": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "frog": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "ayla": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        },
+        "magus": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 191,
+              "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)(?!\\./)(?!.*?/\\./)[A-Za-z0-9_./-]+\\.png$"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "names": {
+      "type": "object",
+      "properties": {
+        "crono": {
+          "type": "string",
+          "maxLength": 23,
+          "pattern": "^[ -~]*$"
+        },
+        "marle": {
+          "type": "string",
+          "maxLength": 23,
+          "pattern": "^[ -~]*$"
+        },
+        "lucca": {
+          "type": "string",
+          "maxLength": 23,
+          "pattern": "^[ -~]*$"
+        },
+        "robo": {
+          "type": "string",
+          "maxLength": 23,
+          "pattern": "^[ -~]*$"
+        },
+        "frog": {
+          "type": "string",
+          "maxLength": 23,
+          "pattern": "^[ -~]*$"
+        },
+        "ayla": {
+          "type": "string",
+          "maxLength": 23,
+          "pattern": "^[ -~]*$"
+        },
+        "magus": {
+          "type": "string",
+          "maxLength": 23,
+          "pattern": "^[ -~]*$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

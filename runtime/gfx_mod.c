@@ -590,6 +590,13 @@ static const char *relative(const char *path, const char *root) {
     return rel;
 }
 
+static void json_string(FILE*f,const char*s){fputc('"',f);for(;*s;s++){unsigned char c=(unsigned char)*s;if(c=='"'||c=='\\')fputc('\\',f);if(c<32)fprintf(f,"\\u%04x",c);else fputc(c,f);}fputc('"',f);}
+static void inventory(const char*root,const List*list){
+    char path[1200],temp[1200];snprintf(path,sizeof path,"%smanifest.generated.json",root);snprintf(temp,sizeof temp,"%smanifest.generated.json.tmp",root);FILE*f=fopen(temp,"w");if(!f)return;
+    fputs("{\n  \"schema\": 1,\n  \"discovery\": \"same-relative-path\",\n  \"missing\": \"original-game-assets\",\n  \"files\": [",f);
+    for(int i=0;i<list->count;i++){if(i)fputc(',',f);fputs("\n    ",f);json_string(f,relative(list->paths[i],root));}fputs("\n  ]\n}\n",f);int good=!ferror(f);if(fclose(f))good=0;if(good&&rename(temp,path)==0)return;remove(temp);rt_log("gfxmod: could not update generated inventory; PNG discovery is unaffected");
+}
+
 void gfxmod_load(void) {
     Uint64 t0 = SDL_GetTicks();
     char root[1024];
@@ -600,7 +607,7 @@ void gfxmod_load(void) {
     snprintf(root, sizeof root, "%smods/graphics/", rt_data_dir());
 #endif
     List list = {0};
-    static const char *const kinds[] = {"sheets", "frames", "screens", "fonts"};
+    static const char *const kinds[] = {"sheets", "frames", "screens", "fonts", "hud"};
     for (size_t k = 0; k < SDL_arraysize(kinds); k++) {
         char dir[1100];
         snprintf(dir, sizeof dir, "%s%s/", root, kinds[k]);
@@ -608,6 +615,8 @@ void gfxmod_load(void) {
         SDL_PathInfo info;
         if (SDL_GetPathInfo(dir, &info) && info.type == SDL_PATHTYPE_DIRECTORY) SDL_EnumerateDirectory(dir, collect, &list);
     }
+    if(list.count>1)qsort(list.paths,(size_t)list.count,sizeof *list.paths,by_path);
+    inventory(root,&list);
     if (!list.count) {
 #ifdef EGG_PS5_CORE
         sprite_hd_load();
@@ -615,7 +624,6 @@ void gfxmod_load(void) {
 #endif
         return;
     }
-    qsort(list.paths, (size_t)list.count, sizeof *list.paths, by_path);
     if (!gfx_list_files()) return;
     int *scale = calloc((size_t)list.count, sizeof *scale); /* by image: 0 not usable */
     int images = 0, colours = 0, same_tiles = 0, hd = 0, glyphs = 0, widths = 0;
@@ -624,6 +632,9 @@ void gfxmod_load(void) {
         for (int i = 0; i < list.count; i++) {
             if (pass && scale[i] < 2) continue;
             const char *rel = relative(list.paths[i], root);
+#ifdef EGG_PS5_CORE
+            if(!pass&&ct_redraw_dropin(list.paths[i],rel)){images++;continue;}
+#endif
             if (!strncmp(rel, "fonts/", 6)) {
                 if (pass) continue;
                 char path[512];
@@ -638,6 +649,7 @@ void gfxmod_load(void) {
                 }
                 continue;
             }
+            if(!strncmp(rel,"hud/",4))continue;
             Item it;
             Png png;
             if (!resolve(rel, &it)) {

@@ -318,7 +318,7 @@ static uint32_t input(uint32_t keys) {
         int n=egg_ps5_mod_menu_count();
         if(act&KEY_UP)mods_cursor=(mods_cursor+n-1)%n;
         if(act&KEY_DOWN)mods_cursor=(mods_cursor+1)%n;
-        if(act&(KEY_LEFT|KEY_RIGHT|KEY_A))egg_ps5_mod_menu_change(mods_cursor,act&KEY_LEFT?-1:1);
+        if(act&(KEY_LEFT|KEY_RIGHT|KEY_A))egg_ps5_mod_menu_change(mods_cursor,act&KEY_LEFT?-1:mods_cursor==9&&(act&KEY_A)?0:1);
         return 0;
     }
 #endif
@@ -813,8 +813,8 @@ void sysmenu_draw(uint32_t *s) {
     }else if(mods_page){
         ui_draw_text(s,"Mods",(SCREEN_W-ui_text_width("Mods"))/2,8,WHITE);
         for(int i=0;i<egg_ps5_mod_menu_count();i++){
-            int step=egg_ps5_mod_menu_count()>8?15:egg_ps5_mod_menu_count()>7?16:egg_ps5_mod_menu_count()>6?19:egg_ps5_mod_menu_count()>5?22:25;
-            int height=step<16?14:step<17?15:step<20?17:20;
+            int step=egg_ps5_mod_menu_count()>9?13:egg_ps5_mod_menu_count()>8?15:egg_ps5_mod_menu_count()>7?16:egg_ps5_mod_menu_count()>6?19:egg_ps5_mod_menu_count()>5?22:25;
+            int height=step<14?12:step<16?14:step<17?15:step<20?17:20;
             int y=28+i*step;Rect lr={6,y,112,height},vr={122,y,128,height};
             panel(s,lr,i==mods_cursor?&BUTTON_LIT:&BUTTON);panel(s,vr,&BUTTON);
             if(i==mods_cursor)frame(s,vr,TEAL);
