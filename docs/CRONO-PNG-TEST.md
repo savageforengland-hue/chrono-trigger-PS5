@@ -72,3 +72,7 @@ The expanded fixture audit checks every stored Crono cell, including identical p
 A desktop run with the older eight-pose Crono pack enabled was checked in both field and battle scenes. The expanded PNGs match a normal field pose (cell 2) and the battle-ready pose (cell 199). Removing the expanded pack restores pixel-identical captures of the previous graphics in both scenes. The remastered HUD is retained during these checks. This is further desktop evidence; visible operation of v0.2.0 on PS5 remains to be tested.
 
 To generate and verify the full test from your own supported NDS, add `--all` to the `ps5/test_crono_png_pack.py` command above. Without that flag it retains the original two-frame test for reproduction. No hand-written registration JSON is needed in either mode.
+
+### Subsequent PS5 confirmation — 16 November 2026
+
+The user subsequently retried the previously supplied test and confirmed it works, explaining that they had not been getting the edited sprite pose. They also confirmed the remastered HUD works. This resolves the original no-visible-change report without an established loader defect. The expanded v0.2.0 diagnostic remained a local test and was not delivered at that point. This is limited user confirmation of visible sprite replacement and HUD operation; it does not establish complete pose/scene coverage or sustained performance.
