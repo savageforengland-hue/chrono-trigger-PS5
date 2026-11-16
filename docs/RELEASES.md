@@ -1,5 +1,19 @@
 # Release notes and validation
 
+## Private mod host 01.006.015 — 16 November 2026
+
+Adds opt-in room restrictions, transparent-tile original fallback, painted
+background brightness response, curtain-driven room light fades and live-palette indexed sprite blends for
+the private [full-house HD-2D style test](HOUSE-HD2D.md). Both interiors and
+Crono/mum/cat sprites are covered; curtain animation retains original artwork.
+The new named pack leaves earlier packs installed. Global PNG behavior remains
+available without the optional policy. HUD configuration and saves are retained;
+startup checks stay off and the full dumper remains manual.
+
+Desktop captures, repeated curtain state auditing, unrelated-area and removal
+comparisons, PNG/sprite/HUD/controller checks and native package validation
+passed. The new native build and artwork still need the user's PS5 test.
+
 ## Private mod host 01.006.014 — 16 November 2026
 
 Removes the automatic startup graphics write check at the user's request.

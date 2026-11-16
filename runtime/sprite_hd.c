@@ -125,7 +125,8 @@ void sprite_hd_load(void){
         for(uint32_t off=0;off+32<=t.size;off+=32){
             const uint8_t*tile=t.data+off;int opaque=0;for(int i=0;i<32;i++)opaque|=tile[i];
             if(!opaque)continue;
-            if(gfxmod_find(tile,0)){gfxmod_sprite_character(tile,c);continue;} /* Existing texture packs win. */
+            uint32_t existing=gfxmod_find(tile,0);const GfxHdTile*art=gfxmod_tile(existing);
+            if(art&&(art->scope==0||art->scope==1)){gfxmod_sprite_character(tile,c);continue;} /* Global PNGs win; room PNGs retain a battle fallback. */
             uint32_t*px=malloc((size_t)8*scale*8*scale*4);if(!px)break;
             sprite_hd_make(px,tile,scale,strength,palette);
             added+=gfxmod_add_sprite(tile,scale,px,c);

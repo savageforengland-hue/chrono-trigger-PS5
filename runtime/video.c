@@ -276,9 +276,12 @@ static uint32_t hd_tile(const Engine *e, int obj, uint32_t addr, int bpp8,int pa
         c->val[i] = p && in + (bpp8 ? 64 : 32) <= PAGE ? gfxmod_find(p + in, bpp8 != 0) : 0;
         c->stamp[i] = hd_stamp;
     }
-    uint32_t found=c->val[i];const GfxHdTile*tile=gfxmod_tile(found);
-    if(!gfxmod_allowed(tile,obj,sprite_hd_battle_frame,obj?sprite_hd_palette(e->id,palette):-1))return 0;
-    return found;
+    for(uint32_t found=c->val[i];found;found=gfxmod_fallback(found)){
+        const GfxHdTile*tile=gfxmod_tile(found);
+        if(tile&&(tile->scope==2||tile->scope==3)&&e->id!=0)continue;
+        if(gfxmod_allowed(tile,obj,sprite_hd_battle_frame,obj?sprite_hd_palette(e->id,palette):-1))return found;
+    }
+    return 0;
 }
 
 /* A layer pixel's source: gfxmod tile, texel (in the tile, flips applied) and flips. */
@@ -1806,6 +1809,17 @@ void video_render_line(int line) {
 #ifdef EGG_PS5
         ctps5_battle_hud_frame();ctps5_battle_hud_capture(&frame_hud);
 #endif
+        gfxmod_background_location(rt_r16(GAME_ADDR(0x020720a0u,0x020720c0u)));
+        int light_bg,light_x,light_y,light_control,light_valid=0,light_tile=-1;
+        if(gfxmod_window_probe(&light_bg,&light_x,&light_y,&light_control)){
+            uint32_t cnt=io_get16(8+light_bg*2),dc=io_get32(0),width=(cnt&0x4000)?64:32,height=(cnt&0x8000)?64:32;
+            if(cnt==(uint32_t)light_control&&(unsigned)light_x<width&&(unsigned)light_y<height){
+                uint32_t block=(uint32_t)light_x/32+(uint32_t)light_y/32*(width/32),scr=((cnt>>8)&31)*0x800u+((dc>>27)&7)*0x10000u;
+                uint8_t*p=video_vram_ptr(0x06000000u+scr+block*0x800u+((uint32_t)light_y&31)*64+((uint32_t)light_x&31)*2);
+                if(p){light_valid=1;light_tile=(p[0]|p[1]<<8)&1023;}
+            }
+        }
+        gfxmod_window_state(light_valid,light_tile,rt_frame_count);
         sprite_hd_battle_frame=gfxmod_hd_scale()>0&&sprite_hd_battle();
         int redraws=ct_redraw_count()&&(prepare_redraws(engines)+prepare_redraws(engines+1));
         hd_on=gfxmod_hd_active(sprite_hd_battle_frame)||redraws;

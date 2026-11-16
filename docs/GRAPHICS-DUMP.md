@@ -1,6 +1,6 @@
 # Graphics dumper
 
-## Current behavior — host 01.006.014
+## Current behavior — host 01.006.014 and later
 
 The automatic startup write check has been removed at the user's request.
 Normal launch no longer writes the diagnostic sprite or starts a graphics
@@ -10,7 +10,7 @@ export. Existing exports are retained. The full dumper remains available at
 The filename-based PNG loader and remastered HUD are unchanged.
 
 The material below records the earlier 01.006.010 diagnostic workflow; its
-startup-check instructions do not apply to 01.006.014.
+startup-check instructions do not apply to 01.006.014 or later.
 
 ## Historical diagnostic workflow — host 01.006.010
 

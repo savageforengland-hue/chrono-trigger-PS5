@@ -6,6 +6,7 @@
 const GfxHdTile*gfxmod_tile(uint32_t id){(void)id;assert(0);return NULL;}
 uint32_t ct_redraw_color(uint32_t texel,const uint16_t palette[16]){(void)texel;(void)palette;assert(0);return 0;}
 uint32_t sprite_hd_color(uint32_t texel,const uint16_t*palette){(void)texel;(void)palette;assert(0);return 0;}
+void gfxmod_background_gains(const uint16_t*p,uint16_t gains[32]){(void)p;for(int i=0;i<32;i++)gains[i]=256;}
 int main(void){
  assert(SDL_Init(0));hd_workers=0;
  enum{W=SCREEN_W,H=SCREEN_H,N=3};SDL_Surface*output=SDL_CreateSurface(W*N,H*N,SDL_PIXELFORMAT_ABGR8888);assert(output);SDL_Renderer*ren=SDL_CreateSoftwareRenderer(output);assert(ren);View v={.ren=ren};

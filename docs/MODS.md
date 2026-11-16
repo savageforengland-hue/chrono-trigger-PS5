@@ -70,3 +70,11 @@ The private [Crono bedroom test](HOUSE-INTERIOR-TEST.md) uses six exact dumped
 PNG sheet paths under `mods/graphics/sheets/Map/Bg/`. It can be merged into
 `/data/` without replacing settings or the HUD. The companion host stops
 automatic startup write checks; the working PNG loader is retained.
+
+## Full house HD-2D style test (01.006.015)
+
+The private [two-room house pack](HOUSE-HD2D.md) adds painted room textures
+and faithful Crono/mum/cat sprite refinement under the independent named pack
+`crono-house-hd2d`. Exact dump names are retained. An optional room policy
+prevents shared sheets changing other locations, preserves native curtain
+animation, and keeps fully transparent sheet cells original.

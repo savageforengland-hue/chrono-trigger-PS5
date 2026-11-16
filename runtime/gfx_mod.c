@@ -32,12 +32,46 @@
 #include "rt.h"
 #include "sprite_hd.h"
 #include "redraw.h"
+#include "background_rules.h"
+#include <stdatomic.h>
 
 #define SCALE_MAX 8
 
+/* Opt-in restrictions for Map/Bg and optionally Chara sheets. An invalid present file
+ * fails closed for those images, rather than leaking room art globally. */
+static BgRules background_rules;
+static int background_mode; /* 0 absent, 1 valid, -1 invalid */
+static atomic_int background_location=ATOMIC_VAR_INIT(-1);
+void gfxmod_background_location(int location){atomic_store(&background_location,location);}
+int gfxmod_background_allowed(void){return background_mode==1&&bg_rules_index(&background_rules,atomic_load(&background_location))>=0;}
+void gfxmod_background_gains(const uint16_t*palette,uint16_t gains[32]){
+ int at=bg_rules_index(&background_rules,atomic_load(&background_location));
+ for(int row=0;row<32;row++){gains[row]=256;if(background_mode!=1||at<0||row>=16)continue;int reference=background_rules.locations[at].light[row];if(!reference)continue;int light=0;for(int i=1;i<16;i++){unsigned c=palette[row*16+i];light+=5*(c&31)+9*((c>>5)&31)+2*((c>>10)&31);}gains[row]=(uint16_t)SDL_clamp((light*256+reference/2)/reference,0,512);}
+}
+static atomic_int window_gain=ATOMIC_VAR_INIT(256);
+static int window_active,window_target=256;static uint64_t window_frame;
+int gfxmod_window_probe(int*bg,int*x,int*y,int*control){const BgWindow*w=&background_rules.window;if(background_mode!=1||!w->enabled||atomic_load(&background_location)!=w->location)return 0;*bg=w->bg;*x=w->cell[0];*y=w->cell[1];*control=w->control;return 1;}
+int gfxmod_window_gain(void){const BgWindow*w=&background_rules.window;return background_mode==1&&w->enabled&&atomic_load(&background_location)==w->location?atomic_load(&window_gain):256;}
+void gfxmod_window_state(int valid,int tile,uint64_t frame){
+ const BgWindow*w=&background_rules.window;
+ if(!valid||background_mode!=1||!w->enabled||atomic_load(&background_location)!=w->location){window_active=0;window_target=256;window_frame=frame;atomic_store(&window_gain,256);return;}
+ if(frame<window_frame)window_active=0;
+ int closed=(w->brightness*256+50)/100,target=tile==w->open?256:tile==w->closed?closed:-1;
+ if(!window_active){window_target=target<0?256:target;window_active=1;window_frame=frame;atomic_store(&window_gain,window_target);return;}
+ if(target>=0)window_target=target;
+ int current=atomic_load(&window_gain),delta=(int)SDL_min(frame-window_frame,120),step=w->frames?(256-closed+w->frames-1)/w->frames:256;
+ int move=delta*step;if(current<window_target)current=SDL_min(window_target,current+move);else if(current>window_target)current=SDL_max(window_target,current-move);
+ window_frame=frame;atomic_store(&window_gain,current);
+}
+static int scoped_background(const char*rel){return !strncmp(rel,"sheets/Map/Bg/",14);}
+static int scoped_character(const char*rel){return background_rules.characters&&!strncmp(rel,"sheets/Chara/",13);}
+static void background_load_rules(const char*root){
+ memset(&background_rules,0,sizeof background_rules);background_mode=0;char path[1200];snprintf(path,sizeof path,"%sbackgrounds.json",root);SDL_PathInfo info;if(!SDL_GetPathInfo(path,&info))return;background_mode=-1;if(info.type!=SDL_PATHTYPE_FILE||info.size>BG_RULE_BYTES){rt_log("gfxmod: backgrounds.json: invalid file; background PNGs skipped");return;}size_t n=0;char*data=SDL_LoadFile(path,&n);if(data&&bg_rules_parse(data,n,&background_rules))background_mode=1;SDL_free(data);rt_log("gfxmod: backgrounds.json: %s",background_mode==1?"room-scoped HD backgrounds; transparent tiles keep original assets":"invalid rules; background PNGs skipped");
+}
+
 /* ---- the HD tile table ---- */
 
-typedef struct Entry { GfxHdTile hd; uint8_t bytes[64]; int bpp8,direct; uint64_t hash; } Entry;
+typedef struct Entry { GfxHdTile hd; uint8_t bytes[64]; int bpp8,direct; uint64_t hash; uint32_t next; } Entry;
 static Entry *entries; /* [0] unused: tile number 0 is none */
 static uint32_t entry_count, entry_cap, *slots, slot_mask;
 static int hd_scale,general_hd_scale,generated_hd_scale;
@@ -72,30 +106,27 @@ static void rebuild_slots(void) {
     }
 }
 
-/* Sets the HD art of a native tile, replacing earlier art for it; px is taken over. */
-static int add_hd(const uint8_t *t, int bpp8, int scale, int indexed, void *px) {
-    uint64_t h = tile_hash(t, bpp8);
-    uint32_t n = lookup(t, bpp8, h);
-    if (n) {
-        free((void *)entries[n].hd.px);
-        entries[n].hd = (GfxHdTile){scale, indexed, bpp8, px, 0, 0};
-        return 0;
-    }
-    if (entry_count == entry_cap) {
-        entry_cap = entry_cap ? entry_cap * 2 : 1024;
-        entries = realloc(entries, entry_cap * sizeof *entries);
-    }
-    if (!entry_count) entry_count = 1; /* number 0: none */
-    Entry *e = &entries[entry_count++];
-    *e = (Entry){{scale, indexed, bpp8, px, 0, 0}, {0}, bpp8, 0, h};
-    memcpy(e->bytes, t, bpp8 ? 64 : 32);
-    if (entry_count * 2 > slot_mask) rebuild_slots();
-    else {
-        uint32_t s = (uint32_t)h & slot_mask;
-        while (slots[s]) s = (s + 1) & slot_mask;
-        slots[s] = entry_count - 1;
-    }
-    return 1;
+/* A native byte key can have room/BG/actor/battle alternatives. They share
+ * one hash head; context selection follows the immutable next chain. */
+static uint32_t new_entry(void){
+ if(entry_count+1>=entry_cap){uint32_t cap=entry_cap?entry_cap*2:1024;Entry*p=realloc(entries,(size_t)cap*sizeof *p);if(!p)return 0;entries=p;entry_cap=cap;}
+ if(!entry_count)entry_count=1;uint32_t n=entry_count++;entries[n]=(Entry){0};return n;
+}
+static uint32_t scope_entry(uint32_t n,int scope){for(;n;n=entries[n].next)if(entries[n].hd.scope==scope)return n;return 0;}
+/* Takes ownership of px. A later unrestricted PNG still overrides all scopes. */
+static int add_hd(const uint8_t*t,int bpp8,int scale,int indexed,void*px,int scope){
+ uint64_t h=tile_hash(t,bpp8);uint32_t head=lookup(t,bpp8,h);
+ GfxHdTile hd={scale,indexed,bpp8,px,scope,0};
+ if(head){
+  uint32_t target=scope?scope_entry(head,scope):head;
+  if(target){free((void*)entries[target].hd.px);entries[target].hd=hd;return 0;}
+  uint32_t alt=new_entry();if(!alt){free(px);return 0;}
+  if(entries[head].hd.scope==0){entries[alt]=entries[head];entries[alt].direct=1;entries[head].hd=hd;entries[head].next=alt;}
+  else{entries[alt].hd=hd;entries[alt].direct=1;entries[alt].next=entries[head].next;entries[head].next=alt;}
+  return 1;
+ }
+ uint32_t n=new_entry();if(!n){free(px);return 0;}entries[n].hd=hd;entries[n].bpp8=bpp8;entries[n].hash=h;memcpy(entries[n].bytes,t,bpp8?64:32);
+ if(entry_count*2>slot_mask)rebuild_slots();else{uint32_t at=(uint32_t)h&slot_mask;while(slots[at])at=(at+1)&slot_mask;slots[at]=n;}return 1;
 }
 
 int gfxmod_hd_scale(void) { return hd_scale; }
@@ -104,18 +135,15 @@ int gfxmod_hd_active(int battle) { return general_hd_scale>0||(battle&&generated
 uint32_t gfxmod_find(const uint8_t *t, int bpp8) { return entry_count > 1 ? lookup(t, bpp8, tile_hash(t, bpp8)) : 0; }
 
 const GfxHdTile *gfxmod_tile(uint32_t n) { return n && n < entry_count ? &entries[n].hd : NULL; }
+uint32_t gfxmod_fallback(uint32_t n){return n&&n<entry_count?entries[n].next:0;}
 
-int gfxmod_add_sprite(const uint8_t tile[32],int scale,uint32_t *px,int character){
-    if(character<0||character>=7){free(px);return 0;}
-    if(gfxmod_find(tile,0)){free(px);return 0;}
-    int added=add_hd(tile,0,scale,2,px);uint32_t n=gfxmod_find(tile,0);
-    if(n){entries[n].hd.scope=1;entries[n].hd.characters=1u<<character;}
-    hd_scale=SDL_max(hd_scale,scale);generated_hd_scale=SDL_max(generated_hd_scale,scale);return added;
+int gfxmod_add_sprite(const uint8_t tile[32],int scale,uint32_t*px,int character){
+ if(character<0||character>=7){free(px);return 0;}uint32_t head=gfxmod_find(tile,0),old=scope_entry(head,1);
+ if(head&&entries[head].hd.scope==0){free(px);return 0;}if(old){entries[old].hd.characters|=1u<<character;free(px);return 0;}
+ int added=add_hd(tile,0,scale,2,px,1);uint32_t n=scope_entry(gfxmod_find(tile,0),1);if(n)entries[n].hd.characters|=1u<<character;
+ hd_scale=SDL_max(hd_scale,scale);generated_hd_scale=SDL_max(generated_hd_scale,scale);return added;
 }
-void gfxmod_sprite_character(const uint8_t tile[32],int character){
-    if(character<0||character>=7)return;
-    uint32_t n=gfxmod_find(tile,0);if(n&&entries[n].hd.scope==1)entries[n].hd.characters|=1u<<character;
-}
+void gfxmod_sprite_character(const uint8_t tile[32],int character){if(character<0||character>=7)return;uint32_t n=scope_entry(gfxmod_find(tile,0),1);if(n)entries[n].hd.characters|=1u<<character;}
 
 uint32_t gfxmod_add_direct(int scale,int indexed,void*px){
     if(!px||scale<2||scale>8){free(px);return 0;}
@@ -379,6 +407,9 @@ static int same_size(const Png *png, Item *it) {
 }
 
 static int hd_tiles(const Png *png, const Item *it, int s) {
+    int actor=background_mode==1&&scoped_character(it->rel);
+    int scoped=background_mode==1&&(scoped_background(it->rel)||actor);
+    int blended=actor&&png->indexed&&background_rules.sprite_blend&&!it->tiles.bpp8;
     const GfxLayout *l = &it->layout;
     int added = 0, n = 8 * s;
     for (int i = 0; i < l->count; i++) {
@@ -393,7 +424,8 @@ static int hd_tiles(const Png *png, const Item *it, int s) {
             visible |= x >= 0 && y >= 0 && x < l->w && y < l->h && it->owner[y * l->w + x] == i;
         }
         if (blank || !visible) continue;
-        void *px = malloc((size_t)n * n * (png->indexed ? 1 : 4));
+        if(scoped){int any=0;for(int v=0;v<n&&!any;v++)for(int u=0;u<n;u++){int x=p->x*s+u,y=p->y*s+v;if(x<0||y<0||x>=png->w||y>=png->h)continue;int at=y*png->w+x;any|=png->indexed?((blended||p->bpp8)?png->idx[at]!=0:(png->idx[at]&15)!=0):(png->rgba[at]>>24)>=128;}if(!any)continue;}
+        void *px = malloc((size_t)n * n * (png->indexed&&!blended ? 1 : 4));
         uint8_t *ix = px;
         uint32_t *cx = px;
         for (int v = 0; v < n; v++) {
@@ -401,7 +433,12 @@ static int hd_tiles(const Png *png, const Item *it, int s) {
                 int nat = gfx_tile_px(&it->tiles, p->off, p->bpp8, u / s, v / s); /* the native texel, upscaled */
                 int x = p->x * s + (p->hflip ? n - 1 - u : u), y = p->y * s + (p->vflip ? n - 1 - v : v);
                 int own = x >= 0 && y >= 0 && x < png->w && y < png->h && it->owner[(y / s) * l->w + x / s] == i;
-                if (png->indexed) {
+                if(blended){
+                    int val=own?png->idx[y*png->w+x]:nat;
+                    if(val<16)cx[v*n+u]=(uint32_t)val;
+                    else if(val<=240){int pair=val-16;cx[v*n+u]=(uint32_t)(1+pair/15)|(uint32_t)(1+pair%15)<<8|(uint32_t)background_rules.sprite_blend<<16;}
+                    else cx[v*n+u]=(uint32_t)nat;
+                } else if (png->indexed) {
                     int val = own ? png->idx[y * png->w + x] : nat;
                     ix[v * n + u] = (uint8_t)(p->bpp8 || !own ? val : val & 15);
                 } else if (own) {
@@ -413,7 +450,7 @@ static int hd_tiles(const Png *png, const Item *it, int s) {
                 }
             }
         }
-        added += add_hd(t, p->bpp8, s, png->indexed, px);
+        added += add_hd(t,p->bpp8,s,blended?2:scoped&&!png->indexed?4:png->indexed,px,scoped?(actor?3:2):0);
     }
     return added;
 }
@@ -606,6 +643,7 @@ void gfxmod_load(void) {
 #else
     snprintf(root, sizeof root, "%smods/graphics/", rt_data_dir());
 #endif
+    background_load_rules(root);
     List list = {0};
     static const char *const kinds[] = {"sheets", "frames", "screens", "fonts", "hud"};
     for (size_t k = 0; k < SDL_arraysize(kinds); k++) {
@@ -618,6 +656,7 @@ void gfxmod_load(void) {
     if(list.count>1)qsort(list.paths,(size_t)list.count,sizeof *list.paths,by_path);
     inventory(root,&list);
     if (!list.count) {
+        background_rules.window.enabled=0; /* An empty PNG pack retains original lighting too. */
 #ifdef EGG_PS5_CORE
         sprite_hd_load();
         ct_redraw_load();
@@ -650,6 +689,7 @@ void gfxmod_load(void) {
                 continue;
             }
             if(!strncmp(rel,"hud/",4))continue;
+            if(background_mode<0&&(scoped_background(rel)||!strncmp(rel,"sheets/Chara/",13)))continue;
             Item it;
             Png png;
             if (!resolve(rel, &it)) {
@@ -665,10 +705,12 @@ void gfxmod_load(void) {
             int s = png.w / it.layout.w;
             if (s < 1 || s > SCALE_MAX || png.w != it.layout.w * s || png.h != it.layout.h * s) {
                 if (!pass) rt_log("gfxmod: %s: %dx%d, not %dx%d times 1 to %d", rel, png.w, png.h, it.layout.w, it.layout.h, SCALE_MAX);
+            } else if(background_mode==1&&(scoped_background(rel)||scoped_character(rel))&&s<2){
+                if(!pass)rt_log("gfxmod: %s: room-scoped PNG must be HD (2x..8x); original retained",rel);
             } else if (!pass) {
                 scale[i] = s;
                 images++;
-                colours += apply_palette(&png, &it);
+                if(!(background_mode==1&&(scoped_background(rel)||scoped_character(rel))))colours += apply_palette(&png, &it);
                 if (s == 1) same_tiles += same_size(&png, &it);
             } else {
                 hd += hd_tiles(&png, &it, s);
@@ -682,6 +724,7 @@ void gfxmod_load(void) {
         if (!pass && commit_edits()) gfx_list_files(); /* the files moved */
         if (!pass) t1 = SDL_GetTicks() - t1;
     }
+    if(!hd)background_rules.window.enabled=0;
     for (int i = 0; i < list.count; i++) SDL_free(list.paths[i]);
     free(list.paths);
     free(scale);

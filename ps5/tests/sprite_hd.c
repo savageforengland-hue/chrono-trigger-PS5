@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+int gfxmod_background_allowed(void){return 0;}
 int main(void){
     uint8_t tile[32]={0};uint32_t pal[16],out[1026];
     for(int i=0;i<16;i++)pal[i]=(unsigned)i*0x101010u;

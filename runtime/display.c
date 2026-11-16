@@ -658,7 +658,7 @@ static inline uint32_t hd_mix(uint32_t c, int weight, uint32_t add, const uint8_
 }
 
 /* Rows y0..y1-1 of a screen (w columns) drawn at k times its size (job of compose_hd). */
-typedef struct HdJob { const uint32_t *px; const VideoHd *src; const uint16_t *palette; const uint8_t *lut; uint32_t *out; int w, k, y0, y1; } HdJob;
+typedef struct HdJob { const uint32_t *px; const VideoHd *src; const uint16_t *palette; const uint8_t *lut; uint32_t *out; int w, k, y0, y1; const uint16_t *background_gains; } HdJob;
 
 static void compose_rows(const HdJob *j) {
     int w = j->w, k = j->k, ow = w * k;
@@ -696,6 +696,10 @@ static void compose_rows(const HdJob *j) {
                         uint32_t c=sprite_hd_color(texels[hflip?es-1-col[sx]:col[sx]],pal);
                         line[sx]=c?hd_mix(c,r->weight,add,j->lut):below;
                     }
+                } else if(t->indexed==4){
+                    const uint32_t*texels=(const uint32_t*)t->px+v*n+tx*es;
+                    int gain=t->scope!=3&&j->background_gains?j->background_gains[r->pal&31]:256;
+                    for(int sx=0;sx<k;sx++){uint32_t a=texels[hflip?es-1-col[sx]:col[sx]],c=0xff000000u;for(int sh=0;sh<24;sh+=8)c|=(uint32_t)SDL_min(255,(((a>>sh)&255)*(unsigned)gain+128)>>8)<<sh;line[sx]=a>>24?hd_mix(c,r->weight,add,j->lut):below;}
                 } else if (t->indexed) {
                     const uint8_t *texels = (const uint8_t *)t->px + v * n + tx * es;
                     for (int sx = 0; sx < k; sx++) {
@@ -786,7 +790,8 @@ static int upload_hd(View *v, int tex, const uint32_t *px, const VideoHd *src, i
         have = hd_px ? need : 0;
         if (!hd_px) return 0;
     }
-    compose_hd(&(HdJob){px, src, hd_frame->palette, SETTING(SET_COLOR) ? gamma_lut : NULL, hd_px, w, k, 0, h});
+    uint16_t background_gains[32];gfxmod_background_gains(hd_frame->palette,background_gains);
+    compose_hd(&(HdJob){px, src, hd_frame->palette, SETTING(SET_COLOR) ? gamma_lut : NULL, hd_px, w, k, 0, h,background_gains});
     SDL_UpdateTexture(hd_tex[tex], &(SDL_Rect){0, 0, ow, oh}, hd_px, ow * 4);
     return 1;
 }
@@ -911,7 +916,14 @@ static void draw_ui(const View *v, int x, int y, int n, int cw, int ch) {
 #ifdef EGG_PS5
 static CtHudSnapshot shown_hud;
 #endif
+/* The native field's curtain state drives a world-only light fade. Apply it
+ * equally to native/HD, party and still layers; HUD, minimap and UI stay readable. */
+static void window_light_textures(View*v){
+ int gain=SETTING(SET_MODS)?gfxmod_window_gain():256;Uint8 level=(Uint8)SDL_clamp((gain*255+128)/256,0,255);
+ for(int tex=0;tex<6;tex++){Uint8 c=tex==0||(tex>=2&&tex<=4)?level:255;SDL_Texture*textures[]={v->native[tex],v->smooth[tex],v->hd_tex[tex]};for(int i=0;i<3;i++)if(textures[i])SDL_SetTextureColorMod(textures[i],c,c,c);}
+}
 static void draw_screens(View *v) {
+    window_light_textures(v);
     SDL_Renderer *ren = v->ren;
     SDL_Texture **native = v->native, **smooth = v->smooth, **hd_tex = v->hd_tex;
     const int *hd_k = v->hd_k;
