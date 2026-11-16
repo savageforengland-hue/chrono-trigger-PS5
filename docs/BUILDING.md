@@ -49,6 +49,12 @@ The application applies its built-in PS5 game prompts to the verified NDS in mem
 
 ## ROM-free checks
 
+For the current **CTPS5 Mods** game app at PPSA90436, use
+`bash ps5/build_mod_release.sh /absolute/path/to/CT.nds` after the dependency
+setup above. It suppresses the separate boot-check build and stages the full
+mod host under `build-ps5/package-mods/PPSA90436/`. See the
+[release-kit guide](RELEASE-KIT.md) for packaging and installation.
+
 ```sh
 python3 tools/check_public_source.py
 python3 tools/check_site.py

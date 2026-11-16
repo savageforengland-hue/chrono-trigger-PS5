@@ -1,5 +1,9 @@
 # Installing and updating
 
+For the current **CTPS5 Mods 01.006.018** app (PPSA90436), use the
+[release-kit setup guide](RELEASE-KIT.md). The instructions below describe the
+base PPSA90435 app; do not substitute its folder name when updating CTPS5 Mods.
+
 The public release is source only. First [build locally](BUILDING.md) using your own USA YQUE NDS file.
 
 The target setup is PS5 firmware 13.20 with kstuff and Shadow Mount Plus 1.7beta11. Other combinations have not been established. Use your existing working homebrew environment.

@@ -25,6 +25,25 @@ async def main():
    file=await wait.value;out=d/'graphics.zip';await file.save_as(out)
    with zipfile.ZipFile(out) as z:
     assert z.testzip() is None;assert z.read('eggoftime/mods/graphics/frames/Chara/Chara_0000/000.png')==png.read_bytes();assert json.loads(z.read('eggoftime/mods/graphics/manifest.generated.json'))['files']==['frames/Chara/Chara_0000/000.png']
+   await page.locator('#graphicsId').fill('cronos-house-downstairs')
+   async with page.expect_download() as wait:await page.locator('#graphicsZip').click()
+   file=await wait.value;out=d/'named.zip';await file.save_as(out)
+   with zipfile.ZipFile(out) as z:
+    prefix='eggoftime/mods/packs/cronos-house-downstairs/graphics/'
+    assert z.testzip() is None and len(z.namelist())==2
+    assert z.read(prefix+'frames/Chara/Chara_0000/000.png')==png.read_bytes()
+   for bad in ['../escape','with spaces','default']:
+    await page.locator('#graphicsId').fill(bad);await page.locator('#graphicsZip').click()
+    assert 'reserved' in await page.locator('#status').inner_text()
+   policy=b'{"schema":1,"transparentTiles":"original","locations":[{"id":1}]}\n'
+   (folder/'backgrounds.json').write_bytes(policy)
+   await page.locator('#graphics').set_input_files(str(folder))
+   await page.wait_for_function("document.querySelector('#graphicsList').textContent.includes('backgrounds.json')")
+   await page.locator('#graphicsId').fill('cronos-house-downstairs')
+   async with page.expect_download() as wait:await page.locator('#graphicsZip').click()
+   file=await wait.value;out=d/'scoped.zip';await file.save_as(out)
+   with zipfile.ZipFile(out) as z:
+    assert z.read('eggoftime/mods/packs/cronos-house-downstairs/graphics/backgrounds.json')==policy
    await page.locator('summary').click();await page.locator('#json').fill('{bad json');await page.locator('#apply').click();assert 'JSON' in await page.locator('#status').inner_text() or 'property' in await page.locator('#status').inner_text()
    assert not errors,errors
    await browser.close()

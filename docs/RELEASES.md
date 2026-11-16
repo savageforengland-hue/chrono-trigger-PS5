@@ -1,5 +1,16 @@
 # Release notes and validation
 
+## Release-kit tooling — 16 November 2026
+
+Adds a complete modding guide, a current mod-host build wrapper, audited
+public-source/private-play packaging and a downstairs-only configuration
+starter. The offline editor can package named graphics packs while retaining
+supplied room rules. This does not change host 01.006.018's executable or claim
+new hardware results. The new room artwork requires its original PNG file
+before conversion and in-game validation; the starter contains no artwork.
+PS5 replacement music remains unimplemented. See [release-kit contents and
+setup](RELEASE-KIT.md) and [modding capabilities](MODDING-GUIDE.md).
+
 ## Private mod host 01.006.018 — 16 November 2026
 
 Replaces the single named texture-pack selector with independent On/Off

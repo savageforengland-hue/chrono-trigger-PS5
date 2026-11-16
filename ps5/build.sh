@@ -42,8 +42,10 @@ cp -R "$root/ps5/sce_sys" "$build/package/PPSA90435/"
     --build "$build/app" --sdl-build "$build/sdl3" --sdk "$PS5_PAYLOAD_SDK" \
     --out "$build/package/PPSA90435/eboot.bin"
 echo "Built: $build/package/PPSA90435 (hardware validation required)"
-"$python" "$root/ps5/build_boot_check.py" --sdk "$PS5_PAYLOAD_SDK" \
-    --tool "$build/app/native-tools/ps5-native-tool" --build "$build/boot-check" \
-    --runtime "$build/package/PPSA90435/sce_module/libc.prx" \
-    --out "$build/package/PPSA90436"
-echo "Built: $build/package/PPSA90436 (independent home-screen boot check)"
+if [[ "${EGG_BUILD_BOOT_CHECK:-1}" != 0 ]]; then
+    "$python" "$root/ps5/build_boot_check.py" --sdk "$PS5_PAYLOAD_SDK" \
+        --tool "$build/app/native-tools/ps5-native-tool" --build "$build/boot-check" \
+        --runtime "$build/package/PPSA90435/sce_module/libc.prx" \
+        --out "$build/package/PPSA90436"
+    echo "Built: $build/package/PPSA90436 (independent home-screen boot check)"
+fi

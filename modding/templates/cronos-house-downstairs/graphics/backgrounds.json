@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "transparentTiles": "original",
+  "includeCharacterSheets": false,
+  "locations": [
+    {
+      "id": 1,
+      "paletteLight": [0, 1525, 3666, 3515, 3486, 2195, 2310, 3679, 4070, 3081, 2910, 126, 180, 309, 3103, 3201]
+    }
+  ]
+}

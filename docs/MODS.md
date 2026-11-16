@@ -1,5 +1,9 @@
 # Configuration and texture packs
 
+Start with the [current modding guide](MODDING-GUIDE.md) for PNG drag-and-drop,
+the offline editor, separate pack switches and supported features. The
+[release kit](RELEASE-KIT.md) includes source/build and personal-install steps.
+
 Persistent data lives in `/data/eggoftime/`. Keep this directory when updating the app.
 
 | File / directory | Purpose |

@@ -1,5 +1,12 @@
 # HUD themes and PNG replacements
 
+For host **01.006.018**, several graphics packs can be enabled together.
+Default loads first, then named folders alphabetically; later applicable
+replacements win. Missing art can fall back to an earlier enabled pack and
+then the original. The offline editor can now package a named graphics pack
+and preserve supplied background-policy JSON. This supersedes the older
+single-active-pack descriptions below; see [current modding steps](MODDING-GUIDE.md).
+
 Host **01.006.012** adds themes to the **existing portrait battle HUD** and automatic graphics discovery. The base PPSA90435 app stays separate from CTPS5 Mods (PPSA90436). Keep your own supported USA/YQUE `CT.nds` and existing saves/settings in `/data/eggoftime/`.
 
 ## Replace a graphic
