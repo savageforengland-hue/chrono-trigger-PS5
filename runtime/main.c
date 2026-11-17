@@ -12,6 +12,7 @@
 #include "display.h"
 #include "game_build.h"
 #include "gfx_mod.h"
+#include "field_layers.h"
 #include "rt.h"
 #include "sound.h"
 #include "system_menu.h"
@@ -190,6 +191,8 @@ static uint32_t auto_keys(Uint64 now) {
 static uint32_t top_px[SCREEN_W * SCREEN_H], bottom_px[SCREEN_W * SCREEN_H], main_px[VIDEO_LINE_MAX * VIDEO_ROWS_MAX];
 static const uint32_t *const screens[3] = {top_px, bottom_px, main_px};
 static int main_w = SCREEN_W, main_h = SCREEN_H; /* main_px: rows of this width (widescreen), this many (zoom out) */
+static uint32_t field_obj_px[VIDEO_LINE_MAX * VIDEO_ROWS_MAX];
+static int field_active, field_camera_x, field_camera_y;
 static uint32_t party_px[VIDEO_LINE_MAX * VIDEO_ROWS_MAX]; /* main screen's party layer (camera smoothing) */
 static uint32_t still_px[VIDEO_LINE_MAX * VIDEO_ROWS_MAX]; /* main screen's still layer (camera smoothing) */
 static uint32_t ui_px[VIDEO_LINE_MAX * VIDEO_ROWS_MAX];     /* main screen's UI layer (zoom out) */
@@ -447,6 +450,7 @@ int main(int argc, char **argv) {
             frame_t = beat(&frame_beat, frame_t, game_period);
             main_w = video_copy_frame(top_px, bottom_px, main_px, &main_h, party_px, &party_on, still_px, &still_on, ui_px, &ui_on,
                                       gfxmod_hd_scale() ? &hd : NULL);
+            field_active = video_copy_field_layer(field_obj_px, &field_camera_x, &field_camera_y);
             if (cam_cut || !display_camera_smoothing()) {
                 glide_x = glide_y = (Glide){0};
             } else {
@@ -467,12 +471,14 @@ int main(int argc, char **argv) {
         if (sysmenu_is_open()) {
             main_w = SCREEN_W, main_h = SCREEN_H;
             party_on = still_on = ui_on = 0;
+            field_active = 0;
             sysmenu_draw(main_px);
             memcpy(top_px, main_px, sizeof top_px); /* layouts other than top-only show it too */
             new_frame = 1;
         }
         display_frame(screens, party_on ? party_px : NULL, still_on ? still_px : NULL, ui_on ? ui_px : NULL, main_w, main_h, new_frame, lag_x, lag_y,
-                      hd.on && !sysmenu_is_open() ? &hd : NULL);
+                      hd.on && !sysmenu_is_open() ? &hd : NULL,
+                      field_obj_px, field_active && !sysmenu_is_open(), field_camera_x, field_camera_y);
         presented++;
         if (log_fps && SDL_GetTicks() >= fps_at) {
             rt_log("fps: window %d, game %llu", presented, (unsigned long long)(rt_frame_count - game_frames));

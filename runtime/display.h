@@ -15,7 +15,8 @@ int display_init(void); /* window, renderer, saved settings; 0 on failure */
  * screen's still layer (NULL: none), drawn under the slid picture without the slide. */
 /* hd: the screens' sources for HD graphics mods (NULL: none), drawn from HD art while Mods is on. */
 void display_frame(const uint32_t *const screens[3], const uint32_t *party, const uint32_t *still, const uint32_t *ui,
-                   int width, int height, int new_frame, float slide_dx, float slide_dy, const VideoHdFrame *hd);
+                   int width, int height, int new_frame, float slide_dx, float slide_dy, const VideoHdFrame *hd,
+                   const uint32_t *field_objects, int field_active, int field_camera_x, int field_camera_y);
 /* Whether the framerate setting asks for camera smoothing (above 60). */
 int display_camera_smoothing(void);
 /* F2 layout, F3 swap screens, F4 filter, F11 fullscreen; returns 1 if the key was used. */

@@ -35,6 +35,8 @@ uint8_t *video_vram_ptr(uint32_t addr);
 void video_vramcnt_written(void);
 void video_affine_ref_written(int engine, int bg); /* BGxX/BGxY written: reload the internal reference */
 
+/* Opt-in field replacement: captured native OBJ pixels, synced to latest presented frame. */
+int video_copy_field_layer(uint32_t *rgba, int *camera_x, int *camera_y);
 void video_reset(void);
 void video_render_line(int line); /* visible lines 0..191 */
 void video_end_frame(void);       /* start of VBlank: publish the finished frame */

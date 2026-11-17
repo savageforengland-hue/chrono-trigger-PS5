@@ -41,6 +41,7 @@
 #include "../ps5/presentation.h"
 #endif
 #include "gfx_mod.h"
+#include "field_layers.h"
 #include "minimap.h"
 #include "movie.h"
 #include "rt.h"
@@ -168,6 +169,8 @@ typedef struct View {
     int lcd_mask_n;
 } View;
 
+static SDL_Texture *field_obj_texture;
+static int field_scene_on, field_x, field_y;
 static View primary, secondary; /* secondary.win: NULL while Second screen window is off */
 static int swapped;
 static int last_full = WINDOW_BORDERLESS; /* F11 from windowed returns here */
@@ -910,7 +913,13 @@ static void draw_screens(View *v) {
             int w = screen_width(tex), h = screen_height(tex);
             SDL_FRect src = {0, 0, (float)w * k, (float)h * k};
             SDL_FRect r = {(float)x * n, (float)y * n, (float)w * n, (float)h * n};
-            SDL_RenderTexture(ren, t, &src, &r);
+            if (tex == 2 && v == &primary && field_scene_on) {
+                field_layers_draw(ren, 0, &r, (float)field_x - SCREEN_W / 2,
+                                  (float)field_y - SCREEN_H / 2, SCREEN_W, SCREEN_H);
+                SDL_RenderTexture(ren, field_obj_texture, NULL, &r);
+                field_layers_draw(ren, 1, &r, (float)field_x - SCREEN_W / 2,
+                                  (float)field_y - SCREEN_H / 2, SCREEN_W, SCREEN_H);
+            } else SDL_RenderTexture(ren, t, &src, &r);
             screens[nshown] = screen;
             shown[nshown++] = r;
             if (tex == 2) draw_ui(v, x, y, n, cw, ch);
@@ -1115,6 +1124,7 @@ int display_init(void) {
     if (SETTING(SET_WINDOW) != WINDOW_WINDOWED) last_full = SETTING(SET_WINDOW);
     if (!force_windowed) apply_window_mode(win, SETTING(SET_WINDOW));
     if (!create_textures(&primary, 6)) return 0;
+    field_layers_init(primary.ren);
     if (SETTING(SET_SECOND)) {
         if (!open_second()) SETTING(SET_SECOND) = 0;
         resize_window();
@@ -1123,7 +1133,8 @@ int display_init(void) {
 }
 
 void display_frame(const uint32_t *const screens[3], const uint32_t *party, const uint32_t *still, const uint32_t *ui,
-                   int width, int height, int new_frame, float slide_dx, float slide_dy, const VideoHdFrame *hd) {
+                   int width, int height, int new_frame, float slide_dx, float slide_dy, const VideoHdFrame *hd,
+                   const uint32_t *field_objects, int field_active, int field_camera_x, int field_camera_y) {
     /* A main screen of the margin asked for (plus guard) is the field: its guard columns are hidden. */
     main_guard = asked_guard && (width == SCREEN_W + 2 * asked_margin || (asked_zoom_rows && width == SCREEN_W + 2 * asked_zoom_margin)) ? asked_guard : 0;
     main_guard_rows = main_guard && asked_zoom_rows && height == SCREEN_H + 2 * asked_zoom_rows ? VIDEO_SLIDE_ROWS : 0;
@@ -1141,6 +1152,21 @@ void display_frame(const uint32_t *const screens[3], const uint32_t *party, cons
     main_w = width;
     main_h = height;
     ui_on = ui != NULL;
+    field_scene_on = field_active && field_layers_ready() && field_objects &&
+                     main_w == SCREEN_W && main_h == SCREEN_H && !main_guard && !ui_on && !view_shader(&primary);
+    field_x = field_camera_x;
+    field_y = field_camera_y;
+    if (field_scene_on && (new_frame || reupload)) {
+        if (!field_obj_texture)
+            field_obj_texture = SDL_CreateTexture(primary.ren, SDL_PIXELFORMAT_ABGR8888,
+                                                  SDL_TEXTUREACCESS_STREAMING, SCREEN_W, SCREEN_H);
+        if (field_obj_texture) {
+            SDL_SetTextureBlendMode(field_obj_texture, SDL_BLENDMODE_BLEND);
+            SDL_SetTextureScaleMode(field_obj_texture, SDL_SCALEMODE_NEAREST);
+            if (!SDL_UpdateTexture(field_obj_texture, NULL, field_objects, SCREEN_W * 4))
+                field_scene_on = 0;
+        } else field_scene_on = 0;
+    }
     party_on = main_guard && party;
     still_on = main_guard && still;
     if (new_frame || reupload) {

@@ -206,6 +206,11 @@ static int present_party_on;
 static uint32_t still_frame[VIDEO_LINE_MAX * VIDEO_ROWS_MAX]; /* still layer of the top screen (alpha 0: none) */
 static uint32_t present_still[VIDEO_LINE_MAX * VIDEO_ROWS_MAX];
 static int present_still_on;
+/* Transparent native OBJ pixels for an opt-in HD field background. */
+static uint32_t field_obj_frame[VIDEO_LINE_MAX * VIDEO_ROWS_MAX];
+static uint32_t present_field_obj[VIDEO_LINE_MAX * VIDEO_ROWS_MAX];
+static int present_field_active, present_field_camera_x, present_field_camera_y;
+
 
 /* HD graphics mods (gfx_mod.c): while HD tiles are loaded, each pixel also records where its colour came from
  * (VideoHd), so the display can draw it again from the HD art. A layer pixel's source is its tile (looked up by
@@ -1446,6 +1451,8 @@ static void render_engine_line(Engine *e, int y, uint32_t *out) {
         }
     }
     if (on_screen) for (int i = 0; i < 2; i++) if (e->ref_reload[i]) reload_ref(e, i);
+    if (e->id == !((io_get16(0x304) >> 15) & 1))
+        memset(&field_obj_frame[FROW(e, y)], 0, (size_t)width * sizeof(uint32_t));
     VideoHd *hd_row = hd_on ? &hd_frame[e->id][FROW(e, y)] : NULL;
     if (hd_row) memset(hd_row, 0, (size_t)width * sizeof *hd_row);
 
@@ -1706,6 +1713,8 @@ static void render_engine_line(Engine *e, int y, uint32_t *out) {
             int to_still = !pass && e->still_bgs && !cut && still_layer(e, layer[0]) &&
                            (!blended || still_layer(e, layer[1]));
             if (to_still) still_frame[FROW(e, y) + x] = dst[x], dst[x] = 0;
+            if (!pass && sprite_shows && !cut && e->id == !((io_get16(0x304) >> 15) & 1))
+                field_obj_frame[FROW(e, y) + x] = dst[x];
             if (hd) {
                 const HdLine *h = layer[0] == 4 ? &o->hd : layer[0] < 4 && src[layer[0]] == bgline[layer[0]] ? &bghd[layer[0]] : NULL;
                 uint32_t s = h && (dst[x] || to_still) && !cut ? h->src[x] : 0;
@@ -1844,6 +1853,11 @@ void video_end_frame(void) {
     present_main_w = ss_compose(present_main, present[0], present[1], present_wide, w, h, present_shifted_on ? present_shifted : NULL,
                                 present_shifted_sprite, &main_from);
     present_main_h = main_from == SS_FROM_WIDE ? h : SCREEN_H;
+    present_field_active = ss_in_field() && main_from == SS_FROM_WIDE && read_known;
+    present_field_camera_x = camera_x;
+    present_field_camera_y = camera_y;
+    if (present_field_active) for (int y = 0; y < h; y++)
+        memcpy(&present_field_obj[y * w], &field_obj_frame[y * VIDEO_LINE_MAX], (size_t)w * sizeof(uint32_t));
     present_party_on = et->party && present_main_w == w; /* the field: main is the wide picture */
     for (int y = 0; present_party_on && y < h; y++) {
         memcpy(&present_party[y * w], &party_frame[y * VIDEO_LINE_MAX], (size_t)w * 4);
@@ -1946,4 +1960,17 @@ void video_state(RtStateIO *s) {
         video_vramcnt_written(); /* VRAM bank mapping follows the restored VRAMCNT */
         camera_known = read_known = 0; /* no camera motion across the load */
     }
+}
+
+/* Main-thread copy of native OBJ compositing, synchronized with the visible frame. */
+int video_copy_field_layer(uint32_t *rgba, int *x, int *y) {
+    SDL_LockMutex(present_lock);
+    int ok = present_field_active;
+    if (ok) {
+        memcpy(rgba, present_field_obj, (size_t)present_main_w * present_main_h * sizeof(uint32_t));
+        *x = present_field_camera_x;
+        *y = present_field_camera_y;
+    }
+    SDL_UnlockMutex(present_lock);
+    return ok;
 }
