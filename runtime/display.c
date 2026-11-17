@@ -1157,8 +1157,9 @@ void display_frame(const uint32_t *const screens[3], const uint32_t *party, cons
     field_x = field_camera_x;
     field_y = field_camera_y;
     if (field_scene_on && (new_frame || reupload)) {
-        field_obj_texture = sized_target(primary.ren, &field_obj_texture, SCREEN_W, SCREEN_H);
-        /* sized_target produces a render target, and SDL_UpdateTexture can update it on SDL3 backends. */
+        if (!field_obj_texture)
+            field_obj_texture = SDL_CreateTexture(primary.ren, SDL_PIXELFORMAT_ABGR8888,
+                                                  SDL_TEXTUREACCESS_STREAMING, SCREEN_W, SCREEN_H);
         if (field_obj_texture) {
             SDL_SetTextureBlendMode(field_obj_texture, SDL_BLENDMODE_BLEND);
             SDL_SetTextureScaleMode(field_obj_texture, SDL_SCALEMODE_NEAREST);
