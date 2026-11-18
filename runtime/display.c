@@ -42,6 +42,7 @@
 #endif
 #include "gfx_mod.h"
 #include "fullpng.h"
+#include "fullpng_blend.h"
 #include "minimap.h"
 #include "movie.h"
 #include "rt.h"
@@ -679,16 +680,7 @@ static void compose_rows(const HdJob *j) {
                                 line[sx] = original;
                             } else {
                                 uint32_t front = hd_mix(a, r->weight, add, j->lut);
-                                if (alpha == 255) line[sx] = front;
-                                else {
-                                    uint32_t out = 0xFF000000u;
-                                    for (int sh = 0; sh < 24; sh += 8) {
-                                        unsigned v = (((front >> sh) & 255u) * alpha +
-                                                      ((original >> sh) & 255u) * (255u - alpha) + 127u) / 255u;
-                                        out |= v << sh;
-                                    }
-                                    line[sx] = out;
-                                }
+                                line[sx] = fullpng_blend_abgr(front, original, alpha);
                             }
                         }
                     }
