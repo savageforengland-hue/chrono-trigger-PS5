@@ -9,6 +9,7 @@
 
 typedef struct FullPng {
     int location, bg, scale, w, h; /* w/h in original game pixels */
+    int origin_x, origin_y;     /* world pixel coordinate of top-left of PNG */
     const uint32_t *rgba;          /* ABGR8888 pixel words, image w*scale by h*scale */
 } FullPng;
 
