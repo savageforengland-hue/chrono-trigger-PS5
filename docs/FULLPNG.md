@@ -35,6 +35,39 @@ Named packs can include `graphics/rooms/` alongside other PNGs, using the existi
 
 No PNG files are distributed here. Use your own artwork.
 
+## Optional world-space alignment sidecar
+
+A PNG can be accompanied by a `.cfg` file with the same basename:
+
+```text
+mods/graphics/rooms/0x001_bg2_x2.png
+mods/graphics/rooms/0x001_bg2_x2.cfg
+```
+
+```ini
+origin_x=0
+origin_y=0
+```
+
+`origin_x` and `origin_y` specify the PNG's top-left in the original
+DS game's **world pixels**, rather than texture pixels. Adjust these two
+values and restart the test title without editing the PNG or rebuilding
+`eboot.bin`. Valid offsets are -4096 to +4096. The default is zero.
+
+The approved downstairs image is currently 1254x1254 at x2, producing a
+627x627 native canvas. Actual camera coordinates, room dimensions, scene
+identity and BG layer must still be checked against the running DS game.
+The runtime logs the current scene and camera on room transitions:
+
+```text
+fullpng: scene 0x001, camera (X,Y)
+```
+
+The line above is an example of the format, not an observed PS5 result.
+The filename `0x001_bg2_x2.png` is an **unverified candidate** for Crono's
+downstairs room in the DS runtime. Do not assume this scene ID or BG2 is
+correct without a console log and visual inspection.
+
 ## Compatibility
 
 - Full-canvas PNG art is optional. Without files in `rooms/`, the original
