@@ -25,6 +25,8 @@ jobs:
         run: python3 tests/test_fullpng_staging.py
       - name: Full-canvas PNG module unit tests (mock SDL3, no ROM)
         run: sh tests/fullpng/run.sh
+      - name: Validate PNG pack preflight tests (ROM-free)
+        run: python3 -m unittest discover -s tests/fullpng -p 'test_validate_pack.py' -v
       - name: Check pinned downstream SDL display code
         run: |
           git clone --no-checkout https://github.com/OpenAGC/SDL3.git "$RUNNER_TEMP/SDL3"
