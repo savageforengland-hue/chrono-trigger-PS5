@@ -15,20 +15,23 @@ Place a PNG in the existing graphics mod directory:
 
 Filename = `0x<location>_bg<0..3>_x<scale>.png`.
 
-- `0x1f0` is the game's location ID (example: 1000 AD overworld).
+- `0x1f0` is an **illustrative** location ID. Replace it with a verified field-room ID; this example does not identify a confirmed room.
 - `bg2` is one of the DS engine's background layers; BG2 is the main map in
   many field rooms, but the appropriate BG may vary by scene.
 - `x2` tells the loader the art is exactly 2x the native world dimensions.
-  Supported factors are 2 through 8. A 1536x1024 native world canvas is
+  Supported factors are 2 through 8. A 1536x1024 native room canvas is
   3072x2048 pixels at x2.
 - PNG alpha below 128 at a native sampling point leaves the legacy tile
   pixel in place. At or above 128, the PNG replaces that BG pixel. The
   upscaled compositor respects per-texel alpha for edge blending.
-- The PNG must be aligned to **world coordinates**, with world (0,0) at
-  the top-left of the native PNG. Camera position selects the visible region.
-  This first implementation has no arbitrary per-layer origin offset.
+- The PNG must be aligned to **room-map coordinates** (0,0 at the native
+  room map's origin). The renderer reconstructs each BG's scroll position
+  from its tile ring, including independently moving layers. This first
+  version has no artist-defined origin offset. Start with BG2 in a simple room.
 - Image native dimensions must not exceed 4096x4096. Total uncompressed
   PNG memory budget is 128 MiB, with at most 127 images loaded per restart.
+
+Named packs can include `graphics/rooms/` alongside other PNGs, using the existing `pack.json` and `ps5/install_texture_pack.py` workflow.
 
 No PNG files are distributed here. Use your own artwork.
 
@@ -39,8 +42,8 @@ No PNG files are distributed here. Use your own artwork.
 - The GPU/CPU composition preserves the DS layer priority, OAM sprites,
   windows, fades and most original blending operations. The collision,
   triggers, interactions, camera rules and gameplay still use original maps.
-- The first version only targets text BG layers in the active field/overworld
-  scene. Affine and bitmap BG layers use the existing renderer unchanged.
+- The first version targets **field rooms only**, not the overworld. Affine and
+  bitmap BG layers use the existing renderer unchanged.
 - Not all game effects, animation sequences, layer offsets, translucency
   interactions or scene transitions have been verified. Test at least one
   room in hardware before replacing large portions of the world.
