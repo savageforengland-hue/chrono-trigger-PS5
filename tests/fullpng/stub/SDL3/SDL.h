@@ -19,6 +19,7 @@ typedef SDL_EnumerationResult (*SDL_EnumerateDirectoryCallback)(void *, const ch
 bool SDL_GetPathInfo(const char *path, SDL_PathInfo *info);
 bool SDL_EnumerateDirectory(const char *path, SDL_EnumerateDirectoryCallback cb, void *userdata);
 SDL_Surface *SDL_LoadPNG(const char *path);
+void *SDL_LoadFile(const char *path, size_t *datasize);
 SDL_Surface *SDL_ConvertSurface(SDL_Surface *src, uint32_t format);
 void SDL_DestroySurface(SDL_Surface *surface);
 void *SDL_malloc(size_t count);
