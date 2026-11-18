@@ -2,6 +2,8 @@
  * Reference: GBATEK "DS Video". The 3D layer (engine A BG0 in 3D mode) is not rendered yet. */
 #include <SDL3/SDL.h>
 
+#include "dispatch.h"
+#include "fullpng.h"
 #include "gfx_mod.h"
 #include "rt.h"
 #include "single_screen.h"
@@ -130,6 +132,7 @@ typedef struct Engine {
     int repeat_256; /* 256-wide text BGs repeat into the margins (the race's sky, single_screen.c) */
     int view_x, view_y, view_bgs; /* the view's shift from the camera at the room's ends, the BGs it moves (ws_view_shift) */
     int bg_dx[4], bg_dy[4];       /* each of those BGs' share of it (ws_bg_shift) */
+    int fullpng_id[4], fullpng_cam_x, fullpng_cam_y; /* room/world PNG for each BG */
     int obj_dx, obj_dy;           /* the world's sprites are that much off it (ws_sprite_lag) */
     int room_clip, room_x0, room_x1; /* Fill screen sides off: black beyond the room's columns room_x0..x1-1 */
     int repeat_bgs; /* BGs whose screen columns repeat into the margins, the others empty beyond the room
@@ -339,6 +342,9 @@ static void bg_text_cols(const Engine *e, int bg, int y, uint32_t dispcnt, uint1
     int ext = bpp8 && (dispcnt & (1u << 30));
     uint8_t *slot = e->bg_ext[(bg < 2 && (cnt & 0x2000)) ? bg + 2 : bg];
     uint32_t yy = (uint32_t)(y + (int)vofs) & (h - 1);
+    /* The full-PNG replacement uses room/world coordinates, not the VRAM tile
+     * address. The ordinary BG decode remains as fallback for transparent art. */
+    unsigned png_id = hd ? (unsigned)e->fullpng_id[bg] : 0u;
     for (int x = x0; x < x1; x++) {
         uint32_t xx = (uint32_t)(x + (int)hofs) & (w - 1);
         uint32_t block = (xx >> 8) + (yy >> 8) * (w >> 8);
@@ -357,6 +363,21 @@ static void bg_text_cols(const Engine *e, int bg, int y, uint32_t dispcnt, uint1
         if (hd && idx) {
             hd->src[x + m] = ext ? 0 : hd_src(hd_tile(e, 0, chr + tile * (bpp8 ? 64 : 32), bpp8), px, py, ent & 0x400, ent & 0x800);
             hd->pal[x + m] = (uint8_t)((bpp8 ? 0 : pal) | e->id << 4);
+        }
+        if (png_id) {
+            uint32_t source = fullpng_source(png_id, e->fullpng_cam_x + x, e->fullpng_cam_y + y);
+            uint32_t rgba = source ? fullpng_native_color(source) : 0;
+            if ((rgba >> 24) >= 128u) {
+                /* Populate BG coverage even when its legacy tile was empty.
+                 * Its priority/window/blending still pass through the original
+                 * engine compositor, preserving sprite and UI ordering. */
+                uint16_t c = (uint16_t)(((rgba & 255u) * 31u + 127u) / 255u |
+                    ((((rgba >> 8) & 255u) * 31u + 127u) / 255u) << 5 |
+                    ((((rgba >> 16) & 255u) * 31u + 127u) / 255u) << 10);
+                out[x + m] = c | OPAQUE;
+                hd->src[x + m] = source;
+                hd->pal[x + m] = (uint8_t)(e->id << 4);
+            }
         }
     }
 }
@@ -1348,6 +1369,8 @@ static void engine_frame_start(Engine *e) {
         e->party = e->sliding = e->still_bgs = 0;
         e->view_x = e->view_y = e->view_bgs = e->obj_dx = e->obj_dy = 0;
         SDL_memset(e->bg_dx, 0, sizeof e->bg_dx), SDL_memset(e->bg_dy, 0, sizeof e->bg_dy);
+        SDL_memset(e->fullpng_id, 0, sizeof e->fullpng_id);
+        e->fullpng_cam_x = e->fullpng_cam_y = 0;
         e->box_top = SCREEN_H;
         e->track_top = e->id == a_top && SDL_GetAtomicInt(&track_bottom);
         e->panel_ui = e->track_top && panel_has_ui(e);
@@ -1391,6 +1414,15 @@ static void engine_frame_start(Engine *e) {
             e->room_clip = e->margin && (!SDL_GetAtomicInt(&fill_sides) || e->repeat_bgs) &&
                            ws_room_span(&e->room_x0, &e->room_x1);
             int rx = 0, ry = 0, rk = ws_camera(&rx, &ry); /* camera motion into this frame (camera smoothing) */
+            if (rk) {
+                /* The game address follows USA YQUE / alternate release mapping,
+                 * as used in widescreen.c. Scene selection happens once per frame. */
+                int location = rt_r16(GAME_ADDR(0x020720a0u, 0x020720c0u));
+                e->fullpng_cam_x = rx + e->view_x;
+                e->fullpng_cam_y = ry + e->view_y;
+                for (int bg = 0; bg < 4; ++bg)
+                    e->fullpng_id[bg] = fullpng_find(location, bg);
+            }
             int cx = read_x, cy = read_y, known = read_known;
             read_known = rk, read_x = rx, read_y = ry;
             frame_dx = frame_dy = 0, frame_cut = 1;
