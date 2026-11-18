@@ -68,6 +68,28 @@ export DSD=dsd
 bash ps5/build_fullpng.sh /absolute/path/to/your/CT.nds
 ```
 
+### Rebuilding later without the ROM as a build input
+
+If you've **kept a previous `build-ps5/gen/` directory** that contains
+`dispatch.c` and the other generated C sources, subsequent source changes
+can be compiled with:
+
+```sh
+export PS5_PAYLOAD_SDK="$PWD/.deps/sdk/opt/ps5-payload-sdk"
+export SDL3_SOURCE="$PWD/.deps/SDL3"
+bash ps5/rebuild_cached.sh
+```
+
+The script does not invoke `dsd`, does not invoke `recomp.py`, and does
+not read or hash a DS ROM. It needs the retained generated source, **the PS5
+SDK**, SDL3 and a compatible Linux build host. If the generated C is missing,
+it stops rather than assembling an incomplete game. Your pre-existing
+`eboot.bin` is not a substitute for generated C or relocatable object files.
+
+The game's code is still linked into the new `eboot.bin`. The game still
+needs your own original DS ROM *at runtime* for assets and data. This is
+not a ROM-free game.
+
 The script invokes the *existing* native CRT/SDL3/SELF pipeline and stages
 a **separate** `build-ps5/fullpng-test/PPSA90440` test folder. The
 existing release folders are not overwritten. The rebuilt test application
