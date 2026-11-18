@@ -11,3 +11,7 @@ trap 'rm -rf "$tmp"' EXIT HUP INT TERM
 "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -O1 \
     -Iruntime tests/fullpng/test_coords.c -o "$tmp/test_coords"
 "$tmp/test_coords"
+
+"${CC:-cc}" -std=c11 -Wall -Wextra -Werror -O1 \
+    -Iruntime tests/fullpng/test_blend.c -o "$tmp/test_blend"
+"$tmp/test_blend"
