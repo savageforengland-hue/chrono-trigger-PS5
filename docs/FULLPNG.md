@@ -51,6 +51,40 @@ No PNG files are distributed here. Use your own artwork.
 - The PNG loader shares the normal graphics-mod root. Named mod-pack
   installers must stage/merge `rooms/` into the effective graphics root.
 
+## Rebuild the experimental PS5 executable
+
+This repository's native build depends on the same SDK, pinned SDL3 source
+and Nintendo DS USA YQUE dump as the working CTPS5 source. It cannot rebuild
+from an existing `eboot.bin` alone.
+
+On an SDK-equipped Linux machine:
+
+```sh
+bash tools/bootstrap-ps5-deps.sh
+export PS5_PAYLOAD_SDK="$PWD/.deps/sdk/opt/ps5-payload-sdk"
+export SDL3_SOURCE="$PWD/.deps/SDL3"
+export LLVM_CONFIG=llvm-config-19
+export DSD=dsd
+bash ps5/build_fullpng.sh /absolute/path/to/your/CT.nds
+```
+
+The script invokes the *existing* native CRT/SDL3/SELF pipeline and stages
+a **separate** `build-ps5/fullpng-test/PPSA90440` test folder. The
+existing release folders are not overwritten. The rebuilt test application
+should be copied to `/data/homebrew/PPSA90440` and registered using the
+same ShadowMount method you used for the working DS title. Back up all
+saves and data before testing. Do not merge into the working title until
+a console test is successful.
+
+`CT.nds` is your own private dump, is used only on your build machine,
+and must not be committed or uploaded to GitHub.
+
+The SHA-1 requirement is the same as `ps5/build.sh`: USA YQUE,
+`11f9e8204e484eab42181b210c9f214584be75bf`.
+If you lack the ROM, SDK, SDL source, dsd, or LLVM, the build cannot
+produce a new working PS5 executable. Passing GitHub's host checks is
+not proof that the final executable boots on hardware.
+
 ## Rebuild requirement
 
 The *engine code* needs one new PS5 `eboot.bin` build to gain this feature.
