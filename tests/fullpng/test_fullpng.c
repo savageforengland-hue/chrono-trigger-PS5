@@ -26,6 +26,15 @@ bool SDL_EnumerateDirectory(const char *path, SDL_EnumerateDirectoryCallback cb,
     cb(userdata, path, "0x1f0_bg2_x9.png");
     return true;
 }
+void *SDL_LoadFile(const char *path, size_t *datasize) {
+    if (!strstr(path, "0x1f0_bg2_x2.cfg")) return NULL;
+    const char data[] = "origin_x=100\norigin_y=-20\n";
+    *datasize = sizeof data - 1;
+    char *contents = malloc(sizeof data);
+    assert(contents);
+    memcpy(contents, data, sizeof data);
+    return contents;
+}
 SDL_Surface *SDL_LoadPNG(const char *path) {
     if (!strstr(path, "0x1f0_bg2_x2.png")) return NULL;
     SDL_Surface *s = (SDL_Surface *)calloc(1, sizeof *s);
@@ -66,16 +75,17 @@ int main(void) {
     const FullPng *p = fullpng_surface(1);
     assert(p && p->location == 0x1f0 && p->bg == 2);
     assert(p->w == 2 && p->h == 2 && p->scale == 2);
-    uint32_t left = fullpng_source(1, 0, 0);
-    uint32_t right = fullpng_source(1, 1, 0);
+    assert(p->origin_x == 100 && p->origin_y == -20);
+    uint32_t left = fullpng_source(1, 100, -20);
+    uint32_t right = fullpng_source(1, 101, -20);
     assert(fullpng_is_source(left));
     assert(fullpng_id(right) == 1);
     assert(fullpng_x(right) == 1 && fullpng_y(right) == 0);
     assert(fullpng_native_color(left) == 0xFF0000FFu);
     assert(fullpng_sample(right, 0, 0, 2) == 0xFF00FF00u);
     assert(fullpng_sample(left, 2, 0, 2) == 0);
-    assert(fullpng_source(1, -1, 0) == 0);
-    assert(fullpng_source(1, 2, 0) == 0);
+    assert(fullpng_source(1, 99, -20) == 0);
+    assert(fullpng_source(1, 102, -20) == 0);
     assert(fullpng_source(0, 0, 0) == 0);
     assert(fullpng_surface(127) == NULL);
     fullpng_load(NULL);
