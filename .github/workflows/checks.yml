@@ -21,6 +21,8 @@ jobs:
           python3 ps5/test_diagnostics.py
           python3 ps5/test_memory.py
           python3 ps5/test_presentation.py
+      - name: Full-canvas PNG module unit tests (mock SDL3, no ROM)
+        run: sh tests/fullpng/run.sh
       - name: Check pinned downstream SDL display code
         run: |
           git clone --no-checkout https://github.com/OpenAGC/SDL3.git "$RUNNER_TEMP/SDL3"
