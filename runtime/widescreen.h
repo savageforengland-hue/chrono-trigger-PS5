@@ -11,6 +11,11 @@ void ws_fill_margins(int margin, int rows, int limit, int limit_rows, int fill);
 void ws_view_shift(int *x, int *y, int *bgs);
 /* BG bg's share of that shift: a layer scrolling at its own rate to the room's moves by as much of it. */
 void ws_bg_shift(int bg, int *x, int *y);
+/* Coordinates of this frame's BG(0..3) top-left pixel in the field map,
+ * including the layer's independent scroll/ring origin. Returns 0 outside
+ * the field or when its map state is unavailable. Game thread only.
+ * Used by full-image PNG replacements; gameplay still uses the original maps. */
+int ws_png_bg_origin(int bg, int *x, int *y);
 /* How far this frame's sprites in the world are to be moved to go with that shift. */
 void ws_sprite_lag(int *x, int *y);
 /* Columns the game's sprite coordinates are shifted by (the widened view's left margin; 0 normally). */
