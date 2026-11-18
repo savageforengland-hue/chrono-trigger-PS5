@@ -52,6 +52,7 @@
 #include <string.h>
 
 #include "dispatch.h"
+#include "fullpng_coords.h"
 #include "rt.h"
 #include "single_screen.h"
 #include "video.h"
@@ -987,12 +988,8 @@ int ws_png_bg_origin(int bg, int *x, int *y) {
     int orow = rt_r8(scroll + 0x8f + 2 * L);
     unsigned hofs = io_get16(0x10 + 4 * bg) & 0x1ffu;
     unsigned vofs = io_get16(0x12 + 4 * bg) & 0x1ffu;
-    int dc = ((int)(hofs >> 3) - oc) & 63;
-    int dr = ((int)(vofs >> 3) - orow) & 31;
-    if (dc >= 32) dc -= 64; /* shortest ring-relative displacement */
-    if (dr >= 16) dr -= 32;
-    *x = (camc + dc) * 8 + (int)(hofs & 7u);
-    *y = (camr + dr) * 8 + (int)(vofs & 7u);
+    *x = fullpng_ring_origin(camc, oc, hofs, 64);
+    *y = fullpng_ring_origin(camr, orow, vofs, 32);
     return 1;
 }
 
