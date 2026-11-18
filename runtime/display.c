@@ -41,6 +41,8 @@
 #include "../ps5/presentation.h"
 #endif
 #include "gfx_mod.h"
+#include "fullpng.h"
+#include "fullpng_blend.h"
 #include "minimap.h"
 #include "movie.h"
 #include "rt.h"
@@ -659,8 +661,36 @@ static void compose_rows(const HdJob *j) {
     for (int y = j->y0; y < j->y1; y++) {
         for (int x = 0; x < w; x++) {
             const VideoHd *r = &j->src[y * w + x];
-            const GfxHdTile *t = r->tile ? gfxmod_tile(r->tile >> 8) : NULL;
             uint32_t *o = j->out + (size_t)y * k * ow + (size_t)x * k;
+            if (fullpng_is_source(r->tile)) {
+                const FullPng *p = fullpng_surface(fullpng_id(r->tile));
+                unsigned px = fullpng_x(r->tile), py = fullpng_y(r->tile);
+                uint32_t original = j->px[y * w + x];
+                if (p && p->rgba && px < (unsigned)p->w && py < (unsigned)p->h) {
+                    int es = p->scale;
+                    size_t stride = (size_t)p->w * (size_t)es;
+                    uint32_t add = rgb555(r->added);
+                    for (int sy = 0; sy < k; sy++) {
+                        uint32_t *line = o + sy * ow;
+                        const uint32_t *texels = p->rgba + ((size_t)py * es + (size_t)sy * es / k) * stride + (size_t)px * es;
+                        for (int sx = 0; sx < k; sx++) {
+                            uint32_t a = texels[(size_t)sx * es / k];
+                            unsigned alpha = a >> 24;
+                            if (!alpha) {
+                                line[sx] = original;
+                            } else {
+                                uint32_t front = hd_mix(a, r->weight, add, j->lut);
+                                line[sx] = fullpng_blend_abgr(front, original, alpha);
+                            }
+                        }
+                    }
+                } else {
+                    for (int sy = 0; sy < k; sy++)
+                        for (int sx = 0; sx < k; sx++) o[sy * ow + sx] = original;
+                }
+                continue;
+            }
+            const GfxHdTile *t = r->tile ? gfxmod_tile(r->tile >> 8) : NULL;
             if (!t) {
                 uint32_t c = j->px[y * w + x];
                 for (int sy = 0; sy < k; sy++) for (int sx = 0; sx < k; sx++) o[sy * ow + sx] = c;

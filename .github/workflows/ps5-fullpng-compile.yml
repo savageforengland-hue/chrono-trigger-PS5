@@ -1,0 +1,52 @@
+name: PS5 PNG renderer cross-compile
+on:
+  push:
+    branches: [feature/full-png-room-layers]
+  pull_request:
+    paths:
+      - 'runtime/fullpng*'
+      - 'runtime/video.c'
+      - 'runtime/display.c'
+      - 'runtime/widescreen.c'
+      - 'runtime/widescreen.h'
+      - 'runtime/gfx_mod.c'
+      - 'ps5/compile_png_objects.sh'
+      - '.github/workflows/ps5-fullpng-compile.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LLVM and source dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-18 lld-18 unzip curl ninja-build
+      - name: Fetch reproducible PS5 SDK v0.45
+        run: |
+          set -eu
+          cd "$RUNNER_TEMP"
+          curl -fL --retry 3 --output ps5-payload-sdk.zip \
+            https://github.com/ps5-payload-dev/sdk/releases/download/v0.45/ps5-payload-sdk.zip
+          echo '5fac64093d0e3e69f2584ce7935f24f703f622d9681f1495c85b9f00d1291a2c  ps5-payload-sdk.zip' | sha256sum -c -
+          unzip -q ps5-payload-sdk.zip
+          test -x "$RUNNER_TEMP/ps5-payload-sdk/bin/prospero-clang"
+      - name: Fetch pinned PS5 SDL3 checkout and apply CTPS5 patch
+        run: |
+          git clone --no-checkout https://github.com/OpenAGC/SDL3.git "$RUNNER_TEMP/SDL3"
+          git -C "$RUNNER_TEMP/SDL3" checkout 37ff89ab9233e49a39b362b2023cab64520d9cca
+          git -C "$RUNNER_TEMP/SDL3" apply "$GITHUB_WORKSPACE/ps5/sdl3-static.patch"
+      - name: PS5 target compilation of changed renderer modules (ROM-free)
+        env:
+          PS5_PAYLOAD_SDK: ${{ runner.temp }}/ps5-payload-sdk
+          SDL3_SOURCE: ${{ runner.temp }}/SDL3
+        run: sh ps5/compile_png_objects.sh
+      - name: Upload cross-compile results (no ROM or game assets)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ps5-fullpng-objects
+          path: build-ps5-fullpng/*.o
+          if-no-files-found: error

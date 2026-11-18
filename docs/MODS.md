@@ -9,6 +9,9 @@ Persistent data lives in `/data/eggoftime/`. Keep this directory when updating t
 | `controls.ini` | Input mappings |
 | `mods/graphics/` | Flat graphics replacement pack |
 | `mods/packs/<pack-id>/graphics/` | Named modular graphics pack |
+| `mods/graphics/rooms/` | Optional world-space full-PNG room backgrounds (experimental) |
+
+Full-image room backgrounds use `0x<location>_bg<layer>_x<scale>.png`. See [Full-PNG rooms](FULLPNG.md) for the format, limitations and safe testing procedure.
 
 See the annotated templates in `ps5/ps5.ini` and the texture-pack template shipped with the source. The included installer validates the pack manifest and paths:
 

@@ -21,6 +21,16 @@ jobs:
           python3 ps5/test_diagnostics.py
           python3 ps5/test_memory.py
           python3 ps5/test_presentation.py
+      - name: Cached-source ROM-free rebuild guard tests
+        run: python3 tests/test_rebuild_cached.py
+      - name: Full-PNG native package staging tests (no ROM)
+        run: python3 tests/test_fullpng_staging.py
+      - name: Full-canvas PNG module unit tests (mock SDL3, no ROM)
+        run: sh tests/fullpng/run.sh
+      - name: Validate PNG pack preflight tests (ROM-free)
+        run: python3 -m unittest discover -s tests/fullpng -p 'test_validate_pack.py' -v
+      - name: End-to-end ROM-free PNG pack installation and validation
+        run: python3 -m unittest discover -s tests/fullpng -p 'test_install_probe.py' -v
       - name: Check pinned downstream SDL display code
         run: |
           git clone --no-checkout https://github.com/OpenAGC/SDL3.git "$RUNNER_TEMP/SDL3"
@@ -31,3 +41,11 @@ jobs:
           python3 ps5/test_prompts.py --sdl-source "$RUNNER_TEMP/SDL3"
           python3 ps5/test_settings_migration.py --sdl-source "$RUNNER_TEMP/SDL3"
           python3 ps5/test_game_prompts.py --sdl-source "$RUNNER_TEMP/SDL3"
+      - name: Compile PNG renderer integration with the real patched SDL3 headers (no ROM)
+        run: |
+          set -eu
+          for source in runtime/fullpng.c runtime/video.c runtime/display.c runtime/gfx_mod.c; do
+            echo "Compiling $source against pinned SDL3 headers"
+            cc -std=c11 -fsyntax-only -Werror=implicit-function-declaration -Werror=incompatible-pointer-types \
+              -Iruntime -I"$RUNNER_TEMP/SDL3/include" "$source"
+          done

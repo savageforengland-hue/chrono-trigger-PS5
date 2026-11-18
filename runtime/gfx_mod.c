@@ -28,6 +28,7 @@
 #include <SDL3/SDL.h>
 
 #include "gfx_mod.h"
+#include "fullpng.h"
 #include "gfx_rom.h"
 #include "rt.h"
 
@@ -572,6 +573,9 @@ void gfxmod_load(void) {
 #else
     snprintf(root, sizeof root, "%smods/graphics/", rt_data_dir());
 #endif
+    /* Load immutable world-space PNGs before tile replacements. These use no tile hashes. */
+    fullpng_load(root);
+    hd_scale = SDL_max(hd_scale, fullpng_max_scale());
     List list = {0};
     static const char *const kinds[] = {"sheets", "frames", "screens", "fonts"};
     for (size_t k = 0; k < SDL_arraysize(kinds); k++) {
