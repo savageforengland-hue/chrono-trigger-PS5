@@ -21,6 +21,8 @@ jobs:
           python3 ps5/test_diagnostics.py
           python3 ps5/test_memory.py
           python3 ps5/test_presentation.py
+      - name: Cached-source ROM-free rebuild guard tests
+        run: python3 tests/test_rebuild_cached.py
       - name: Full-PNG native package staging tests (no ROM)
         run: python3 tests/test_fullpng_staging.py
       - name: Full-canvas PNG module unit tests (mock SDL3, no ROM)
