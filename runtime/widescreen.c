@@ -970,6 +970,32 @@ void ws_bg_shift(int bg, int *x, int *y) {
     *x = bg_shift(bg, 0, view_x), *y = bg_shift(bg, 1, view_y);
 }
 
+/* The background ring's HOFS/VOFS are offsets in a 64x32 tile cache.
+ * Reconstruct the map/world location of the first screen pixel from the
+ * field's per-layer camera tile, cache origin and fine scroll. This is
+ * deliberately independent of the camera read one frame ahead for OAM.
+ * BG2 holds the main map (L0), BG3 L1, BG0 L2; BG1 contains priority tiles.
+ */
+int ws_png_bg_origin(int bg, int *x, int *y) {
+    if (!x || !y || bg < 0 || bg > 3 || !ss_in_field()) return 0;
+    uint32_t scroll = rt_r32(SCROLL);
+    if (!ram_ptr(scroll)) return 0;
+    static const int layer_of_bg[4] = {2, 0, 0, 1};
+    int L = layer_of_bg[bg];
+    int camc = layer_col(scroll, L), camr = layer_row(scroll, L);
+    int oc = rt_r8(scroll + 0x8e + 2 * L);
+    int orow = rt_r8(scroll + 0x8f + 2 * L);
+    unsigned hofs = io_get16(0x10 + 4 * bg) & 0x1ffu;
+    unsigned vofs = io_get16(0x12 + 4 * bg) & 0x1ffu;
+    int dc = ((int)(hofs >> 3) - oc) & 63;
+    int dr = ((int)(vofs >> 3) - orow) & 31;
+    if (dc >= 32) dc -= 64; /* shortest ring-relative displacement */
+    if (dr >= 16) dr -= 32;
+    *x = (camc + dc) * 8 + (int)(hofs & 7u);
+    *y = (camr + dr) * 8 + (int)(vofs & 7u);
+    return 1;
+}
+
 static void fill_field_margins(int margin, int rows, int shown_rows) {
     int seen = repeat_bgs;
     repeat_bgs = picture_bgs = view_bgs = 0;
