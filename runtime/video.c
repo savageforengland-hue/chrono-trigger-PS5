@@ -1420,6 +1420,11 @@ static void engine_frame_start(Engine *e) {
              * ws_png_bg_origin also handles independently drifting layers. */
             if (ss_in_field()) {
                 int location = rt_r16(GAME_ADDR(0x020720a0u, 0x020720c0u));
+                static int previous_png_scene = -1;
+                if (location != previous_png_scene) {
+                    rt_log("fullpng: scene 0x%03x, camera (%d,%d)", location, rx, ry);
+                    previous_png_scene = location;
+                }
                 for (int bg = 0; bg < 4; ++bg) {
                     if (ws_png_bg_origin(bg, &e->fullpng_cam_x[bg], &e->fullpng_cam_y[bg]))
                         e->fullpng_id[bg] = fullpng_find(location, bg);
