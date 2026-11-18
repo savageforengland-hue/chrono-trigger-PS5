@@ -7,3 +7,7 @@ trap 'rm -rf "$tmp"' EXIT HUP INT TERM
     -Itests/fullpng/stub -Iruntime \
     runtime/fullpng.c tests/fullpng/test_fullpng.c -o "$tmp/test_fullpng"
 "$tmp/test_fullpng"
+
+"${CC:-cc}" -std=c11 -Wall -Wextra -Werror -O1 \
+    -Iruntime tests/fullpng/test_coords.c -o "$tmp/test_coords"
+"$tmp/test_coords"
