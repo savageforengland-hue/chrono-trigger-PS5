@@ -132,7 +132,7 @@ typedef struct Engine {
     int repeat_256; /* 256-wide text BGs repeat into the margins (the race's sky, single_screen.c) */
     int view_x, view_y, view_bgs; /* the view's shift from the camera at the room's ends, the BGs it moves (ws_view_shift) */
     int bg_dx[4], bg_dy[4];       /* each of those BGs' share of it (ws_bg_shift) */
-    int fullpng_id[4], fullpng_cam_x, fullpng_cam_y; /* room/world PNG for each BG */
+    int fullpng_id[4], fullpng_cam_x[4], fullpng_cam_y[4]; /* per-BG world PNG scroll */
     int obj_dx, obj_dy;           /* the world's sprites are that much off it (ws_sprite_lag) */
     int room_clip, room_x0, room_x1; /* Fill screen sides off: black beyond the room's columns room_x0..x1-1 */
     int repeat_bgs; /* BGs whose screen columns repeat into the margins, the others empty beyond the room
@@ -365,7 +365,7 @@ static void bg_text_cols(const Engine *e, int bg, int y, uint32_t dispcnt, uint1
             hd->pal[x + m] = (uint8_t)((bpp8 ? 0 : pal) | e->id << 4);
         }
         if (png_id) {
-            uint32_t source = fullpng_source(png_id, e->fullpng_cam_x + x, e->fullpng_cam_y + y);
+            uint32_t source = fullpng_source(png_id, e->fullpng_cam_x[bg] + x, e->fullpng_cam_y[bg] + y);
             uint32_t rgba = source ? fullpng_native_color(source) : 0;
             if ((rgba >> 24) >= 128u) {
                 /* Populate BG coverage even when its legacy tile was empty.
@@ -1370,7 +1370,8 @@ static void engine_frame_start(Engine *e) {
         e->view_x = e->view_y = e->view_bgs = e->obj_dx = e->obj_dy = 0;
         SDL_memset(e->bg_dx, 0, sizeof e->bg_dx), SDL_memset(e->bg_dy, 0, sizeof e->bg_dy);
         SDL_memset(e->fullpng_id, 0, sizeof e->fullpng_id);
-        e->fullpng_cam_x = e->fullpng_cam_y = 0;
+        SDL_memset(e->fullpng_cam_x, 0, sizeof e->fullpng_cam_x);
+        SDL_memset(e->fullpng_cam_y, 0, sizeof e->fullpng_cam_y);
         e->box_top = SCREEN_H;
         e->track_top = e->id == a_top && SDL_GetAtomicInt(&track_bottom);
         e->panel_ui = e->track_top && panel_has_ui(e);
@@ -1414,14 +1415,15 @@ static void engine_frame_start(Engine *e) {
             e->room_clip = e->margin && (!SDL_GetAtomicInt(&fill_sides) || e->repeat_bgs) &&
                            ws_room_span(&e->room_x0, &e->room_x1);
             int rx = 0, ry = 0, rk = ws_camera(&rx, &ry); /* camera motion into this frame (camera smoothing) */
-            if (rk) {
-                /* The game address follows USA YQUE / alternate release mapping,
-                 * as used in widescreen.c. Scene selection happens once per frame. */
+            /* The PNG is indexed by the room's actual BG scroll, not by the
+             * OAM/camera read, which can lead the visible BGs by one frame.
+             * ws_png_bg_origin also handles independently drifting layers. */
+            if (ss_in_field()) {
                 int location = rt_r16(GAME_ADDR(0x020720a0u, 0x020720c0u));
-                e->fullpng_cam_x = rx + e->view_x;
-                e->fullpng_cam_y = ry + e->view_y;
-                for (int bg = 0; bg < 4; ++bg)
-                    e->fullpng_id[bg] = fullpng_find(location, bg);
+                for (int bg = 0; bg < 4; ++bg) {
+                    if (ws_png_bg_origin(bg, &e->fullpng_cam_x[bg], &e->fullpng_cam_y[bg]))
+                        e->fullpng_id[bg] = fullpng_find(location, bg);
+                }
             }
             int cx = read_x, cy = read_y, known = read_known;
             read_known = rk, read_x = rx, read_y = ry;
