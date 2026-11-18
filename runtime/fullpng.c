@@ -70,10 +70,15 @@ const FullPng *fullpng_surface(unsigned id) {
 }
 uint32_t fullpng_source(unsigned id, int x, int y) {
     const FullPng *p = fullpng_surface(id);
-    if (!p || x < 0 || y < 0 || x >= p->w || y >= p->h ||
-        x > (int)FULLPNG_XY_MASK || y > (int)FULLPNG_XY_MASK)
+    if (!p) return 0;
+    /* Transform from game-world coordinates to the PNG's own origin.
+     * This keeps camera scrolling separate from artist asset alignment. */
+    int64_t local_x = (int64_t)x - p->origin_x;
+    int64_t local_y = (int64_t)y - p->origin_y;
+    if (local_x < 0 || local_y < 0 || local_x >= p->w || local_y >= p->h ||
+        local_x > FULLPNG_XY_MASK || local_y > FULLPNG_XY_MASK)
         return 0;
-    return FULLPNG_FLAG | (id << 24) | ((uint32_t)x << 12) | (uint32_t)y;
+    return FULLPNG_FLAG | (id << 24) | ((uint32_t)local_x << 12) | (uint32_t)local_y;
 }
 uint32_t fullpng_sample(uint32_t source, int sx, int sy, int k) {
     if (!fullpng_is_source(source) || k <= 0 || sx < 0 || sy < 0 || sx >= k || sy >= k) return 0;
@@ -90,6 +95,41 @@ uint32_t fullpng_sample(uint32_t source, int sx, int sy, int k) {
 uint32_t fullpng_native_color(uint32_t source) {
     const FullPng *p = fullpng_surface(fullpng_id(source));
     return p ? fullpng_sample(source, p->scale / 2, p->scale / 2, p->scale) : 0;
+}
+
+/* Sidecar: same basename as the PNG, ending .cfg.
+ * Supported keys: origin_x and origin_y, in native game pixels.
+ * Malformed sidecars use (0,0). A valid sidecar does not modify any ROM data. */
+static void read_origin(const char *png_path, int *x, int *y) {
+    char path[1024];
+    size_t n = strlen(png_path);
+    if (n < 4 || n + 1 >= sizeof path) return;
+    memcpy(path, png_path, n - 4);
+    memcpy(path + n - 4, ".cfg", 5);
+    size_t bytes = 0;
+    char *data = SDL_LoadFile(path, &bytes);
+    if (!data) return;
+    if (bytes > 4096) { SDL_free(data); return; }
+    char *line = data;
+    while (*line) {
+        char *end = strchr(line, '\n');
+        if (end) *end++ = '\0';
+        char *key = line;
+        while (*key == ' ' || *key == '\t') key++;
+        int *target = NULL;
+        if (!strncmp(key, "origin_x=", 9)) { target = x; key += 9; }
+        else if (!strncmp(key, "origin_y=", 9)) { target = y; key += 9; }
+        if (target) {
+            char *tail = NULL;
+            long value = strtol(key, &tail, 10);
+            if (tail != key && (*tail == '\0' || *tail == '\r') &&
+                value >= -4096 && value <= 4096)
+                *target = (int)value;
+        }
+        if (!end) break;
+        line = end;
+    }
+    SDL_free(data);
 }
 
 void fullpng_load(const char *graphics_root) {
@@ -139,8 +179,11 @@ void fullpng_load(const char *graphics_root) {
                        (const uint8_t *)converted->pixels + (size_t)y * (size_t)converted->pitch,
                        (size_t)converted->w * 4u);
             FullPng *dst = &images[++image_count];
+            int origin_x = 0, origin_y = 0;
+            read_origin(candidate->path, &origin_x, &origin_y);
             *dst = (FullPng){candidate->location, candidate->bg, scale,
-                             converted->w / scale, converted->h / scale, pixels};
+                             converted->w / scale, converted->h / scale,
+                             origin_x, origin_y, pixels};
             used_bytes += bytes;
             if (scale > largest_scale) largest_scale = scale;
             rt_log("fullpng: location 0x%x BG%d canvas %dx%d at x%d: %s",
